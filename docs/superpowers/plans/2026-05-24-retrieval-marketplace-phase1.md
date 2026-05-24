@@ -1104,4 +1104,3 @@ git commit -m "chore: final validation fixes for phase 1 marketplace" || echo "n
   name (T11); confirm `claude plugin validate --strict` tolerates stubs whose
   only skill is a placeholder (T9–T10).
 ```
-
