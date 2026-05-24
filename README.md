@@ -67,7 +67,7 @@ modality fits — and they **compose**.
 ollama pull nomic-embed-text                 # once
 rag index /path/to/vault --name notes        # build/update (incremental)
 rag query "open questions about billing" --name notes --k 8
-rag status --name notes                       # counts, model, dim, staleness
+rag status --name notes                       # counts, model, dim
 ```
 
 **Hybrid retrieval (the payoff) — narrow with the graph/lexical, rerank with vectors:**
@@ -76,7 +76,8 @@ rag status --name notes                       # counts, model, dim, staleness
 # Obsidian graph → semantic rerank (official CLI)
 obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
 
-# rg fallback when Obsidian isn't running
+# rg fallback when Obsidian isn't running ($VAULT defaults to the plugin's configured vault_path)
+VAULT="${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}"
 rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
 ```
 

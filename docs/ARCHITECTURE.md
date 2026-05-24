@@ -29,7 +29,7 @@ RAG surfaces regions → `rg` pins exact lines.
 | `retrieval-core` | shipped  | Routing agent + decision-flow skill (the spine)            |
 | `code-search`    | shipped  | Lexical/structural/data/history/rewrite/metrics/doc search |
 | `local-rag`      | shipped  | Local semantic RAG: `bin/rag` CLI (turbovec + ollama)      |
-| `obsidian`       | shipped  | Skill-only RAG bridge: vault graph/tags → `rag --allowlist` |
+| `obsidian`       | shipped  | Skill-only RAG bridge: vault graph/tags → `rag query --allowlist` |
 
 `code-search` declares `dependencies: ["retrieval-core"]`. `local-rag` and
 `obsidian` pair: the obsidian bridge produces candidate note paths that feed
