@@ -17,7 +17,7 @@ notes via the graph/tags, then rerank semantically with `rag`.**
 ## 1. Get candidate notes
 
 **Preferred — official `obsidian` CLI** (requires Obsidian running; see
-`obsidian help` and https://help.obsidian.md/cli):
+`obsidian help` and <https://help.obsidian.md/cli>):
 
 ```bash
 obsidian backlinks file="Project X"      # notes linking to a note

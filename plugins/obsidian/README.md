@@ -9,7 +9,7 @@ skill.
 
 ## How it works
 
-```
+```text
 obsidian backlinks / rg tag search
           │
           ▼  candidate note paths
@@ -35,7 +35,7 @@ obsidian backlinks / rg tag search
 
 - **Official `obsidian` CLI** (optional, recommended) — ships with Obsidian
   desktop. Enables graph-aware backlink and full-text queries. See
-  https://help.obsidian.md/cli and `obsidian help`.
+  <https://help.obsidian.md/cli> and `obsidian help`.
 
 - **`rg` / `fd`** (fallback) — used when Obsidian is not running or the CLI is
   unavailable. Operates on files directly; won't resolve wikilink aliases or
