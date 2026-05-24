@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Resolve the persistent venv created by scripts/bootstrap.sh.
+DATA="${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/local-rag}"
+VENV_PY="$DATA/venv/bin/python"
+if [[ ! -x "$VENV_PY" ]]; then
+  echo "local-rag venv missing. Run the plugin bootstrap (restart session) or:" >&2
+  echo "  bash \"$(dirname "$0")/../scripts/bootstrap.sh\"" >&2
+  exit 1
+fi
+exec "$VENV_PY" -m local_rag "$@"
