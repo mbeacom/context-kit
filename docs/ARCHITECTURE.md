@@ -26,7 +26,7 @@ RAG surfaces regions → `rg` pins exact lines.
 
 | Plugin           | Status   | Purpose                                                    |
 | ---------------- | -------- | ---------------------------------------------------------- |
-| `retrieval-core` | shipped  | Routing agent + decision-flow skill (the spine)           |
+| `retrieval-core` | shipped  | Routing agent + decision-flow skill (the spine)            |
 | `code-search`    | shipped  | Lexical/structural/data/history/rewrite/metrics/doc search |
 | `local-rag`      | planned  | turbovec + ollama local RAG (own spec)                     |
 | `obsidian`       | planned  | Vault conventions + link-graph retrieval (own spec)        |
