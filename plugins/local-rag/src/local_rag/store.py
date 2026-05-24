@@ -13,6 +13,7 @@ class MetaStore:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.db = sqlite3.connect(str(self.path))
         self.db.row_factory = sqlite3.Row
+        self.db.execute("PRAGMA foreign_keys = ON")
 
     def init_schema(self) -> None:
         self.db.executescript(
@@ -75,11 +76,14 @@ class MetaStore:
     def chunk_ids_for_paths(self, paths: list[str]) -> list[int]:
         if not paths:
             return []
-        qs = ",".join("?" * len(paths))
-        rows = self.db.execute(
-            f"SELECT id FROM chunks WHERE path IN ({qs}) ORDER BY id", paths
-        ).fetchall()
-        return [r["id"] for r in rows]
+        ids: list[int] = []
+        batch_size = 900
+        for i in range(0, len(paths), batch_size):
+            batch = paths[i : i + batch_size]
+            qs = ",".join("?" * len(batch))
+            rows = self.db.execute(f"SELECT id FROM chunks WHERE path IN ({qs})", batch).fetchall()
+            ids.extend(r["id"] for r in rows)
+        return sorted(ids)
 
     def get_chunk(self, chunk_id: int) -> dict:
         r = self.db.execute("SELECT * FROM chunks WHERE id=?", (chunk_id,)).fetchone()

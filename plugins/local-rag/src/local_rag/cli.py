@@ -34,7 +34,11 @@ def _read_allowlist(value) -> list[str] | None:
         return None
     if value == "-":
         return [ln.strip() for ln in sys.stdin if ln.strip()]
-    return [ln.strip() for ln in Path(value).read_text().splitlines() if ln.strip()]
+    return [ln.strip() for ln in Path(value).read_text(encoding="utf-8").splitlines() if ln.strip()]
+
+
+def _index_exists(data: Path, name: str) -> bool:
+    return (data / "indexes" / name / "meta.sqlite").exists()
 
 
 def main(argv=None) -> int:
@@ -78,6 +82,8 @@ def main(argv=None) -> int:
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
+        finally:
+            eng.embedder.close()
         print(
             f"indexed={res['indexed']} skipped={res['skipped']} "
             f"files={res['files']} chunks={res['chunks']}"
@@ -85,23 +91,43 @@ def main(argv=None) -> int:
         return 0
 
     if args.cmd == "status":
-        eng = Engine(_name_for(args), data, _make_embedder(args))
-        print(json.dumps(eng.store.stats()))
+        name = _name_for(args)
+        if not _index_exists(data, name):
+            print(
+                f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first.",
+                file=sys.stderr,
+            )
+            return 1
+        eng = Engine(name, data, _make_embedder(args))
+        try:
+            print(json.dumps(eng.store.stats()))
+        finally:
+            eng.embedder.close()
         return 0
 
     if args.cmd == "query":
-        eng = Engine(_name_for(args), data, _make_embedder(args))
+        name = _name_for(args)
+        if not _index_exists(data, name):
+            print(
+                f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first.",
+                file=sys.stderr,
+            )
+            return 1
+        eng = Engine(name, data, _make_embedder(args))
         try:
             hits = eng.query(args.text, k=args.k, allowlist_paths=_read_allowlist(args.allowlist))
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
+        finally:
+            eng.embedder.close()
         if args.json:
             print(json.dumps(hits))
         else:
             for h in hits:
                 loc = f"{h['path']}" + (f" > {h['heading']}" if h["heading"] else "")
-                print(f"[{h['score']:.3f}] {loc}\n    {h['snippet']}")
+                snippet = h["snippet"].replace("\n", " ")
+                print(f"[{h['score']:.3f}] {loc}\n    {snippet}")
         return 0
     return 2
 

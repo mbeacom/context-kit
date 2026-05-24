@@ -45,3 +45,12 @@ class OllamaEmbedder:
         if self._dim is None:
             self._dim = len(self._embed_one("dimension probe"))
         return self._dim
+
+    def close(self) -> None:
+        self._client.close()
+
+    def __enter__(self) -> "OllamaEmbedder":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()

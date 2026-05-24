@@ -45,6 +45,18 @@ def test_delete_and_stats(tmp_path):
     assert s.stats()["files"] == 1 and s.stats()["chunks"] == 1
 
 
+def test_chunk_ids_for_paths_handles_many_paths(tmp_path):
+    s = MetaStore(tmp_path / "meta.sqlite")
+    s.init_schema()
+    # 1500 files (exceeds SQLite's 999-param limit) each with one chunk
+    for i in range(1500):
+        s.upsert_file(f"f{i}.md", "h", [_chunk(f"f{i}.md", "x")])
+    paths = [f"f{i}.md" for i in range(1500)]
+    ids = s.chunk_ids_for_paths(paths)
+    assert len(ids) == 1500
+    assert ids == sorted(ids)
+
+
 def test_meta_kv(tmp_path):
     s = MetaStore(tmp_path / "meta.sqlite")
     s.init_schema()

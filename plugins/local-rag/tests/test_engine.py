@@ -20,6 +20,9 @@ class StubEmbedder:
     def embed(self, texts):
         return [self._vec(t) for t in texts]
 
+    def close(self):
+        pass
+
 
 def _vault(tmp_path):
     (tmp_path / "apple.md").write_text("# Apple\n\nApples and oranges. #fruit\n")
@@ -71,6 +74,23 @@ def test_allowlist_normalizes_absolute_and_prefixed_paths(tmp_path):
     # bogus path resolves to nothing (empty allowlist → no hits)
     hits3 = eng.query("engine", k=5, allowlist_paths=["/nope/missing.md"])
     assert hits3 == []
+
+
+def test_reindex_changed_file_updates_results(tmp_path):
+    vault = tmp_path / "v"
+    vault.mkdir()
+    data = tmp_path / "data"
+    f = vault / "note.md"
+    f.write_text("# Note\n\napple apple apple\n")
+    eng = Engine(name="t", data_dir=data, embedder=StubEmbedder())
+    eng.index(vault)
+    f.write_text("# Note\n\nzebra zebra zebra\n")
+    res = eng.index(vault)
+    assert res["indexed"] == 1
+    assert res.get("remove_failures", 0) == 0
+    hits = eng.query("zebra zoo", k=3)
+    assert hits and hits[0]["path"] == "note.md"
+    assert "zebra" in hits[0]["snippet"]
 
 
 def test_dim_mismatch_refused(tmp_path):

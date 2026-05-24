@@ -47,7 +47,7 @@ class Engine:
         dim = self._dim()
         idx = self._load_index(dim)
         root = Path(root)
-        indexed = skipped = 0
+        indexed = skipped = remove_failures = 0
         seen: set[str] = set()
         for fp in iter_corpus(root, include, exclude):
             rel = fp.relative_to(root).as_posix()
@@ -61,7 +61,7 @@ class Engine:
                 try:
                     idx.remove(cid)
                 except Exception:
-                    pass
+                    remove_failures += 1
             chunks = load_markdown(raw, rel)
             if not chunks:
                 self.store.upsert_file(rel, h, [])
@@ -75,7 +75,7 @@ class Engine:
                 try:
                     idx.remove(cid)
                 except Exception:
-                    pass
+                    remove_failures += 1
             self.store.delete_file(gone)
         self.store.set_meta("root", str(Path(root).resolve()))
         idx.save()
@@ -85,6 +85,7 @@ class Engine:
             "skipped": skipped,
             "chunks": st["chunks"],
             "files": st["files"],
+            "remove_failures": remove_failures,
         }
 
     def _normalize_allowlist(self, paths: list[str]) -> list[str]:

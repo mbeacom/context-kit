@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -99,18 +100,37 @@ def load_markdown(
     return chunks
 
 
+_PRUNE_DIRS = {
+    ".git",
+    ".obsidian",
+    "node_modules",
+    ".venv",
+    "__pycache__",
+    ".trash",
+    ".obsidian.vimrc",
+}
+
+
 def iter_corpus(
     root, include: list[str] | None = None, exclude: list[str] | None = None
 ) -> Iterator[Path]:
     root = Path(root)
     include = include or ["*.md", "*.markdown"]
     exclude = exclude or []
-    for p in sorted(root.rglob("*")):
-        if not p.is_file():
-            continue
-        rel = p.relative_to(root).as_posix()
-        if not any(p.match(g) for g in include):
-            continue
-        if any(Path(rel).match(g) or g in rel for g in exclude):
-            continue
-        yield p
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        # prune heavy/config dirs and symlinked dirs in place
+        dirnames[:] = [
+            d
+            for d in dirnames
+            if d not in _PRUNE_DIRS and not os.path.islink(os.path.join(dirpath, d))
+        ]
+        for fn in sorted(filenames):
+            p = Path(dirpath) / fn
+            if p.is_symlink():
+                continue
+            rel = p.relative_to(root).as_posix()
+            if not any(p.match(g) for g in include):
+                continue
+            if any(Path(rel).match(g) for g in exclude):
+                continue
+            yield p
