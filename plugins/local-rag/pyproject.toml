@@ -23,3 +23,7 @@ packages = ["src/local_rag"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
