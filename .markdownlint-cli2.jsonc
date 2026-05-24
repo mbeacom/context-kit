@@ -7,5 +7,5 @@
     "MD060": false
   },
   "globs": ["**/*.md"],
-  "ignores": ["**/node_modules/**", ".git/**", "docs/superpowers/**"]
+  "ignores": ["**/node_modules/**", ".git/**"]
 }

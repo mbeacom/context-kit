@@ -221,3 +221,6 @@ __marimo__/
 .claude/
 *.tq
 *.tvim
+
+# Internal dev process artifacts (brainstorm specs / implementation plans) — kept local, not published
+docs/superpowers/

@@ -9,8 +9,7 @@ It is a catalog of plugins, organized around **retrieval modalities** —
 complementary ways an agent finds information (lexical, structural,
 structured-data, history, semantic/RAG, graph), selected by what's known about
 the query and corpus, and composed together. See `docs/ARCHITECTURE.md` for the
-modality model and `docs/superpowers/specs/` + `docs/superpowers/plans/` for
-design history.
+modality model.
 
 ## Layout
 
@@ -60,9 +59,8 @@ every plugin plus `pre-commit` on push/PR.
 - **Skill granularity:** prefer few well-scoped skills with `references/` for
   detail over many fine-grained skills (always-on token cost scales with skill
   count). `code-search` uses two skills split by corpus (code vs data/docs).
-- **Markdown:** `.markdownlint-cli2.jsonc` disables MD013/MD033/MD041/MD060 and
-  ignores `docs/superpowers/**`. Fix real lint findings rather than disabling
-  more rules.
+- **Markdown:** `.markdownlint-cli2.jsonc` disables MD013/MD033/MD041/MD060.
+  Fix real lint findings rather than disabling more rules.
 
 ## Environment note
 

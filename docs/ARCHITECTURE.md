@@ -37,5 +37,3 @@ RAG surfaces regions → `rg` pins exact lines.
 - `plugins/<name>/.claude-plugin/plugin.json` — per-plugin manifest.
 - `plugins/<name>/skills/<name>/SKILL.md` — skills (with `references/` for detail).
 - `plugins/<name>/agents/<name>.md` — subagents.
-
-See `docs/superpowers/specs/` for the design history.
