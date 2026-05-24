@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "retrieval-core",
   "displayName": "Retrieval Core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A retrieval-strategist agent and decision-flow skill that pick and compose search modalities (lexical, structural, semantic/RAG, graph).",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/productivity-skills",
