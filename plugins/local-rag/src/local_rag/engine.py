@@ -79,7 +79,12 @@ class Engine:
             self.store.delete_file(gone)
         idx.save()
         st = self.store.stats()
-        return {"indexed": indexed, "skipped": skipped, "chunks": st["chunks"], "files": st["files"]}
+        return {
+            "indexed": indexed,
+            "skipped": skipped,
+            "chunks": st["chunks"],
+            "files": st["files"],
+        }
 
     def query(self, text: str, k: int = 10, allowlist_paths=None) -> list[dict]:
         dim = int(self.store.get_meta("dim") or self.embedder.dim())
@@ -93,6 +98,12 @@ class Engine:
                 ch = self.store.get_chunk(cid)
             except KeyError:
                 continue
-            out.append({"path": ch["path"], "heading": ch["heading"],
-                        "score": score, "snippet": ch["text"][:240]})
+            out.append(
+                {
+                    "path": ch["path"],
+                    "heading": ch["heading"],
+                    "score": score,
+                    "snippet": ch["text"][:240],
+                }
+            )
         return out

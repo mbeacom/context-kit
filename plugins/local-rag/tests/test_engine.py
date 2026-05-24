@@ -3,16 +3,22 @@ from local_rag.engine import Engine
 
 class StubEmbedder:
     """Deterministic embedding by letter histogram (no network)."""
+
     model = "stub"
     DIM = 64
-    def dim(self): return self.DIM
+
+    def dim(self):
+        return self.DIM
+
     def _vec(self, text):
         v = [0.0] * self.DIM
         for ch in text.lower():
             if ch.isalpha():
                 v[(ord(ch) - 97) % self.DIM] += 1.0
         return v
-    def embed(self, texts): return [self._vec(t) for t in texts]
+
+    def embed(self, texts):
+        return [self._vec(t) for t in texts]
 
 
 def _vault(tmp_path):
@@ -52,11 +58,13 @@ def test_allowlist_paths(tmp_path):
 
 def test_dim_mismatch_refused(tmp_path):
     import pytest
+
     vault = _vault(tmp_path)
     data = tmp_path / "data"
     Engine(name="t", data_dir=data, embedder=StubEmbedder()).index(vault)
 
     class Big(StubEmbedder):
         DIM = 128
+
     with pytest.raises(ValueError):
         Engine(name="t", data_dir=data, embedder=Big()).index(vault)

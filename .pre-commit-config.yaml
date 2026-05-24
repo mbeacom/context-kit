@@ -22,3 +22,11 @@ repos:
     rev: v0.11.0.1
     hooks:
       - id: shellcheck
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.6.9
+    hooks:
+      - id: ruff
+        files: '^plugins/local-rag/.*\.py$'
+      - id: ruff-format
+        files: '^plugins/local-rag/.*\.py$'

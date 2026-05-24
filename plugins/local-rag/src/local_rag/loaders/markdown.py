@@ -35,8 +35,11 @@ def _parse_frontmatter_tags(text: str) -> tuple[list[str], int]:
     else:
         block = re.search(r"^tags:\s*$((?:\n[ \t]*-\s*.+)+)", fm, re.MULTILINE)
         if block:
-            tags = [ln.strip()[1:].strip().strip("'\"")
-                    for ln in block.group(1).splitlines() if ln.strip().startswith("-")]
+            tags = [
+                ln.strip()[1:].strip().strip("'\"")
+                for ln in block.group(1).splitlines()
+                if ln.strip().startswith("-")
+            ]
         else:
             single = re.search(r"^tags:[^\S\n]*(\S.*)$", fm, re.MULTILINE)
             if single:
@@ -50,7 +53,9 @@ def _extract(text: str) -> tuple[list[str], list[str]]:
     return tags, links
 
 
-def load_markdown(text: str, path: str, *, max_chars: int = 1200, overlap: int = 150) -> list[Chunk]:
+def load_markdown(
+    text: str, path: str, *, max_chars: int = 1200, overlap: int = 150
+) -> list[Chunk]:
     fm_tags, body_off = _parse_frontmatter_tags(text)
 
     headings = list(_HEADING_RE.finditer(text, body_off))
@@ -71,28 +76,32 @@ def load_markdown(text: str, path: str, *, max_chars: int = 1200, overlap: int =
             continue
         pos = 0
         while pos < len(section):
-            piece = section[pos: pos + max_chars]
+            piece = section[pos : pos + max_chars]
             if not piece.strip():
                 break
             c_start = start + pos
             c_end = start + pos + len(piece)
             tags, links = _extract(piece)
-            chunks.append(Chunk(
-                text=piece.strip(),
-                path=path,
-                heading=heading,
-                start=c_start,
-                end=c_end,
-                tags=sorted(set(tags) | set(fm_tags)),
-                links=links,
-            ))
+            chunks.append(
+                Chunk(
+                    text=piece.strip(),
+                    path=path,
+                    heading=heading,
+                    start=c_start,
+                    end=c_end,
+                    tags=sorted(set(tags) | set(fm_tags)),
+                    links=links,
+                )
+            )
             if pos + max_chars >= len(section):
                 break
             pos += max_chars - overlap
     return chunks
 
 
-def iter_corpus(root, include: list[str] | None = None, exclude: list[str] | None = None) -> Iterator[Path]:
+def iter_corpus(
+    root, include: list[str] | None = None, exclude: list[str] | None = None
+) -> Iterator[Path]:
     root = Path(root)
     include = include or ["*.md", "*.markdown"]
     exclude = exclude or []

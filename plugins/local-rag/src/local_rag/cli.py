@@ -11,8 +11,9 @@ from .engine import Engine, slug
 
 
 def _data_dir() -> Path:
-    return Path(os.environ.get("CLAUDE_PLUGIN_DATA",
-                               Path.home() / ".claude/plugins/data/local-rag"))
+    return Path(
+        os.environ.get("CLAUDE_PLUGIN_DATA", Path.home() / ".claude/plugins/data/local-rag")
+    )
 
 
 def _make_embedder(args):
@@ -78,8 +79,10 @@ def main(argv=None) -> int:
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
-        print(f"indexed={res['indexed']} skipped={res['skipped']} "
-              f"files={res['files']} chunks={res['chunks']}")
+        print(
+            f"indexed={res['indexed']} skipped={res['skipped']} "
+            f"files={res['files']} chunks={res['chunks']}"
+        )
         return 0
 
     if args.cmd == "status":
@@ -98,7 +101,7 @@ def main(argv=None) -> int:
             print(json.dumps(hits))
         else:
             for h in hits:
-                loc = f"{h['path']}" + (f" > {h['heading']}" if h['heading'] else "")
+                loc = f"{h['path']}" + (f" > {h['heading']}" if h["heading"] else "")
                 print(f"[{h['score']:.3f}] {loc}\n    {h['snippet']}")
         return 0
     return 2

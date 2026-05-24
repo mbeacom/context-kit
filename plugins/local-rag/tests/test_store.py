@@ -3,8 +3,9 @@ from local_rag.store import MetaStore
 
 
 def _chunk(path, text, heading="H"):
-    return Chunk(text=text, path=path, heading=heading, start=0, end=len(text),
-                 tags=["t"], links=["L"])
+    return Chunk(
+        text=text, path=path, heading=heading, start=0, end=len(text), tags=["t"], links=["L"]
+    )
 
 
 def test_upsert_returns_ids_and_lookup(tmp_path):

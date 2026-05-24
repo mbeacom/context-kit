@@ -21,12 +21,14 @@ Body of A.
 Body of B with a [[Note|alias]] link.
 """
 
+
 def test_chunks_split_by_heading():
     chunks = load_markdown(DOC, "demo.md")
     headings = [c.heading for c in chunks]
     assert any("Top" in h for h in headings)
     assert any("Section A" in h for h in headings)
     assert any("Section B" in h for h in headings)
+
 
 def test_metadata_extracted():
     chunks = load_markdown(DOC, "demo.md")
@@ -37,11 +39,13 @@ def test_metadata_extracted():
     assert "Other Note" in all_links
     assert "Note" in all_links
 
+
 def test_offsets_are_within_source():
     chunks = load_markdown(DOC, "demo.md")
     for c in chunks:
         assert 0 <= c.start <= c.end <= len(DOC)
         assert c.path == "demo.md"
+
 
 def test_long_section_subsplits_with_overlap():
     big = "# H\n\n" + ("word " * 1000)

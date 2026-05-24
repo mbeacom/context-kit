@@ -12,6 +12,7 @@ class FakeResp:
     def raise_for_status(self):
         if self.status_code >= 400:
             import httpx
+
             raise httpx.HTTPStatusError("err", request=None, response=None)
 
 
@@ -42,6 +43,7 @@ def test_dim_probes_once(monkeypatch):
 
 def test_connection_error_is_actionable(monkeypatch):
     import httpx
+
     e = OllamaEmbedder(model="nomic-embed-text", host="http://h")
 
     def boom(url, json, timeout):

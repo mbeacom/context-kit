@@ -53,8 +53,15 @@ class MetaStore:
             cur.execute(
                 'INSERT INTO chunks(path, heading, start, "end", text, tags, links) '
                 "VALUES(?,?,?,?,?,?,?)",
-                (c.path, c.heading, c.start, c.end, c.text,
-                 json.dumps(c.tags), json.dumps(c.links)),
+                (
+                    c.path,
+                    c.heading,
+                    c.start,
+                    c.end,
+                    c.text,
+                    json.dumps(c.tags),
+                    json.dumps(c.links),
+                ),
             )
             ids.append(cur.lastrowid)
         self.db.commit()
@@ -79,9 +86,14 @@ class MetaStore:
         if not r:
             raise KeyError(chunk_id)
         return {
-            "id": r["id"], "path": r["path"], "heading": r["heading"],
-            "start": r["start"], "end": r["end"], "text": r["text"],
-            "tags": json.loads(r["tags"]), "links": json.loads(r["links"]),
+            "id": r["id"],
+            "path": r["path"],
+            "heading": r["heading"],
+            "start": r["start"],
+            "end": r["end"],
+            "text": r["text"],
+            "tags": json.loads(r["tags"]),
+            "links": json.loads(r["links"]),
         }
 
     def all_paths(self) -> list[str]:
@@ -90,13 +102,19 @@ class MetaStore:
     def stats(self) -> dict:
         files = self.db.execute("SELECT COUNT(*) c FROM files").fetchone()["c"]
         chunks = self.db.execute("SELECT COUNT(*) c FROM chunks").fetchone()["c"]
-        return {"files": files, "chunks": chunks,
-                "model": self.get_meta("model"), "dim": self.get_meta("dim")}
+        return {
+            "files": files,
+            "chunks": chunks,
+            "model": self.get_meta("model"),
+            "dim": self.get_meta("dim"),
+        }
 
     def set_meta(self, key: str, value: str) -> None:
         self.db.execute(
             "INSERT INTO meta(key,value) VALUES(?,?) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
         self.db.commit()
 
     def get_meta(self, key: str) -> str | None:
