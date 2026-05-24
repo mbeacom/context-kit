@@ -1,0 +1,23 @@
+{
+  "name": "productivity-skills",
+  "owner": {
+    "name": "Mark Beacom"
+  },
+  "metadata": {
+    "description": "Retrieval-focused Claude Code plugins: search modalities, a routing agent, and (soon) local RAG and Obsidian."
+  },
+  "plugins": [
+    {
+      "name": "retrieval-core",
+      "source": "./plugins/retrieval-core",
+      "category": "retrieval",
+      "tags": ["agent", "router", "search", "rag", "retrieval"]
+    },
+    {
+      "name": "code-search",
+      "source": "./plugins/code-search",
+      "category": "retrieval",
+      "tags": ["ripgrep", "ast-grep", "semgrep", "jq", "search", "code"]
+    }
+  ]
+}

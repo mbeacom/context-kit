@@ -1,0 +1,38 @@
+name: Validate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate marketplace manifest
+        run: claude plugin validate . --strict
+      - name: Validate plugins
+        run: |
+          for p in plugins/*/; do
+            if [ -f "$p/.claude-plugin/plugin.json" ]; then
+              echo "::group::validate $p"
+              claude plugin validate "$p" --strict
+              echo "::endgroup::"
+            fi
+          done
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run pre-commit
+        uses: pre-commit/action@v3.0.1

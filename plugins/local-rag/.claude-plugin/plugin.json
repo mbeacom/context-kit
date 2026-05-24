@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "local-rag",
+  "displayName": "Local RAG",
+  "version": "0.0.1",
+  "description": "PLANNED: fully-local semantic retrieval using turbovec (vector index) + ollama embeddings, with hybrid allowlist reranking. Not yet released.",
+  "author": { "name": "Mark Beacom" },
+  "homepage": "https://github.com/mbeacom/productivity-skills",
+  "repository": "https://github.com/mbeacom/productivity-skills",
+  "license": "MIT",
+  "keywords": ["rag", "vector-search", "turbovec", "ollama", "embeddings", "semantic"]
+}

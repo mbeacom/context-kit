@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "obsidian",
+  "displayName": "Obsidian",
+  "version": "0.0.1",
+  "description": "PLANNED: Obsidian vault conventions (wikilinks, frontmatter, tags, MOCs, daily notes, callouts) and link-graph retrieval that feeds RAG/search. Not yet released.",
+  "author": { "name": "Mark Beacom" },
+  "homepage": "https://github.com/mbeacom/productivity-skills",
+  "repository": "https://github.com/mbeacom/productivity-skills",
+  "license": "MIT",
+  "keywords": ["obsidian", "markdown", "wikilinks", "notes", "knowledge-base", "graph"]
+}
