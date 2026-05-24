@@ -1,4 +1,4 @@
-from local_rag.loaders.markdown import Chunk, load_markdown
+from local_rag.loaders.markdown import load_markdown
 
 DOC = """\
 ---
@@ -31,7 +31,7 @@ def test_chunks_split_by_heading():
 def test_metadata_extracted():
     chunks = load_markdown(DOC, "demo.md")
     all_tags = {t for c in chunks for t in c.tags}
-    all_links = {l for c in chunks for l in c.links}
+    all_links = {link for c in chunks for link in c.links}
     assert "project" in all_tags and "active" in all_tags
     assert "idea" in all_tags
     assert "Other Note" in all_links

@@ -38,7 +38,7 @@ def _parse_frontmatter_tags(text: str) -> tuple[list[str], int]:
             tags = [ln.strip()[1:].strip().strip("'\"")
                     for ln in block.group(1).splitlines() if ln.strip().startswith("-")]
         else:
-            single = re.search(r"^tags:\s*(\S.*)$", fm, re.MULTILINE)
+            single = re.search(r"^tags:[^\S\n]*(\S.*)$", fm, re.MULTILINE)
             if single:
                 tags = [single.group(1).strip().strip("'\"")]
     return tags, m.end()
@@ -46,7 +46,7 @@ def _parse_frontmatter_tags(text: str) -> tuple[list[str], int]:
 
 def _extract(text: str) -> tuple[list[str], list[str]]:
     tags = sorted({t for t in _TAG_RE.findall(text)})
-    links = sorted({l.strip() for l in _WIKILINK_RE.findall(text)})
+    links = sorted({link.strip() for link in _WIKILINK_RE.findall(text)})
     return tags, links
 
 
