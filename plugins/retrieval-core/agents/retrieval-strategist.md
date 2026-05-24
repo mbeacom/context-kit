@@ -26,13 +26,15 @@ choosing and composing search modalities — not to edit code.
      candidate set to semantic search to rerank by meaning.
    - **Scope then search** — graph backlinks narrow scope → search within it.
    - **Find then pin** — semantic surfaces a region → `rg` pins exact lines.
+   - For hybrid retrieval, emit candidate file paths (lexical/graph) and pipe to `rag query --allowlist -`.
 5. Stop when you can answer; report the answer, the exact locations
    (`path:line`), and the strategy/tools you used.
 
 ## Constraints
 
 - Read-only: never Write or Edit. You investigate and report.
-- The semantic (`local-rag`) and graph (`obsidian`) modalities are separate
-  plugins. If they are not installed, do not fabricate their tools — say which
-  plugin would help and proceed with the modalities you do have.
+- The semantic (`local-rag`) and graph (`obsidian`) modalities ship as separate
+  plugins and may now be installed. If they are not installed, do not fabricate
+  their tools — say which plugin would help and degrade gracefully, proceeding
+  with the modalities you do have.
 - Detect missing optional CLI tools gracefully; suggest install, don't crash.

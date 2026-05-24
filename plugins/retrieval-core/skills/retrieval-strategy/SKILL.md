@@ -21,17 +21,15 @@ Pick a modality by **what you know about the query × what you know about the co
 - Tabular data at scale (CSV/Parquet)? → **data files** (`duckdb`, `sqlite-utils`)
 - Sizing / complexity of a codebase? → **metrics** (`tokei`, `scc`)
 - Content inside PDFs / Office docs / archives? → **docs** (`rga`, `pandoc`)
-- Only know the *meaning/intent*, or corpus is huge / unfamiliar / prose? →
-  **semantic / RAG** (`local-rag`: turbovec + ollama)
-- Corpus is a human-authored link graph? → **graph** (`obsidian`)
+- Only know the *meaning/intent*, or corpus is huge / unfamiliar / prose? → **semantic / RAG** (`local-rag`: `rag index` then `rag query`)
+- Corpus is an Obsidian vault / link graph? → **graph** (`obsidian` bridge: graph/tags → `rag query --allowlist`). For authoring/Bases/Canvas use `kepano/obsidian-skills`.
 
 Lexical/structural/structured-data/history/metrics/docs live in **code-search**.
-Semantic and graph live in **local-rag** and **obsidian** (install separately).
+Semantic and graph are available as the **local-rag** and **obsidian** plugins.
 
 ## Composition (modalities are layers, not rivals)
 
-- **Hybrid rerank:** lexical or structured-data produces a candidate set →
-  semantic reranks it (turbovec search with an `allowlist` of candidate ids).
+- **Hybrid rerank:** narrow with lexical/structured-data or the obsidian graph → pipe candidate file paths to `rag query --allowlist -` (turbovec reranks only those).
 - **Scope then search:** graph backlinks narrow to a subgraph → RAG within it.
 - **Find then pin:** RAG surfaces candidate regions → `rg` pins exact lines.
 

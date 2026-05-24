@@ -2,11 +2,25 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "local-rag",
   "displayName": "Local RAG",
-  "version": "0.0.1",
-  "description": "PLANNED: fully-local semantic retrieval using turbovec (vector index) + ollama embeddings, with hybrid allowlist reranking. Not yet released.",
+  "version": "0.1.0",
+  "description": "Fully-local semantic search: a bin/rag CLI that chunks + embeds a corpus with ollama and indexes it with turbovec. Notes-first, corpus-agnostic via pluggable loaders.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/productivity-skills",
   "repository": "https://github.com/mbeacom/productivity-skills",
   "license": "MIT",
-  "keywords": ["rag", "vector-search", "turbovec", "ollama", "embeddings", "semantic"]
+  "keywords": ["rag", "vector-search", "turbovec", "ollama", "embeddings", "semantic"],
+  "userConfig": {
+    "embed_model": {
+      "type": "string",
+      "title": "Embedding model",
+      "description": "ollama model used to embed chunks and queries",
+      "default": "nomic-embed-text"
+    },
+    "ollama_host": {
+      "type": "string",
+      "title": "Ollama host",
+      "description": "Base URL of the ollama server",
+      "default": "http://localhost:11434"
+    }
+  }
 }
