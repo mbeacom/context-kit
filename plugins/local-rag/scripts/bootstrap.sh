@@ -13,7 +13,12 @@ if ! command -v uv >/dev/null 2>&1; then
   exit 1
 fi
 
-cur_sha="$(shasum -a 256 "$SRC_PROJECT" | awk '{print $1}')"
+# sha256sum on Linux, shasum on macOS — prefer whichever exists.
+if command -v sha256sum >/dev/null 2>&1; then
+  cur_sha="$(sha256sum "$SRC_PROJECT" | awk '{print $1}')"
+else
+  cur_sha="$(shasum -a 256 "$SRC_PROJECT" | awk '{print $1}')"
+fi
 old_sha="$(cat "$STAMP" 2>/dev/null || true)"
 if [[ ! -x "$VENV/bin/python" || "$cur_sha" != "$old_sha" ]]; then
   echo "local-rag: syncing venv ($VENV)..." >&2
