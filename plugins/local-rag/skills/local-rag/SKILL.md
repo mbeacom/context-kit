@@ -25,7 +25,7 @@ it with turbovec. Nothing leaves the machine.
 ```bash
 rag index /path/to/vault --name notes      # build/update the index (incremental)
 rag query "how did we handle retry backoff" --name notes --k 8
-rag status --name notes                     # counts, model, dim, staleness
+rag status --name notes                     # counts, model, dim
 rag list                                    # known indexes
 ```
 

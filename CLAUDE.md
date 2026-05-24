@@ -28,8 +28,13 @@ modality model.
 - `code-search` — lexical/structural/structured-data/history/rewrite/metrics/doc
   search (two skills: `code-search` and `data-and-docs-search`). Declares
   `dependencies: ["retrieval-core"]`, so installing it pulls the spine.
-- `local-rag`, `obsidian` — **planned stubs**. Valid plugins on disk but
-  deliberately *omitted from the catalog* until their own specs ship.
+- `local-rag` — fully-local semantic RAG. A `bin/rag` CLI (Python package under
+  `src/local_rag/`, run via a uv venv bootstrapped into `${CLAUDE_PLUGIN_DATA}` by
+  a `SessionStart` hook) that chunks → embeds via `ollama` → indexes with
+  `turbovec`. All turbovec usage is isolated to `src/local_rag/index.py`.
+- `obsidian` — a **skill-only** RAG bridge (no code/deps): vault graph/tags
+  (official `obsidian` CLI, or `rg` fallback) → `rag query --allowlist`. Authoring
+  / Bases / Canvas are out of scope (defer to `kepano/obsidian-skills`).
 
 ## Commands
 
@@ -39,9 +44,15 @@ modality model.
 - Lint everything (markdownlint + shellcheck + hygiene): `pre-commit run --all-files`
 - Report which search CLIs are installed: `bash plugins/code-search/scripts/check-tools.sh`
   (a non-zero exit listing `brew install …` for missing optional tools is expected, not a failure).
+- Run the `local-rag` Python tests: `cd plugins/local-rag && uv run --group dev pytest -q`
+  (uv resolves a dev venv; no live ollama needed — the embed client is mocked, turbovec is exercised for real).
+- Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`
+  (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
-every plugin plus `pre-commit` on push/PR.
+every plugin, `pre-commit`, and the `local-rag` pytest suite (the Linux runner
+preloads OpenBLAS so `turbovec` imports). `local-rag` Python sources are linted
+with `ruff` via pre-commit.
 
 ## Conventions when modifying this repo
 
