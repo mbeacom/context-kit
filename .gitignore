@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Claude Code plugin cache / local validation
+.claude/
+*.tq
+*.tvim
