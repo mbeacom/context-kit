@@ -56,6 +56,23 @@ def test_allowlist_paths(tmp_path):
     assert hits and all(h["path"] == "car.md" for h in hits)
 
 
+def test_allowlist_normalizes_absolute_and_prefixed_paths(tmp_path):
+    vault = _vault(tmp_path)
+    data = tmp_path / "data"
+    eng = Engine(name="t", data_dir=data, embedder=StubEmbedder())
+    eng.index(vault)
+    abs_path = str((vault / "car.md").resolve())  # absolute
+    # absolute path should resolve to the stored relative key
+    hits = eng.query("engine wheels", k=5, allowlist_paths=[abs_path])
+    assert hits and all(h["path"] == "car.md" for h in hits)
+    # basename-only should also resolve
+    hits2 = eng.query("engine wheels", k=5, allowlist_paths=["car.md"])
+    assert hits2 and all(h["path"] == "car.md" for h in hits2)
+    # bogus path resolves to nothing (empty allowlist → no hits)
+    hits3 = eng.query("engine", k=5, allowlist_paths=["/nope/missing.md"])
+    assert hits3 == []
+
+
 def test_dim_mismatch_refused(tmp_path):
     import pytest
 

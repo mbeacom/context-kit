@@ -55,7 +55,6 @@ def main(argv=None) -> int:
     pq.add_argument("--model")
     pq.add_argument("--k", type=int, default=10)
     pq.add_argument("--allowlist")
-    pq.add_argument("--tag", action="append")
     pq.add_argument("--json", action="store_true")
 
     ps = sub.add_parser("status")

@@ -77,6 +77,7 @@ class Engine:
                 except Exception:
                     pass
             self.store.delete_file(gone)
+        self.store.set_meta("root", str(Path(root).resolve()))
         idx.save()
         st = self.store.stats()
         return {
@@ -86,11 +87,46 @@ class Engine:
             "files": st["files"],
         }
 
+    def _normalize_allowlist(self, paths: list[str]) -> list[str]:
+        """Map incoming file paths (absolute, $VAULT-prefixed, relative, or
+        basename) to the corpus-relative keys used in the store."""
+        stored = self.store.all_paths()
+        have = set(stored)
+        root_meta = self.store.get_meta("root")
+        root = Path(root_meta) if root_meta else None
+        out: list[str] = []
+        for raw in paths:
+            if raw in have:  # already a stored relative key
+                out.append(raw)
+                continue
+            p = Path(raw)
+            matched = False
+            if root is not None:
+                try:
+                    rel = p.resolve().relative_to(root).as_posix()
+                except ValueError:
+                    rel = None
+                if rel and rel in have:
+                    out.append(rel)
+                    matched = True
+            if not matched:
+                # basename fallback (handles $VAULT-relative prefixes)
+                base = p.name
+                for h in stored:
+                    if h == base or Path(h).name == base or h.endswith("/" + base):
+                        out.append(h)
+                        matched = True
+        # de-dup preserving order
+        seen: set[str] = set()
+        return [x for x in out if not (x in seen or seen.add(x))]
+
     def query(self, text: str, k: int = 10, allowlist_paths=None) -> list[dict]:
         dim = int(self.store.get_meta("dim") or self.embedder.dim())
         idx = self._load_index(dim)
         qv = self.embedder.embed([text])[0]
-        allow = self.store.chunk_ids_for_paths(allowlist_paths) if allowlist_paths else None
+        allow = None
+        if allowlist_paths:
+            allow = self.store.chunk_ids_for_paths(self._normalize_allowlist(allowlist_paths))
         hits = idx.search(qv, k=k, allowlist=allow)
         out = []
         for cid, score in hits:
