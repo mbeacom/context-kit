@@ -3,7 +3,7 @@
   "name": "code-search",
   "displayName": "Code Search",
   "version": "0.1.0",
-  "description": "Fast CLI search across modalities: lexical (rg/fd), structural (ast-grep/semgrep), structured-data (jq/yq/gron), history (git pickaxe), structured rewrite (comby), data files (duckdb), metrics (tokei/scc), and non-code docs (rga/pandoc).",
+  "description": "Fast CLI search across modalities: lexical (rg/fd), structural (ast-grep/semgrep), structured-data (jq/yq/gron), history (git pickaxe), structured rewrite (comby), data files (duckdb), metrics (tokei/scc), and non-code docs (rga/pandoc/pdftotext).",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/productivity-skills",
   "repository": "https://github.com/mbeacom/productivity-skills",

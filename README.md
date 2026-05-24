@@ -20,7 +20,7 @@ and Obsidian support.
 - **code-search** — lexical (`rg`/`fd`), structural (`ast-grep`/`semgrep`),
   structured-data (`jq`/`yq`/`gron`), history (`git` pickaxe), structured
   rewrite (`comby`), data files (`duckdb`), metrics (`tokei`/`scc`), and
-  non-code docs (`rga`).
+  non-code docs (`rga`/`pandoc`/`pdftotext`).
 - **local-rag** *(planned)* — `turbovec` + `ollama` local semantic search.
 - **obsidian** *(planned)* — vault conventions + link-graph retrieval.
 
