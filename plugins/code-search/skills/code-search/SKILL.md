@@ -2,11 +2,11 @@
 name: code-search
 description: "Use when searching source code: text/regex (ripgrep), structural/AST patterns (ast-grep, semgrep), when/why code changed (git history), structural rewrites (comby), or codebase size/complexity (tokei, scc)."
 license: MIT
-compatibility: "Requires ripgrep (rg). Optional: fd, ast-grep (sg), semgrep, comby, difftastic, tokei, scc, and rtk (rtk-ai/rtk) for compact rg/git/find output."
+compatibility: "Requires ripgrep (rg). Optional: fd, ast-grep (sg), semgrep, comby, difftastic, tokei, scc, and rtk (rtk-ai/rtk) for compact rg/git output."
 metadata:
   author: Mark Beacom
   version: "0.1.0"
-allowed-tools: Bash(rg:*) Bash(fd:*) Bash(sg:*) Bash(ast-grep:*) Bash(semgrep:*) Bash(git:*) Bash(comby:*) Bash(difft:*) Bash(tokei:*) Bash(scc:*) Bash(rtk rg:*) Bash(rtk grep:*) Bash(rtk find:*) Bash(rtk git:*) Read Glob Grep
+allowed-tools: Bash(rg:*) Bash(fd:*) Bash(sg:*) Bash(ast-grep:*) Bash(semgrep:*) Bash(git:*) Bash(comby:*) Bash(difft:*) Bash(tokei:*) Bash(scc:*) Bash(rtk rg:*) Bash(rtk git:*) Read Glob Grep
 ---
 
 # Code Search

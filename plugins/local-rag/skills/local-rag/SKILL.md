@@ -6,7 +6,7 @@ compatibility: "Requires the bin/rag CLI (auto-bootstrapped via uv) plus a runni
 metadata:
   author: Mark Beacom
   version: "0.1.0"
-allowed-tools: Bash(rag:*) Bash(ollama:*) Read Glob Grep
+allowed-tools: Bash(rag:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
 ---
 
 # Local RAG
@@ -44,8 +44,8 @@ rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allo
 ```
 
 `rag` is not rtk-wrapped, so `rtk rag …` is a no-op (passes through). When `rtk`
-is installed, prefix it on the surrounding `rg`/`git` steps instead — `rtk rg -l`
-keeps `-l` raw, so the piped paths above stay intact.
+is installed, prefix the surrounding `rg` step instead — `rtk rg -l` keeps `-l`
+raw, so the piped paths above stay intact.
 
 ## When NOT to use
 

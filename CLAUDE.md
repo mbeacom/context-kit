@@ -230,3 +230,9 @@ rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
 
 Overall average: **60-90% token reduction** on common development operations.
 <!-- /rtk-instructions -->
+
+> **rtk + pipes:** the "always prefix" rule above is safe for output you read,
+> but rtk *reformats* wrapped-command output, which can corrupt data piped into
+> another program. Use raw-preserving flags (`-c`/`-l`) or `rtk proxy <cmd>` for
+> intermediate pipe stages. See
+> `plugins/code-search/skills/code-search/references/rtk.md`.

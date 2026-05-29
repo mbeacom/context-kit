@@ -3,7 +3,8 @@
 ## 0.1.2 — 2026-05-28
 
 - Docs: clarify that `rag` is not rtk-wrapped (prefixing is a no-op); prefer
-  `rtk` on the surrounding `rg`/`git` steps, where `rtk rg -l` keeps paths raw.
+  `rtk` on the surrounding `rg` step, where `rtk rg -l` keeps paths raw. Permit
+  `Bash(rg:*)`/`Bash(rtk rg:*)` so the hybrid `rg -l | rag query` example runs.
 
 ## 0.1.1 — 2026-05-24
 

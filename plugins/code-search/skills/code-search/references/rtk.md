@@ -14,7 +14,7 @@ reason to prefix the rest.
 Some users run an rtk hook that auto-rewrites Bash commands; don't rely on it —
 write the `rtk`-prefixed form explicitly so the skill works without the hook.
 
-## What rtk wraps (of the tools this skill uses)
+## What rtk wraps
 
 | Tool          | Prefixed form                        |
 | ------------- | ------------------------------------ |
@@ -22,6 +22,12 @@ write the `rtk`-prefixed form explicitly so the skill works without the hook.
 | `git`         | `rtk git log …`, `rtk git diff …`    |
 | `find`        | `rtk find …`                         |
 | `diff`        | `rtk diff …`                         |
+
+In these skills you'll prefix `rg` (and `git` in code-search): `rtk rg …`,
+`rtk git log …`, `rtk git diff …`. `grep`/`find`/standalone `diff` are
+rtk-wrapped too, but these skills prefer `rg`/`fd`/`git`, so you won't usually
+prefix them here — which is why their scoped `allowed-tools` list only `rtk rg`
+and `rtk git`.
 
 **Not wrapped — run directly** (rtk would only pass them through): `fd`, `sg`
 (ast-grep), `semgrep`, `comby`, `difft`, `tokei`, `scc`, `jq`, `yq`, `gron`,

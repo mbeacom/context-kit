@@ -6,7 +6,7 @@ compatibility: "Optional tools: jq, yq, gron, duckdb, sqlite-utils, rga (ripgrep
 metadata:
   author: Mark Beacom
   version: "0.1.0"
-allowed-tools: Bash(jq:*) Bash(yq:*) Bash(gron:*) Bash(duckdb:*) Bash(sqlite-utils:*) Bash(rga:*) Bash(pandoc:*) Bash(pdftotext:*) Bash(rg:*) Bash(rtk rg:*) Bash(rtk grep:*) Read Glob Grep
+allowed-tools: Bash(jq:*) Bash(yq:*) Bash(gron:*) Bash(duckdb:*) Bash(sqlite-utils:*) Bash(rga:*) Bash(pandoc:*) Bash(pdftotext:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
 ---
 
 # Data & Docs Search

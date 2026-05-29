@@ -2,8 +2,9 @@
 
 ## 0.1.1 — 2026-05-28
 
-- Note that `rtk rg -l` compacts the `rg`/`fd` fallback output while keeping `-l`
-  raw so piped note paths survive; `obsidian`/`rag` pass through unchanged.
+- Note that `rtk rg -l` compacts the `rg` fallback output while keeping `-l`
+  raw so piped note paths survive; `fd`/`obsidian`/`rag` aren't rtk-wrapped and
+  pass through unchanged.
 
 ## 0.1.0 — 2026-05-24
 
