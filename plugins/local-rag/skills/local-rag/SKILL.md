@@ -43,6 +43,10 @@ obsidian backlinks file="Project X" | rag query "open risks" --name notes --allo
 rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
 ```
 
+`rag` is not rtk-wrapped, so `rtk rag …` is a no-op (passes through). When `rtk`
+is installed, prefix it on the surrounding `rg`/`git` steps instead — `rtk rg -l`
+keeps `-l` raw, so the piped paths above stay intact.
+
 ## When NOT to use
 
 For exact tokens/identifiers or code structure, prefer `code-search` (`rg`/`sg`) —
