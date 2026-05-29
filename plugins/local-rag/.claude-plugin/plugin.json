@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "local-rag",
   "displayName": "Local RAG",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Fully-local semantic search: a bin/rag CLI that chunks + embeds a corpus with ollama and indexes it with turbovec. Notes-first, corpus-agnostic via pluggable loaders.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/productivity-skills",

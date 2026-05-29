@@ -6,7 +6,7 @@ compatibility: "Best with the official obsidian CLI (Obsidian running). Falls ba
 metadata:
   author: Mark Beacom
   version: "0.1.0"
-allowed-tools: Bash(obsidian:*) Bash(rag:*) Bash(rg:*) Bash(fd:*) Read Glob Grep
+allowed-tools: Bash(obsidian:*) Bash(rag:*) Bash(rg:*) Bash(rtk rg:*) Bash(fd:*) Read Glob Grep
 ---
 
 # Obsidian RAG Bridge
@@ -36,6 +36,10 @@ rg -l '\[\[Project X' "$VAULT"           # approx backlinks
 rg -l '(^|\s)#decision' "$VAULT"         # notes with a tag
 fd -e md . "$VAULT"                      # all notes
 ```
+
+> If `rtk` is installed, `rtk rg -l …` compacts output while keeping `-l` raw,
+> so the piped note paths in step 2 stay intact. `obsidian` and `rag` aren't
+> rtk-wrapped — they pass through unchanged.
 
 ## 2. Rerank semantically
 

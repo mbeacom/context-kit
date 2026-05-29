@@ -41,3 +41,6 @@ Semantic and graph are available as the **local-rag** and **obsidian** plugins.
    query (intent without known terms) or the corpus is too large/unfamiliar.
 4. If a needed plugin (`local-rag`, `obsidian`) isn't installed, say so and
    suggest installing it — don't assume its tools exist.
+5. If `rtk` is installed, prefix the rtk-wrapped commands (`rg`/`git`/`find`/
+   `diff`) for compact output — it passes other tools through unchanged. (See
+   the `code-search` plugin's rtk reference.)
