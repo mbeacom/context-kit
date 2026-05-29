@@ -4,12 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-`productivity-skills` is a **Claude Code plugin marketplace** (not an application).
-It is a catalog of plugins, organized around **retrieval modalities** —
+`productivity-skills` is a **Claude Code plugin marketplace** and a
+**GitHub Copilot-compatible Agent Skills pack** (not an application). It is a
+catalog of plugins/skills organized around **retrieval modalities** —
 complementary ways an agent finds information (lexical, structural,
 structured-data, history, semantic/RAG, graph), selected by what's known about
 the query and corpus, and composed together. See `docs/ARCHITECTURE.md` for the
-modality model.
+modality model and `docs/GITHUB_COPILOT.md` for Copilot setup notes.
 
 ## Layout
 
@@ -29,8 +30,9 @@ modality model.
   search (two skills: `code-search` and `data-and-docs-search`). Declares
   `dependencies: ["retrieval-core"]`, so installing it pulls the spine.
 - `local-rag` — fully-local semantic RAG. A `bin/rag` CLI (Python package under
-  `src/local_rag/`, run via a uv venv bootstrapped into `${CLAUDE_PLUGIN_DATA}` by
-  a `SessionStart` hook) that chunks → embeds via `ollama` → indexes with
+  `src/local_rag/`, run via a uv venv bootstrapped into `${CLAUDE_PLUGIN_DATA}`
+  by a Claude `SessionStart` hook, or `${PRODUCTIVITY_SKILLS_DATA}` for
+  Copilot/manual usage) that chunks → embeds via `ollama` → indexes with
   `turbovec`. All turbovec usage is isolated to `src/local_rag/index.py`.
 - `obsidian` — a **skill-only** RAG bridge (no code/deps): vault graph/tags
   (official `obsidian` CLI, or `rg` fallback) → `rag query --allowlist`. Authoring
@@ -64,6 +66,10 @@ with `ruff` via pre-commit.
   half-built.
 - **Versioning:** bump `version` in `plugin.json` to ship updates — Claude Code
   uses it as the cache key, so pushing commits without a bump ships nothing.
+- **GitHub Copilot compatibility:** keep reusable workflow knowledge in
+  `SKILL.md` + `references/` so it can be copied to `.github/skills/` or
+  `~/.copilot/skills/`; prefer portable `PRODUCTIVITY_SKILLS_*` env examples
+  with `CLAUDE_PLUGIN_*` documented as Claude fallbacks.
 - **Licensing:** repo and all plugins are MIT (Mark Beacom). Each plugin ships
   its own `LICENSE`. Content is written fresh; do not copy text from externally
   licensed sources (e.g. the CC-BY-SA upstream that inspired `code-search`).

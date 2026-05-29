@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 — 2026-05-29
+
+- Add GitHub Copilot/manual setup docs and portable `PRODUCTIVITY_SKILLS_*`
+  environment variables while preserving `CLAUDE_PLUGIN_*` fallbacks.
+
 ## 0.1.2 — 2026-05-28
 
 - Docs: clarify that `rag` is not rtk-wrapped (prefixing is a no-op); prefer

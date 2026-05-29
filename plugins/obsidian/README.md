@@ -1,8 +1,8 @@
 # Obsidian RAG Bridge
 
-A skill-only Claude Code plugin that bridges an Obsidian vault into local
-semantic search. The pattern: **narrow to candidate notes via the vault's link
-graph or tags, then rerank semantically with `rag`.**
+A skill-only retrieval bridge for Claude Code and GitHub Copilot that connects
+an Obsidian vault to local semantic search. The pattern: **narrow to candidate
+notes via the vault's link graph or tags, then rerank semantically with `rag`.**
 
 No bundled binary, no Python deps — just shell commands and the `obsidian-rag-bridge`
 skill.
@@ -48,7 +48,7 @@ obsidian backlinks / rg tag search
 obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
 
 # Tag-based fallback (rg)
-VAULT="${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}"
+VAULT="${PRODUCTIVITY_SKILLS_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
 rg -l '(^|\s)#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
 ```
 

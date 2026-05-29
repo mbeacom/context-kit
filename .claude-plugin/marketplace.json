@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Retrieval-focused Claude Code plugins: search modalities, a routing agent, and (soon) local RAG and Obsidian."
+    "description": "Retrieval-focused Claude Code plugins and GitHub Copilot-compatible skills: search modalities, a routing agent, local RAG, and Obsidian."
   },
   "plugins": [
     {

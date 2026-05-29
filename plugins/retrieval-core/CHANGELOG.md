@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 — 2026-05-29
+
+- Document GitHub Copilot Agent Skills compatibility and how to adapt the
+  `retrieval-strategist` agent to Copilot custom-agent frontmatter.
+
 ## 0.2.1 — 2026-05-28
 
 - Note rtk in the strategy defaults and the strategist agent: prefer
