@@ -1,8 +1,14 @@
 # Architecture
 
-`productivity-skills` is a Claude Code **plugin marketplace** organized around
-**retrieval modalities** — complementary ways an agent finds information,
-selected by what it knows about the query and the corpus, and composed together.
+`productivity-skills` is a Claude Code **plugin marketplace** and a
+GitHub Copilot-compatible **Agent Skills** pack organized around **retrieval
+modalities** — complementary ways an agent finds information, selected by what
+it knows about the query and the corpus, and composed together.
+
+The packaging differs by agent host, but the retrieval instructions are the
+same: Claude Code installs plugins from `.claude-plugin/`, while GitHub Copilot
+can load the same `SKILL.md` folders from `.github/skills/<name>/` or
+`~/.copilot/skills/<name>/`.
 
 ## Modalities
 
@@ -49,9 +55,22 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
 - **Find then pin** — RAG surfaces `path > heading` regions → `rg` pins exact lines.
 
 `local-rag` keeps everything local: ollama for embeddings, turbovec for the index
-(persisted under `${CLAUDE_PLUGIN_DATA}`), nothing leaves the machine. The markdown
-loader is the first-class path, but the indexer is built behind a pluggable loader
-interface so other corpora (code, PDFs) can be added without a redesign.
+(persisted under `${PRODUCTIVITY_SKILLS_DATA}` or, in Claude Code,
+`${CLAUDE_PLUGIN_DATA}`), nothing leaves the machine. The markdown loader is the
+first-class path, but the indexer is built behind a pluggable loader interface so
+other corpora (code, PDFs) can be added without a redesign.
+
+## Agent host compatibility
+
+| Host | What it uses | Notes |
+| ---- | ------------ | ----- |
+| Claude Code | `.claude-plugin/marketplace.json`, per-plugin manifests, hooks, `CLAUDE_PLUGIN_*` env vars | First-class install/update path via `/plugin` commands. |
+| GitHub Copilot | `SKILL.md` folders under `.github/skills/` or `~/.copilot/skills/` | Copy/symlink skill folders and references; run local CLIs directly. |
+| GitHub Copilot custom agents | `.github/agents/*.agent.md` | Adapt the `retrieval-strategist` agent frontmatter to Copilot's `tools: [read, search, execute]` style. |
+
+Portable examples should prefer `PRODUCTIVITY_SKILLS_*` environment variables,
+with `CLAUDE_PLUGIN_*` documented as the Claude plugin fallback. See
+[GITHUB_COPILOT.md](GITHUB_COPILOT.md) for a concrete Copilot setup.
 
 ## Layout
 
@@ -62,3 +81,5 @@ interface so other corpora (code, PDFs) can be added without a redesign.
 - `plugins/local-rag/` also ships `bin/rag` (CLI), `src/local_rag/` (Python
   package), `scripts/bootstrap.sh` + `hooks/hooks.json` (uv venv bootstrap), and
   `tests/`.
+- `.github/copilot-instructions.md` — contributor guidance for keeping the
+  repository's skills portable to GitHub Copilot.

@@ -7,6 +7,11 @@ The spine of the `productivity-skills` marketplace. Provides:
 - **`retrieval-strategy`** (skill) — the decision-flow reference both the agent
   and humans use.
 
-Install standalone, or get it automatically by installing `code-search`.
+Install standalone in Claude Code, or get it automatically by installing
+`code-search`. For GitHub Copilot, copy
+`skills/retrieval-strategy/` into `.github/skills/retrieval-strategy/` or
+`~/.copilot/skills/retrieval-strategy/`. The `retrieval-strategist` agent can be
+adapted to `.github/agents/retrieval-strategist.agent.md` by using Copilot-style
+frontmatter (`tools: [read, search, execute]`).
 
 MIT © Mark Beacom.

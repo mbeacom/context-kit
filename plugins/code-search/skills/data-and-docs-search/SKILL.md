@@ -13,6 +13,10 @@ allowed-tools: Bash(jq:*) Bash(yq:*) Bash(gron:*) Bash(duckdb:*) Bash(sqlite-uti
 
 Search beyond source code.
 
+This skill is portable across Claude Code and GitHub Copilot; keep the
+`references/` folder next to `SKILL.md` when copying it into a Copilot skill
+location.
+
 | Corpus                         | Use                       | Reference                          |
 | ------------------------------ | ------------------------- | ---------------------------------- |
 | JSON                           | `jq`, or `gron` + `rg`    | [jq-yq-gron](references/jq-yq-gron.md) |

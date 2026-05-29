@@ -12,6 +12,10 @@ allowed-tools: Read Glob Grep Bash
 
 Pick a modality by **what you know about the query × what you know about the corpus.**
 
+This skill is portable across Claude Code and GitHub Copilot. In Claude Code it
+is installed through the plugin marketplace; in GitHub Copilot, copy this folder
+to `.github/skills/retrieval-strategy/` or `~/.copilot/skills/retrieval-strategy/`.
+
 ## Decision flow
 
 - Know the exact token / regex / filename? → **lexical** (`rg`, `fd`)

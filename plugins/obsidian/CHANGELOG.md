@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 — 2026-05-29
+
+- Document GitHub Copilot compatibility and prefer
+  `PRODUCTIVITY_SKILLS_OBSIDIAN_VAULT` in portable examples, with the Claude
+  vault option retained as a fallback.
+
 ## 0.1.1 — 2026-05-28
 
 - Note that `rtk rg -l` compacts the `rg` fallback output while keeping `-l`

@@ -10,16 +10,40 @@ from .embed import OllamaEmbedder
 from .engine import Engine, slug
 
 
+def _first_env(*names: str) -> str | None:
+    for name in names:
+        value = os.environ.get(name)
+        if value:
+            return value
+    return None
+
+
 def _data_dir() -> Path:
     return Path(
-        os.environ.get("CLAUDE_PLUGIN_DATA", Path.home() / ".claude/plugins/data/local-rag")
+        _first_env("PRODUCTIVITY_SKILLS_DATA", "CLAUDE_PLUGIN_DATA")
+        or Path.home() / ".claude/plugins/data/local-rag"
     )
 
 
 def _make_embedder(args):
+    model = (
+        args.model
+        or _first_env(
+            "PRODUCTIVITY_SKILLS_EMBED_MODEL",
+            "CLAUDE_PLUGIN_OPTION_EMBED_MODEL",
+        )
+        or "nomic-embed-text"
+    )
+    host = (
+        _first_env(
+            "PRODUCTIVITY_SKILLS_OLLAMA_HOST",
+            "CLAUDE_PLUGIN_OPTION_OLLAMA_HOST",
+        )
+        or "http://localhost:11434"
+    )
     return OllamaEmbedder(
-        model=args.model or os.environ.get("CLAUDE_PLUGIN_OPTION_EMBED_MODEL", "nomic-embed-text"),
-        host=os.environ.get("CLAUDE_PLUGIN_OPTION_OLLAMA_HOST", "http://localhost:11434"),
+        model=model,
+        host=host,
     )
 
 
@@ -34,7 +58,8 @@ def _read_allowlist(value) -> list[str] | None:
         return None
     if value == "-":
         return [ln.strip() for ln in sys.stdin if ln.strip()]
-    return [ln.strip() for ln in Path(value).read_text(encoding="utf-8").splitlines() if ln.strip()]
+    lines = Path(value).read_text(encoding="utf-8").splitlines()
+    return [ln.strip() for ln in lines if ln.strip()]
 
 
 def _index_exists(data: Path, name: str) -> bool:
@@ -94,7 +119,7 @@ def main(argv=None) -> int:
         name = _name_for(args)
         if not _index_exists(data, name):
             print(
-                f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first.",
+                "error: no index named " f"'{name}'. Run 'rag index <path> --name {name}' first.",
                 file=sys.stderr,
             )
             return 1
@@ -109,13 +134,17 @@ def main(argv=None) -> int:
         name = _name_for(args)
         if not _index_exists(data, name):
             print(
-                f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first.",
+                "error: no index named " f"'{name}'. Run 'rag index <path> --name {name}' first.",
                 file=sys.stderr,
             )
             return 1
         eng = Engine(name, data, _make_embedder(args))
         try:
-            hits = eng.query(args.text, k=args.k, allowlist_paths=_read_allowlist(args.allowlist))
+            hits = eng.query(
+                args.text,
+                k=args.k,
+                allowlist_paths=_read_allowlist(args.allowlist),
+            )
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
