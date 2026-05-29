@@ -222,5 +222,8 @@ __marimo__/
 *.tq
 *.tvim
 
+# rtk (Rust Token Killer) local config — machine-specific, not published
+.rtk/
+
 # Internal dev process artifacts (brainstorm specs / implementation plans) — kept local, not published
 docs/superpowers/

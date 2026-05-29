@@ -39,9 +39,9 @@ done
 # rtk is an optional token-saving proxy (rtk-ai/rtk), not a brew formula —
 # report it but never count it toward the missing/exit-1 path.
 if command -v rtk >/dev/null 2>&1; then
-  printf "%-14s %-34s %s\n" "rtk" "token-optimized CLI proxy (optional)" "present"
+  printf "%-14s %-34s %s\n" "rtk" "token-saving CLI proxy (optional)" "present"
 else
-  printf "%-14s %-34s %s\n" "rtk" "token-optimized CLI proxy (optional)" "absent (github.com/rtk-ai/rtk)"
+  printf "%-14s %-34s %s\n" "rtk" "token-saving CLI proxy (optional)" "absent (github.com/rtk-ai/rtk)"
 fi
 
 if ((${#missing[@]})); then
