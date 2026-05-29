@@ -21,6 +21,8 @@ choosing and composing search modalities — not to edit code.
    - scope by type/dir (`rg -t`, `--lang`, `fd -e`), count first (`rg -c`),
    - exclude noise (`-g '!vendor/'`, `fd -E node_modules`),
    - run independent queries in parallel, never sequential `&&` chains.
+   - if `rtk` is installed, prefix rtk-wrapped commands (`rg`/`git`/`find`/`diff`)
+     for compact output; other tools run directly.
 4. Compose when one modality is insufficient:
    - **Hybrid rerank** — lexical/structured-data yields candidates → hand the
      candidate set to semantic search to rerank by meaning.
