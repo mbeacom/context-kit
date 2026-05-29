@@ -27,7 +27,7 @@ def _data_dir() -> Path:
 
 def _make_embedder(args):
     model = (
-        args.model
+        getattr(args, "model", None)
         or _first_env(
             "PRODUCTIVITY_SKILLS_EMBED_MODEL",
             "CLAUDE_PLUGIN_OPTION_EMBED_MODEL",
