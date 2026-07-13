@@ -96,20 +96,28 @@ task and reports back).
 correction, then keeps executing. It is the inverse of delegation — the strong
 model advises rather than leads. Two constraints worth knowing:
 
-- The advisor must be **at least as capable as** the main (executor) model. So a
-  weak main + strong advisor is the point; a **Fable main with a Fable advisor is
-  a no-op** self-consult.
-- It is a beta feature and may not be enabled on every account. If `/advisor`
-  reports a model but consults never fire, the entitlement isn't active — fall
-  back to delegation, which needs no beta.
+- The advisor must be **at least as capable as** the main (executor) model — so a
+  weak main + strong advisor is the point, and a **Fable main + Fable advisor is a
+  no-op** self-consult.
+- **Fable 5 as the advisor is currently broken** (Claude Code bug
+  [#73019](https://github.com/anthropics/claude-code/issues/73019)): `/advisor fable`
+  returns "advisor unavailable" for every main model, on macOS and Windows. **Use
+  `/advisor opus` instead** — Opus 4.7/4.8 as the advisor works today. The advisor
+  tool itself is fine; only the Fable-advisor path is dead.
 
 Rule of thumb: **cheap main that occasionally needs a smart second opinion →
 advisor. Strong main that should offload volume → delegation** (this skill).
 
 ## Portability (GitHub Copilot)
 
-This skill is portable. In Copilot, copy this folder to
-`.github/skills/plan-execute-strategy/` or `~/.copilot/skills/`. The scripted
-workflow and `CLAUDE_CODE_SUBAGENT_MODEL` are Claude Code features; the delegation
-*posture* (plan strong, execute cheap) applies wherever an agent can spawn
-workers.
+GitHub Copilot CLI supports this plugin format directly — no manual file copying.
+Register the marketplace and install the plugin:
+
+```bash
+copilot plugin marketplace add mbeacom/productivity-skills
+copilot plugin install plan-execute@productivity-skills
+```
+
+The scripted `Workflow` and `CLAUDE_CODE_SUBAGENT_MODEL` are Claude Code features;
+the delegation *posture* (plan strong, execute cheap) applies wherever an agent can
+spawn workers.

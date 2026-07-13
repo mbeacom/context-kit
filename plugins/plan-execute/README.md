@@ -7,9 +7,18 @@ the bulk of the reading and mechanical work runs at a cheaper model's rate.
 
 ## Install
 
+Claude Code:
+
 ```bash
 /plugin marketplace add mbeacom/productivity-skills
 /plugin install plan-execute@productivity-skills
+```
+
+GitHub Copilot CLI:
+
+```bash
+copilot plugin marketplace add mbeacom/productivity-skills
+copilot plugin install plan-execute@productivity-skills
 ```
 
 ## Components
