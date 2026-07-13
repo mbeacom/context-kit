@@ -79,7 +79,8 @@ the model's judgment, run the bundled workflow:
 
 It runs a strong **planner** (decompose into independent sub-tasks) → cheap
 **workers** in parallel (default `haiku`, isolated contexts, distilled findings)
-→ a strong **synthesizer** (merge). The command invokes the plugin's
+→ a cheap **verifier** (re-checks the workers' claims, read-only) → a strong
+**synthesizer** (merge). The command invokes the plugin's
 `workflows/plan-big-execute-small.workflow.js` via the `Workflow` tool. Prefer
 this over the interactive setup when you need coverage guarantees, a fixed number
 of workers, or a barrier before synthesis; prefer interactive when the shape of
@@ -90,6 +91,14 @@ For interactive delegation of a *single* scoped unit, hand it to the
 than an Opus/Fable planner, capable enough to edit) that does one task and reports
 back. Override its model with `CLAUDE_CODE_SUBAGENT_MODEL` (for example `haiku` for
 read-only investigation).
+
+> Deferred by design: if a workload ever needs a *guaranteed* read-only lane — e.g.
+> many workers on a shared tree — a dedicated `investigation-worker` (tools:
+> Read/Grep/Glob only, no Bash/Edit/Write) is the sanctioned next agent to add. It
+> isn't shipped yet: one broadly-scoped worker plus these instructions covers the
+> current need, and a fleet of specialized agents would fight the "few agents"
+> convention while the `CLAUDE_CODE_SUBAGENT_MODEL` override flattens per-agent model
+> pins on the scripted path anyway.
 
 ## The advisor tool (`/advisor`) — how it differs
 

@@ -8,7 +8,9 @@
 //                task into independent sub-tasks. It never touches raw material.
 //   Execute    — many CHEAP workers (model override) each handle ONE sub-task in
 //                their own isolated context and report back distilled findings.
-//   Synthesize — one STRONG agent merges the distilled findings into the answer.
+//   Verify     — one CHEAP agent independently re-checks the workers' claims,
+//                read-only, so the synthesizer never grades its own inputs.
+//   Synthesize — one STRONG agent merges the verified findings into the answer.
 //
 // The leverage is rate/quota arbitrage + parallelism: the bulk of the token-heavy
 // reading happens at the worker model's rate, while planning and synthesis stay
@@ -29,13 +31,14 @@
 export const meta = {
   name: 'plan-big-execute-small',
   description:
-    'Strong planner decomposes a task; cheap workers execute the sub-tasks in parallel; strong synthesizer merges the distilled findings.',
+    'Strong planner decomposes a task; cheap workers execute the sub-tasks in parallel; a cheap agent verifies their claims; a strong synthesizer merges.',
   whenToUse:
     'Token-heavy coverage work that splits into independent sub-tasks — multi-file audits, broad research sweeps, large log/document reviews — where planning + synthesis want a strong model but the reading is mechanical.',
   phases: [
     { title: 'Plan', detail: 'Strong model decomposes the task into independent sub-tasks' },
     { title: 'Execute', detail: 'Cheap workers each handle one sub-task in an isolated context' },
-    { title: 'Synthesize', detail: 'Strong model merges the distilled findings into the answer' },
+    { title: 'Verify', detail: 'A cheap agent independently re-checks worker claims, read-only' },
+    { title: 'Synthesize', detail: 'Strong model merges the verified findings into the answer' },
   ],
 }
 
@@ -112,6 +115,29 @@ const FINDING_SCHEMA = {
   },
 }
 
+const VERIFY_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['summary', 'checks'],
+  properties: {
+    summary: { type: 'string', description: 'One or two sentences on the overall reliability of the findings.' },
+    checks: {
+      type: 'array',
+      description: 'One entry per material claim that was independently re-checked.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['claim', 'verdict'],
+        properties: {
+          claim: { type: 'string', description: 'The worker claim being checked (quote or paraphrase).' },
+          verdict: { type: 'string', enum: ['confirmed', 'dubious', 'refuted', 'unable-to-check'] },
+          note: { type: 'string', description: 'One line: what you re-checked and what you saw, with a source pointer.' },
+        },
+      },
+    },
+  },
+}
+
 // ---- prompts ----------------------------------------------------------------
 
 const plannerPrompt = (task) => `You are the PLANNER in a plan-big / execute-small pipeline.
@@ -143,8 +169,7 @@ Do exactly this sub-task: inspect the named material, then report DISTILLED find
 is outside your scope or undeterminable, put it under "unresolved" rather than guessing.
 Return your result via the structured output.`
 
-const synthPrompt = (task, distilled) => `You are the SYNTHESIZER in a plan-big / execute-small pipeline.
-The token-heavy reading is done; ${distilled.length} worker(s) reported distilled findings below.
+const verifyPrompt = (task, distilled) => `You are an independent VERIFIER. Do NOT trust the workers' claims, and do NOT modify anything — re-check, read-only.
 
 OVERALL TASK:
 ${task}
@@ -152,11 +177,32 @@ ${task}
 WORKER FINDINGS (JSON):
 ${JSON.stringify(distilled, null, 2)}
 
-Merge these into a single, coherent answer to the task. Resolve overlaps and any
-contradictions between workers (prefer higher-confidence, better-cited findings, and
-flag genuine conflicts rather than hiding them). Carry the workers' file:line / source
-pointers through into your answer. Call out anything still unresolved. Do not re-read
-source material — synthesize only from the findings above plus the task.`
+Independently re-check the material claims: re-open the cited file:line, re-run any
+verification the task names, and confirm each claim actually holds. Never accept a
+"passed" / "works" / "done" assertion without checking it yourself. For each material
+claim return a verdict — confirmed / dubious / refuted / unable-to-check — with a
+one-line note and a source pointer. You report problems; you do not fix them. Return
+the structured output.`
+
+const synthPrompt = (task, distilled, verdicts) => `You are the SYNTHESIZER in a plan-big / execute-small pipeline.
+The token-heavy reading is done; ${distilled.length} worker(s) reported distilled findings below, and an independent verifier re-checked them.
+
+OVERALL TASK:
+${task}
+
+WORKER FINDINGS (JSON):
+${JSON.stringify(distilled, null, 2)}
+
+INDEPENDENT VERIFICATION (JSON):
+${JSON.stringify(verdicts, null, 2)}
+
+Merge the findings into a single, coherent answer to the task. Weigh the verification:
+treat any claim marked "refuted" or "dubious" with skepticism and do NOT present it as
+established — flag it or drop it. Resolve overlaps and contradictions (prefer
+higher-confidence, better-cited, verified findings, and surface genuine conflicts
+rather than hiding them). Carry file:line / source pointers through into your answer,
+and call out anything still unresolved or unverifiable. Do not re-read source material —
+synthesize only from the findings, the verification, and the task.`
 
 // ---- pipeline ---------------------------------------------------------------
 
@@ -180,9 +226,9 @@ if (subtasks.length === 0) {
   return { task: TASK, plan, subtaskCount: 0, findings: [], answer: null, note: 'Planner produced no sub-tasks.' }
 }
 
-// Execute is a genuine BARRIER before synthesis: the synthesizer needs the FULL
-// set of findings at once, so parallel() (await-all) is correct here rather than
-// a pipeline. Workers run cheap + low-effort in isolated contexts.
+// Execute is a genuine BARRIER before verification/synthesis: those steps need the
+// FULL set of findings at once, so parallel() (await-all) is correct here rather
+// than a pipeline. Workers run cheap + low-effort in isolated contexts.
 //
 // No per-worker try/catch is needed: parallel() resolves a thunk that throws (or
 // whose agent hits a terminal error) to null, so one worker failing never aborts
@@ -202,13 +248,13 @@ const findings = await parallel(
 )
 const distilled = findings.filter(Boolean) // drop workers that errored/were skipped
 if (distilled.length < subtasks.length) {
-  log(`${subtasks.length - distilled.length} worker(s) produced no result — synthesizing from ${distilled.length}.`)
+  log(`${subtasks.length - distilled.length} worker(s) produced no result — continuing with ${distilled.length}.`)
 }
 
 // Every worker failed: skip the (expensive, strong-model) synthesizer rather than
 // paying it to summarize an empty finding set.
 if (distilled.length === 0) {
-  log('All workers failed to produce findings — skipping synthesis.')
+  log('All workers failed to produce findings — skipping verification and synthesis.')
   return {
     task: TASK,
     plan_summary: plan.plan_summary,
@@ -220,8 +266,22 @@ if (distilled.length === 0) {
   }
 }
 
+// Verify is a BARRIER too: an independent cheap agent re-checks the workers' claims
+// (read-only) so the strong synthesizer isn't left grading its own inputs. Refuted /
+// dubious claims are surfaced to synthesis rather than silently trusted. If the
+// verifier itself dies, we degrade gracefully to synthesizing unverified findings.
+phase('Verify')
+const verdicts = await agent(verifyPrompt(TASK, distilled), {
+  label: 'verifier',
+  phase: 'Verify',
+  model: WORKER_MODEL,
+  effort: WORKER_EFFORT,
+  schema: VERIFY_SCHEMA,
+})
+if (!verdicts) log('Verifier produced no result — synthesizing from unverified findings.')
+
 phase('Synthesize')
-const answer = await agent(synthPrompt(TASK, distilled), {
+const answer = await agent(synthPrompt(TASK, distilled, verdicts), {
   label: 'synthesizer',
   phase: 'Synthesize',
 }) // synthesizer also inherits the strong session model; returns plain text
@@ -232,5 +292,6 @@ return {
   subtaskCount: subtasks.length,
   workerModel: WORKER_MODEL,
   findings: distilled,
+  verification: verdicts,
   answer,
 }

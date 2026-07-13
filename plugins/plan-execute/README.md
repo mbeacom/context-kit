@@ -26,7 +26,7 @@ copilot plugin install plan-execute@productivity-skills
 | Component | What it is |
 | --- | --- |
 | **`plan-execute-strategy`** skill | When and how to split work: the `CLAUDE_CODE_SUBAGENT_MODEL` + `--append-system-prompt` delegation recipe, the `/output-style` option, and how the `/advisor` tool differs so you pick the right one. |
-| **`/plan-big-execute-small`** command | Runs the bundled workflow: strong planner → cheap parallel workers → strong synthesizer. |
+| **`/plan-big-execute-small`** command | Runs the bundled workflow: strong planner → cheap parallel workers → cheap read-only verifier → strong synthesizer. |
 | **`plan-big-execute-small`** workflow | The script the command runs (`workflows/plan-big-execute-small.workflow.js`). Also runnable directly by path. |
 | **`execution-worker`** subagent | A cheap-model, tightly-scoped worker for delegating a single sub-task interactively. |
 
@@ -64,8 +64,8 @@ Workflow({
 ```
 
 `args` accepts a bare task string or `{ task, workerModel?, workerEffort?,
-maxSubtasks? }`. The planner and synthesizer inherit the session model; workers
-run at `workerModel` (default `haiku`).
+maxSubtasks? }`. The planner and synthesizer inherit the session model; the workers
+and the read-only verifier run at `workerModel` (default `haiku`).
 
 ## How it relates to the advisor tool
 
