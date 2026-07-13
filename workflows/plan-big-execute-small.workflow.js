@@ -167,9 +167,12 @@ const plan = await agent(plannerPrompt(TASK), {
   schema: PLAN_SCHEMA,
 }) // planner inherits the (strong) session model — do NOT override it
 
-const subtasks = ((plan && plan.subtasks) || []).slice(0, MAX_SUBTASKS)
-if ((plan && plan.subtasks ? plan.subtasks.length : 0) > MAX_SUBTASKS) {
-  log(`Planner returned ${plan.subtasks.length} sub-tasks; capping at ${MAX_SUBTASKS}.`)
+// Guard the shape: the schema should force `subtasks` to an array, but a planner
+// that dies (agent() -> null) or returns a malformed object must not crash the run.
+const planned = plan && Array.isArray(plan.subtasks) ? plan.subtasks : []
+const subtasks = planned.slice(0, MAX_SUBTASKS)
+if (planned.length > MAX_SUBTASKS) {
+  log(`Planner returned ${planned.length} sub-tasks; capping at ${MAX_SUBTASKS}.`)
 }
 log(`Plan: ${plan ? plan.plan_summary : '(planner returned nothing)'} — ${subtasks.length} sub-task(s)`)
 
@@ -180,6 +183,11 @@ if (subtasks.length === 0) {
 // Execute is a genuine BARRIER before synthesis: the synthesizer needs the FULL
 // set of findings at once, so parallel() (await-all) is correct here rather than
 // a pipeline. Workers run cheap + low-effort in isolated contexts.
+//
+// No per-worker try/catch is needed: parallel() resolves a thunk that throws (or
+// whose agent hits a terminal error) to null, so one worker failing never aborts
+// the run — the filter(Boolean) below drops the nulls and we synthesize from the
+// survivors (and bail entirely if none survive).
 phase('Execute')
 const findings = await parallel(
   subtasks.map((st, i) => () =>
@@ -195,6 +203,21 @@ const findings = await parallel(
 const distilled = findings.filter(Boolean) // drop workers that errored/were skipped
 if (distilled.length < subtasks.length) {
   log(`${subtasks.length - distilled.length} worker(s) produced no result — synthesizing from ${distilled.length}.`)
+}
+
+// Every worker failed: skip the (expensive, strong-model) synthesizer rather than
+// paying it to summarize an empty finding set.
+if (distilled.length === 0) {
+  log('All workers failed to produce findings — skipping synthesis.')
+  return {
+    task: TASK,
+    plan_summary: plan.plan_summary,
+    subtaskCount: subtasks.length,
+    workerModel: WORKER_MODEL,
+    findings: [],
+    answer: null,
+    note: 'All workers failed to produce findings; synthesis skipped.',
+  }
 }
 
 phase('Synthesize')
