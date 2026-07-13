@@ -5,7 +5,9 @@ GitHub Copilot-compatible **Agent Skills** pack for information retrieval. It
 bundles complementary **retrieval modalities** — lexical, structural,
 structured-data, history, semantic (RAG), and graph — plus a routing agent that
 picks and composes them. Everything runs **locally**; the RAG layer keeps your
-corpus on your machine.
+corpus on your machine. It also ships a **plan-execute** plugin for
+plan-big/execute-small orchestration (a strong model plans; cheaper subagents
+execute).
 
 Claude Code gets first-class marketplace packaging. GitHub Copilot can reuse the
 same `SKILL.md` folders, references, and local CLI workflows by copying or
@@ -23,6 +25,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 /plugin install code-search@productivity-skills     # lexical/structural/data/history search
 /plugin install local-rag@productivity-skills        # local semantic search (turbovec + ollama)
 /plugin install obsidian@productivity-skills          # Obsidian vault → RAG bridge
+/plugin install plan-execute@productivity-skills      # plan-big/execute-small orchestration
 ```
 
 ## GitHub Copilot install
@@ -52,6 +55,7 @@ Claude Code.
 | **code-search** | Lexical (`rg`/`fd`), structural (`ast-grep`/`semgrep`), structured-data (`jq`/`yq`/`gron`), history (`git` pickaxe/`difftastic`), structured rewrite (`comby`), metrics (`tokei`/`scc`), and non-code docs (`rga`/`pandoc`/`pdftotext`). Two skills: `code-search` (code) and `data-and-docs-search` (data/docs). |
 | **local-rag** | Fully-local semantic search: a `bin/rag` CLI that chunks a corpus, embeds it with **ollama**, and indexes it with **turbovec**. Notes-first, corpus-agnostic, with incremental indexing and hybrid `--allowlist` retrieval. |
 | **obsidian** | A skill-only **RAG bridge**: turn an Obsidian vault's graph/tags (official `obsidian` CLI, or `rg` fallback) into a candidate set fed to `local-rag`. For authoring/Bases/Canvas, use [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills). |
+| **plan-execute** | Plan-big/execute-small **orchestration**: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a strategy skill (`CLAUDE_CODE_SUBAGENT_MODEL` + delegation prompt, and how `/advisor` differs), a `/plan-big-execute-small` command, a bundled Workflow, and an `execution-worker` subagent. |
 
 ## Requirements
 

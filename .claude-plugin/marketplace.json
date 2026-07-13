@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Retrieval-focused Claude Code plugins and GitHub Copilot-compatible skills: search modalities, a routing agent, local RAG, and Obsidian."
+    "description": "Retrieval and orchestration plugins for Claude Code and GitHub Copilot: search modalities, a routing agent, local RAG, Obsidian, and plan-big/execute-small delegation."
   },
   "plugins": [
     {
@@ -30,6 +30,12 @@
       "source": "./plugins/obsidian",
       "category": "retrieval",
       "tags": ["obsidian", "notes", "graph", "rag", "retrieval"]
+    },
+    {
+      "name": "plan-execute",
+      "source": "./plugins/plan-execute",
+      "category": "orchestration",
+      "tags": ["orchestration", "workflow", "subagents", "delegation", "multi-agent"]
     }
   ]
 }
