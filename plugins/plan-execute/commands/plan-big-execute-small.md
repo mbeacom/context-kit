@@ -17,7 +17,8 @@ workflow with an empty task.
 
 The workflow runs a strong planner (inherits the current session model) →
 cheap workers in parallel (default `haiku`, isolated contexts, distilled findings)
-→ a strong synthesizer, and returns `{ plan_summary, subtaskCount, findings,
+→ a cheap read-only verifier that re-checks the workers' claims → a strong
+synthesizer, and returns `{ plan_summary, subtaskCount, findings, verification,
 answer }`. To tune the run, add `workerModel` (default `haiku`) or `maxSubtasks`
 (default `16`) to `args`.
 

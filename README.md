@@ -38,6 +38,7 @@ copilot plugin marketplace add mbeacom/productivity-skills
 copilot plugin install code-search@productivity-skills      # auto-installs retrieval-core
 copilot plugin install local-rag@productivity-skills
 copilot plugin install obsidian@productivity-skills
+copilot plugin install plan-execute@productivity-skills   # plan-big/execute-small orchestration
 ```
 
 See [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) for details, including the
