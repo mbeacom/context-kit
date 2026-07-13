@@ -11,8 +11,9 @@ Fast, modern CLI search for agents, covering complementary modalities:
 Depends on `retrieval-core` (auto-installed). Run `scripts/check-tools.sh` to see
 which tools are present and how to install the rest.
 
-For GitHub Copilot, copy `skills/code-search/` and
-`skills/data-and-docs-search/` into `.github/skills/` or `~/.copilot/skills/`.
-The referenced CLI tools still need to be installed locally.
+GitHub Copilot CLI installs both skills with the plugin —
+`copilot plugin marketplace add mbeacom/productivity-skills` then
+`copilot plugin install code-search@productivity-skills`. The referenced CLI tools
+still need to be installed locally.
 
 MIT © Mark Beacom.

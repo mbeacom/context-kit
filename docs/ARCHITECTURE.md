@@ -5,10 +5,9 @@ GitHub Copilot-compatible **Agent Skills** pack organized around **retrieval
 modalities** — complementary ways an agent finds information, selected by what
 it knows about the query and the corpus, and composed together.
 
-The packaging differs by agent host, but the retrieval instructions are the
-same: Claude Code installs plugins from `.claude-plugin/`, while GitHub Copilot
-can load the same `SKILL.md` folders from `.github/skills/<name>/` or
-`~/.copilot/skills/<name>/`.
+Both hosts install the same plugins directly from the marketplace: Claude Code via
+`/plugin`, GitHub Copilot CLI via `copilot plugin`. The retrieval instructions in
+each `SKILL.md` are identical across hosts.
 
 ## Modalities
 
@@ -64,9 +63,8 @@ other corpora (code, PDFs) can be added without a redesign.
 
 | Host | What it uses | Notes |
 | ---- | ------------ | ----- |
-| Claude Code | `.claude-plugin/marketplace.json`, per-plugin manifests, hooks, `CLAUDE_PLUGIN_*` env vars | First-class install/update path via `/plugin` commands. |
-| GitHub Copilot | `SKILL.md` folders under `.github/skills/` or `~/.copilot/skills/` | Copy/symlink skill folders and references; run local CLIs directly. |
-| GitHub Copilot custom agents | `.github/agents/*.agent.md` | Adapt the `retrieval-strategist` agent frontmatter to Copilot's `tools: [read, search, execute]` style. |
+| Claude Code | `.claude-plugin/marketplace.json`, per-plugin manifests, hooks, `CLAUDE_PLUGIN_*` env vars | Install/update via `/plugin` commands. |
+| GitHub Copilot | the same marketplace, via `copilot plugin marketplace add` + `copilot plugin install` | Installs plugins (skills, agents, commands) directly; run the local CLIs yourself. |
 
 Portable examples should prefer `PRODUCTIVITY_SKILLS_*` environment variables,
 with `CLAUDE_PLUGIN_*` documented as the Claude plugin fallback. See
