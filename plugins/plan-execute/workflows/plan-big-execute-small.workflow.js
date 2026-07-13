@@ -184,8 +184,21 @@ claim return a verdict — confirmed / dubious / refuted / unable-to-check — w
 one-line note and a source pointer. You report problems; you do not fix them. Return
 the structured output.`
 
-const synthPrompt = (task, distilled, verdicts) => `You are the SYNTHESIZER in a plan-big / execute-small pipeline.
-The token-heavy reading is done; ${distilled.length} worker(s) reported distilled findings below, and an independent verifier re-checked them.
+const synthPrompt = (task, distilled, verdicts) => {
+  const verifiedNote = verdicts
+    ? 'an independent verifier re-checked them below'
+    : 'independent verification did not return a result, so weigh the findings on their own cited evidence'
+  const verifBlock = verdicts
+    ? `INDEPENDENT VERIFICATION (JSON):
+${JSON.stringify(verdicts, null, 2)}
+
+Weigh the verification: treat any claim marked "refuted" or "dubious" with skepticism
+and do NOT present it as established — flag it or drop it.`
+    : `INDEPENDENT VERIFICATION:
+None available — the verify step returned nothing. Rely on the workers' own cited
+evidence and flag anything you cannot corroborate from the findings.`
+  return `You are the SYNTHESIZER in a plan-big / execute-small pipeline.
+The token-heavy reading is done; ${distilled.length} worker(s) reported distilled findings below, and ${verifiedNote}.
 
 OVERALL TASK:
 ${task}
@@ -193,16 +206,14 @@ ${task}
 WORKER FINDINGS (JSON):
 ${JSON.stringify(distilled, null, 2)}
 
-INDEPENDENT VERIFICATION (JSON):
-${JSON.stringify(verdicts, null, 2)}
+${verifBlock}
 
-Merge the findings into a single, coherent answer to the task. Weigh the verification:
-treat any claim marked "refuted" or "dubious" with skepticism and do NOT present it as
-established — flag it or drop it. Resolve overlaps and contradictions (prefer
-higher-confidence, better-cited, verified findings, and surface genuine conflicts
-rather than hiding them). Carry file:line / source pointers through into your answer,
-and call out anything still unresolved or unverifiable. Do not re-read source material —
-synthesize only from the findings, the verification, and the task.`
+Merge the findings into a single, coherent answer to the task. Resolve overlaps and
+contradictions (prefer higher-confidence, better-cited findings, and surface genuine
+conflicts rather than hiding them). Carry file:line / source pointers through into your
+answer, and call out anything still unresolved or unverifiable. Do not re-read source
+material — synthesize only from the findings, the verification (if any), and the task.`
+}
 
 // ---- pipeline ---------------------------------------------------------------
 
@@ -271,22 +282,35 @@ if (distilled.length === 0) {
 // dubious claims are surfaced to synthesis rather than silently trusted. If the
 // verifier itself dies, we degrade gracefully to synthesizing unverified findings.
 phase('Verify')
-const verdicts = await agent(verifyPrompt(TASK, distilled), {
-  label: 'verifier',
-  phase: 'Verify',
-  model: WORKER_MODEL,
-  effort: WORKER_EFFORT,
-  schema: VERIFY_SCHEMA,
-})
-if (!verdicts) log('Verifier produced no result — synthesizing from unverified findings.')
+let verdicts = null
+try {
+  verdicts = await agent(verifyPrompt(TASK, distilled), {
+    label: 'verifier',
+    phase: 'Verify',
+    model: WORKER_MODEL,
+    effort: WORKER_EFFORT,
+    schema: VERIFY_SCHEMA,
+  })
+} catch (err) {
+  // agent() returns null on terminal API errors (rate limit / overload / context) —
+  // already handled by the `!verdicts` path below. It *throws* only on token-budget
+  // exhaustion; catch it so a late-stage failure still returns the findings.
+  log(`Verifier threw: ${(err && err.message) || err}`)
+}
+if (!verdicts) log('No verification result — synthesizing from unverified findings.')
 
 phase('Synthesize')
-const answer = await agent(synthPrompt(TASK, distilled, verdicts), {
-  label: 'synthesizer',
-  phase: 'Synthesize',
-}) // synthesizer also inherits the strong session model; returns plain text
+let answer = null
+try {
+  answer = await agent(synthPrompt(TASK, distilled, verdicts), {
+    label: 'synthesizer',
+    phase: 'Synthesize',
+  }) // synthesizer inherits the strong session model; returns plain text
+} catch (err) {
+  log(`Synthesizer threw: ${(err && err.message) || err} — returning findings without a merged answer.`)
+}
 
-return {
+const result = {
   task: TASK,
   plan_summary: plan.plan_summary,
   subtaskCount: subtasks.length,
@@ -295,3 +319,5 @@ return {
   verification: verdicts,
   answer,
 }
+if (!answer) result.note = 'Synthesis did not complete; findings and verification are returned raw.'
+return result
