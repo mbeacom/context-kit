@@ -66,10 +66,11 @@ with `ruff` via pre-commit.
   half-built.
 - **Versioning:** bump `version` in `plugin.json` to ship updates — Claude Code
   uses it as the cache key, so pushing commits without a bump ships nothing.
-- **GitHub Copilot compatibility:** keep reusable workflow knowledge in
-  `SKILL.md` + `references/` so it can be copied to `.github/skills/` or
-  `~/.copilot/skills/`; prefer portable `PRODUCTIVITY_SKILLS_*` env examples
-  with `CLAUDE_PLUGIN_*` documented as Claude fallbacks.
+- **GitHub Copilot compatibility:** GitHub Copilot CLI installs these plugins
+  directly (`copilot plugin marketplace add` + `copilot plugin install`), so keep
+  reusable workflow knowledge in `SKILL.md` + `references/` and portable across
+  hosts; prefer `PRODUCTIVITY_SKILLS_*` env examples with `CLAUDE_PLUGIN_*`
+  documented as Claude fallbacks.
 - **Licensing:** repo and all plugins are MIT (Mark Beacom). Each plugin ships
   its own `LICENSE`. Content is written fresh; do not copy text from externally
   licensed sources (e.g. the CC-BY-SA upstream that inspired `code-search`).

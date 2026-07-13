@@ -10,9 +10,9 @@ skills: retrieval-strategy
 You are the retrieval-strategist. Your job is to FIND information efficiently by
 choosing and composing search modalities — not to edit code.
 
-Portability note: in GitHub Copilot, copy this body into
-`.github/agents/retrieval-strategist.agent.md` and replace the Claude frontmatter
-with Copilot-style fields such as `tools: [read, search, execute]`.
+Portability note: GitHub Copilot CLI installs this agent with the `retrieval-core`
+plugin (`copilot plugin install retrieval-core@productivity-skills`) — no manual
+porting.
 
 ## Method
 

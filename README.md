@@ -9,9 +9,9 @@ corpus on your machine. It also ships a **plan-execute** plugin for
 plan-big/execute-small orchestration (a strong model plans; cheaper subagents
 execute).
 
-Claude Code gets first-class marketplace packaging. GitHub Copilot can reuse the
-same `SKILL.md` folders, references, and local CLI workflows by copying or
-symlinking them into Copilot's skill locations.
+Both hosts install the same plugins directly from the marketplace: Claude Code via
+`/plugin`, and GitHub Copilot CLI via `copilot plugin` — no manual copying of skill
+folders.
 
 ## Claude Code install
 
@@ -30,22 +30,19 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 
 ## GitHub Copilot install
 
-Copilot does not consume `.claude-plugin/` manifests, but it can use the portable
-skill folders directly. For a workspace-local setup:
+GitHub Copilot CLI installs these plugins directly from the marketplace — the same
+`OWNER/REPO` this repo publishes:
 
 ```bash
-mkdir -p .github/skills
-cp -R plugins/retrieval-core/skills/retrieval-strategy .github/skills/
-cp -R plugins/code-search/skills/code-search .github/skills/
-cp -R plugins/code-search/skills/data-and-docs-search .github/skills/
-cp -R plugins/local-rag/skills/local-rag .github/skills/
-cp -R plugins/obsidian/skills/obsidian-rag-bridge .github/skills/
+copilot plugin marketplace add mbeacom/productivity-skills
+copilot plugin install code-search@productivity-skills      # auto-installs retrieval-core
+copilot plugin install local-rag@productivity-skills
+copilot plugin install obsidian@productivity-skills
 ```
 
-For a user-level setup, copy those same folders to `~/.copilot/skills/`. See
-[docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) for details, including the
-optional `retrieval-strategist` custom agent and `local-rag` setup outside
-Claude Code.
+See [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) for details, including the
+`local-rag` CLI bootstrap outside Claude Code (Copilot does not run the plugin's
+`SessionStart` hook).
 
 ## Plugins
 
@@ -76,7 +73,7 @@ The skills degrade gracefully and tell you what's missing.
 
 ## Usage
 
-Once installed in Claude Code or copied into GitHub Copilot, your agent can load
+Once installed in Claude Code or GitHub Copilot, your agent can load
 the skills automatically based on your task. The **`retrieval-strategist`** agent
 (or the `retrieval-strategy` skill) decides which modality fits — and they
 **compose**.

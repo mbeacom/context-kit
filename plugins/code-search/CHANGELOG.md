@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2 — 2026-07-13
+
+- Update GitHub Copilot guidance: Copilot CLI installs the plugin directly
+  (`copilot plugin install`), replacing the manual `.github/skills` copy steps.
+
 ## 0.2.1 — 2026-05-29
 
 - Document GitHub Copilot Agent Skills compatibility for `code-search` and
