@@ -9,9 +9,10 @@ corpus on your machine. It also ships a **plan-execute** plugin for
 plan-big/execute-small orchestration (a strong model plans; cheaper subagents
 execute).
 
-Both hosts install the same plugins directly from the marketplace: Claude Code via
-`/plugin`, and GitHub Copilot CLI via `copilot plugin` — no manual copying of skill
-folders.
+All three hosts install the same plugins directly from the marketplace: Claude Code
+via `/plugin`, GitHub Copilot CLI via `copilot plugin`, and Microsoft's
+[APM](https://github.com/microsoft/apm) (Agent Package Manager) via `apm install` —
+no manual copying of skill folders.
 
 ## Claude Code install
 
@@ -44,6 +45,27 @@ copilot plugin install plan-execute@productivity-skills   # plan-big/execute-sma
 See [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) for details, including the
 `local-rag` CLI bootstrap outside Claude Code (Copilot does not run the plugin's
 `SessionStart` hook).
+
+## APM (Agent Package Manager) install
+
+[APM](https://github.com/microsoft/apm) installs the same plugins from the same
+marketplace, adding a committed lockfile, a pre-install security scan, transitive
+dependency resolution, and cross-harness deploy. Register the marketplace, then
+install:
+
+```bash
+apm marketplace add mbeacom/productivity-skills
+apm install code-search@productivity-skills      # also pulls retrieval-core (the spine)
+apm install local-rag@productivity-skills
+apm install obsidian@productivity-skills
+apm install plan-execute@productivity-skills
+```
+
+APM reads the repo's `.claude-plugin/marketplace.json` and each plugin's native
+layout directly; the per-plugin `apm.yml` carries APM metadata and (for
+`code-search`) the `retrieval-core` dependency. See [docs/APM.md](docs/APM.md) for
+targets, the `local-rag` bootstrap (APM does not run Claude's `SessionStart` hook),
+and maintainer notes.
 
 ## Plugins
 

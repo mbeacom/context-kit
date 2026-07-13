@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3 — 2026-07-13
+
+- Add an `apm.yml` manifest so Agent Package Manager (`microsoft/apm`) users can
+  install this plugin (`apm install code-search@productivity-skills`) alongside
+  the Claude Code and GitHub Copilot flows. It declares the `retrieval-core`
+  dependency (APM does not read the plugin.json `dependencies` field), so an APM
+  install also deploys the retrieval spine.
+
 ## 0.2.2 — 2026-07-13
 
 - Update GitHub Copilot guidance: Copilot CLI installs the plugin directly

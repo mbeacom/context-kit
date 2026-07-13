@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 — 2026-07-13
+
+- Add an `apm.yml` manifest so Agent Package Manager (`microsoft/apm`) users can
+  install this plugin (`apm install plan-execute@productivity-skills`) alongside
+  the Claude Code and GitHub Copilot flows.
+
 ## 0.1.0 — 2026-07-13
 
 - Initial release: the `plan-execute-strategy` skill, the

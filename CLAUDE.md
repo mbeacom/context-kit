@@ -15,7 +15,12 @@ modality model and `docs/GITHUB_COPILOT.md` for Copilot setup notes.
 ## Layout
 
 - `.claude-plugin/marketplace.json` — the catalog. **Lists only shipped plugins.**
+  Hand-authored (read by Claude Code, Copilot, and APM alike); **not** generated —
+  see the APM convention below.
 - `plugins/<name>/.claude-plugin/plugin.json` — per-plugin manifest.
+- `plugins/<name>/apm.yml` — per-plugin [APM](https://github.com/microsoft/apm)
+  (Agent Package Manager) manifest, mirroring `plugin.json`. No `.apm/` dir, so the
+  plugin-native layout stays authoritative; APM consumes it as a plugin collection.
 - `plugins/<name>/skills/<name>/SKILL.md` — skills (with `references/*.md` for
   progressive-disclosure detail).
 - `plugins/<name>/agents/<name>.md` — subagents.
@@ -44,6 +49,10 @@ modality model and `docs/GITHUB_COPILOT.md` for Copilot setup notes.
 - Validate all plugins:
   `for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin validate "$p" --strict; done`
 - Lint everything (markdownlint + shellcheck + hygiene): `pre-commit run --all-files`
+- Smoke-test the APM path (needs the `apm` CLI): from a clone,
+  `apm marketplace add ./ --name ps` then, in a scratch dir,
+  `apm install code-search@ps --target claude` — verify it deploys both
+  `code-search` and the `retrieval-core` spine, then `apm marketplace remove ps`.
 - Report which search CLIs are installed: `bash plugins/code-search/scripts/check-tools.sh`
   (a non-zero exit listing `brew install …` for missing optional tools is expected, not a failure).
 - Run the `local-rag` Python tests: `cd plugins/local-rag && uv run --group dev pytest -q`
@@ -61,11 +70,21 @@ with `ruff` via pre-commit.
 - **Adding a plugin:** create `plugins/<name>/.claude-plugin/plugin.json` (include
   `$schema`, `name`, `displayName`, `version`, `description`, `author`,
   `homepage`/`repository`, `license`, `keywords`), add `skills/`/`agents/`, add a
+  `plugins/<name>/apm.yml` (see the APM convention below), add a
   `LICENSE` + `CHANGELOG.md`. Add a catalog entry to `marketplace.json` **only
   when the plugin is ready** — stubs stay unlisted so they can't be installed
   half-built.
 - **Versioning:** bump `version` in `plugin.json` to ship updates — Claude Code
-  uses it as the cache key, so pushing commits without a bump ships nothing.
+  uses it as the cache key, so pushing commits without a bump ships nothing. Bump
+  the matching `apm.yml` `version` in lockstep.
+- **APM (Agent Package Manager) compatibility:** each plugin ships an `apm.yml`
+  that mirrors its `plugin.json` (`name`/`version`/`description` kept in sync). Do
+  **not** add an `.apm/` directory — its absence keeps the plugin-native layout
+  authoritative. APM does not read the plugin.json `dependencies` field, so
+  inter-plugin dependencies live in `apm.yml` (e.g. `code-search` → a local-path
+  dep on `../retrieval-core`). Keep `marketplace.json` **hand-authored**: do not
+  run `apm pack` to regenerate it — the generated output drops the per-plugin
+  `category` field. See [docs/APM.md](docs/APM.md).
 - **GitHub Copilot compatibility:** GitHub Copilot CLI installs these plugins
   directly (`copilot plugin marketplace add` + `copilot plugin install`), so keep
   reusable workflow knowledge in `SKILL.md` + `references/` and portable across
