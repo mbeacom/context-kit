@@ -37,7 +37,7 @@ Run the session with a strong **main** model and pin **subagents** to a cheaper
 one, then tell the main model to delegate:
 
 ```bash
-CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-5 claude \
+CLAUDE_CODE_SUBAGENT_MODEL=sonnet claude \
   --append-system-prompt "For task execution, delegate to subagents with clear, \
 appropriately-scoped instructions. You own planning and oversight of overall \
 progress; self-judged exceptions are allowed."
@@ -86,8 +86,10 @@ of workers, or a barrier before synthesis; prefer interactive when the shape of
 the work is still unfolding.
 
 For interactive delegation of a *single* scoped unit, hand it to the
-`execution-worker` subagent this plugin ships (a cheap-model worker that does one
-task and reports back).
+`execution-worker` subagent this plugin ships — a Sonnet-by-default worker (cheaper
+than an Opus/Fable planner, capable enough to edit) that does one task and reports
+back. Override its model with `CLAUDE_CODE_SUBAGENT_MODEL` (for example `haiku` for
+read-only investigation).
 
 ## The advisor tool (`/advisor`) — how it differs
 

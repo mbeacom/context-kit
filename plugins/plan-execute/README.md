@@ -36,7 +36,7 @@ copilot plugin install plan-execute@productivity-skills
 cheaper one:
 
 ```bash
-CLAUDE_CODE_SUBAGENT_MODEL=claude-sonnet-5 claude \
+CLAUDE_CODE_SUBAGENT_MODEL=sonnet claude \
   --append-system-prompt "Delegate execution to subagents with clear, scoped \
 instructions; you own planning and oversight."
 ```

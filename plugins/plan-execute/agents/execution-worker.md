@@ -1,6 +1,6 @@
 ---
 name: execution-worker
-description: Use to delegate ONE well-scoped execution or investigation sub-task to a cheaper model. The worker does that single unit in its own context and returns distilled results with source pointers — it does not plan the overall task. The "execute small" half of a plan-big/execute-small split.
+description: Use to delegate ONE well-scoped execution or investigation sub-task to a cheaper executor model. The worker does that single unit in its own context and returns distilled results with source pointers — it does not plan the overall task. The "execute small" half of a plan-big/execute-small split.
 model: sonnet
 tools: Read, Grep, Glob, Edit, Write, Bash
 skills: plan-execute-strategy
