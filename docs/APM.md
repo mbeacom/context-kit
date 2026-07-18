@@ -114,7 +114,12 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
   drops the per-plugin `category` field (APM emits `category` only for Codex
   output) and rewrites the file. This repo keeps the catalog hand-authored so
   Claude Code, Copilot, and APM all read the same, category-tagged artifact — do
-  not run `apm pack` to regenerate it.
+  not run `apm pack` to regenerate it. The category-drop is fixed upstream by
+  [microsoft/apm#2189](https://github.com/microsoft/apm/pull/2189) (merged,
+  unreleased as of 2026-07); once it ships, generated output *may* preserve
+  `category`, but before relaxing this rule still confirm `apm pack` doesn't churn
+  ordering/formatting and doesn't list unshipped plugins (the catalog lists only
+  shipped ones).
 - **Each plugin's `apm.yml` mirrors its `plugin.json`.** Keep `name`,
   `version`, and `description` in sync when you bump a plugin; there is no
   `.apm/` directory, so the plugin-native layout remains the source of truth.

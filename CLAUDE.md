@@ -84,7 +84,9 @@ with `ruff` via pre-commit.
   inter-plugin dependencies live in `apm.yml` (e.g. `code-search` → a local-path
   dep on `../retrieval-core`). Keep `marketplace.json` **hand-authored**: do not
   run `apm pack` to regenerate it — the generated output drops the per-plugin
-  `category` field. See [docs/APM.md](docs/APM.md).
+  `category` field. (That drop is fixed upstream by microsoft/apm#2189, merged but
+  unreleased as of 2026-07; even after it ships, re-verify `apm pack` output before
+  relaxing this.) See [docs/APM.md](docs/APM.md).
 - **GitHub Copilot compatibility:** GitHub Copilot CLI installs these plugins
   directly (`copilot plugin marketplace add` + `copilot plugin install`), so keep
   reusable workflow knowledge in `SKILL.md` + `references/` and portable across
