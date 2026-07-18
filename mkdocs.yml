@@ -1,0 +1,136 @@
+site_name: context-kit
+site_url: https://mbeacom.github.io/context-kit/
+site_author: Mark Beacom
+site_description: >-
+  Context-engineering plugins for Claude Code, GitHub Copilot, and APM:
+  retrieval modalities with a routing agent, local RAG, an Obsidian bridge,
+  plan-big/execute-small delegation, context steering, read-only verification,
+  and portable plugin authoring.
+
+repo_name: mbeacom/context-kit
+repo_url: https://github.com/mbeacom/context-kit
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; Mark Beacom — MIT licensed
+
+docs_dir: docs
+
+theme:
+  name: material
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/layers-search
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mbeacom/context-kit
+      name: context-kit on GitHub
+  generator: false
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      permalink_title: Anchor link to this section
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Architecture: ARCHITECTURE.md
+  - Plugins:
+      - plugins/index.md
+      - retrieval-core: plugins/retrieval-core.md
+      - code-search: plugins/code-search.md
+      - local-rag: plugins/local-rag.md
+      - obsidian: plugins/obsidian.md
+      - plan-execute: plugins/plan-execute.md
+      - context-steering: plugins/context-steering.md
+      - verify: plugins/verify.md
+      - plugin-forge: plugins/plugin-forge.md
+  - Guides:
+      - GitHub Copilot: GITHUB_COPILOT.md
+      - APM (Agent Package Manager): APM.md
+  - Contributing: contributing.md
+
+watch:
+  - docs

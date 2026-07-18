@@ -144,7 +144,7 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
 
 ## Where next
 
-- [README.md](../README.md) — the plugin catalog and Claude Code / Copilot install.
+- [Home](index.md) — the plugin catalog and Claude Code / Copilot install.
 - [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md) — the shared portable-config and
   `local-rag` bootstrap notes APM reuses.
 - [docs/ARCHITECTURE.md](ARCHITECTURE.md) — the retrieval-modality model.
