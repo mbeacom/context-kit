@@ -11,6 +11,9 @@ keeps your corpus on your machine. Around that spine it adds **plan-execute**
 rule at the cheapest layer that still fires), **verify** (a read-only checker for
 claims), and **plugin-forge** (author more portable plugins like these).
 
+📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
+guides, architecture, and a page for every plugin.
+
 All three hosts install the same plugins directly from the marketplace: Claude Code
 via `/plugin`, GitHub Copilot CLI via `copilot plugin`, and Microsoft's
 [APM](https://github.com/microsoft/apm) (Agent Package Manager) via `apm install` —

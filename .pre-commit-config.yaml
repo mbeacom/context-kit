@@ -11,6 +11,9 @@ repos:
       - id: check-added-large-files
       - id: check-json
       - id: check-yaml
+        # mkdocs.yml uses MkDocs Material's Python YAML tags (!!python/name:...),
+        # which the safe loader in check-yaml cannot construct.
+        exclude: ^mkdocs\.yml$
 
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.22.1

@@ -1,0 +1,18 @@
+// Docs-site markdownlint overrides, scoped to docs/ only.
+//
+// MkDocs Material syntax that vanilla markdownlint (CommonMark) misreads:
+//   - MD046 (code-block-style): fenced code inside content tabs (=== "…") and
+//     admonitions (!!! …) is indented 4 spaces, which markdownlint sees as an
+//     "indented" code block — clashing with top-level fenced blocks.
+//   - MD030 (list-marker-space): Material "grid cards" use `-   ` (aligned) so
+//     multi-line card content nests correctly.
+//
+// These are inherent to the theme, not lint findings to fix. The repo-root
+// config stays strict for plugin SKILL.md files.
+{
+  "extends": "../.markdownlint-cli2.jsonc",
+  "config": {
+    "MD046": false,
+    "MD030": false
+  }
+}
