@@ -20,6 +20,9 @@ if [ "$#" -eq 1 ]; then
   fi
   PLUGINS_DIR="$(cd "$1" && pwd)"
 else
+  # This script lives at plugins/plugin-forge/scripts/check-manifests.sh, so two
+  # levels up from its own dir (scripts/ -> plugin-forge/ -> plugins/) is the
+  # repo's plugins/ dir. Pass an explicit plugins dir as $1 to override.
   PLUGINS_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 fi
 
@@ -46,12 +49,27 @@ apm_field() {
   local file="$1"
   local key="$2"
 
-  awk -F: -v key="$key" '
-    $1 == key {
+  # Parse a top-level scalar from apm.yml. Deliberately tolerant: allows an
+  # optional space before the colon, ignores nested keys (which carry leading
+  # indentation), keeps colons inside the value, strips a trailing "# comment",
+  # and unwraps matching single or double quotes. `sq` carries a literal single
+  # quote so the awk program can stay single-quoted in the shell.
+  awk -F: -v key="$key" -v sq="'" '
+    {
+      k = $1
+      sub(/[[:space:]]+$/, "", k)
+      if (k != key) next
       value = $0
       sub("^[^:]*:[[:space:]]*", "", value)
+      sub(/[[:space:]]+#.*$/, "", value)
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
-      gsub(/^["]|["]$/, "", value)
+      n = length(value)
+      if (n >= 2) {
+        first = substr(value, 1, 1)
+        last = substr(value, n, 1)
+        if ((first == "\"" && last == "\"") || (first == sq && last == sq))
+          value = substr(value, 2, n - 2)
+      }
       print value
       exit
     }

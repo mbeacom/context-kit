@@ -92,6 +92,16 @@ def test_legacy_productivity_skills_data_still_supported(tmp_path, monkeypatch):
     assert not (claude_data / "indexes").exists()
 
 
+def test_data_dir_expands_tilde(tmp_path, monkeypatch):
+    """A tilde in CONTEXT_KIT_DATA expands to the home dir, not a literal '~'."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("CONTEXT_KIT_DATA", "~/kit-data")
+
+    assert cli._data_dir() == home / "kit-data"
+
+
 def test_context_kit_embed_env_overrides_claude_env(
     tmp_path,
     monkeypatch,

@@ -22,7 +22,7 @@ def _data_dir() -> Path:
     return Path(
         _first_env("CONTEXT_KIT_DATA", "PRODUCTIVITY_SKILLS_DATA", "CLAUDE_PLUGIN_DATA")
         or Path.home() / ".claude/plugins/data/local-rag"
-    )
+    ).expanduser()
 
 
 def _make_embedder(args):
