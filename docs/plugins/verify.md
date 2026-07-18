@@ -10,13 +10,6 @@
 
 ## Install
 
-=== "Claude Code"
-
-    ```bash
-    /plugin marketplace add mbeacom/context-kit
-    /plugin install verify@context-kit
-    ```
-
 === "GitHub Copilot"
 
     ```bash
@@ -29,6 +22,13 @@
     ```bash
     apm marketplace add mbeacom/context-kit
     apm install verify@context-kit   # also deploys retrieval-core
+    ```
+
+=== "Claude Code"
+
+    ```bash
+    /plugin marketplace add mbeacom/context-kit
+    /plugin install verify@context-kit
     ```
 
 ## Components

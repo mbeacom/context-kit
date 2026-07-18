@@ -46,4 +46,4 @@ Everything that is **always on** costs tokens on every turn: project memory plus
 
 ## Portability
 
-The placement model works across Claude Code and GitHub Copilot / `AGENTS.md`-style hosts. Hook and rule mechanisms differ by host; `examples/` uses Claude Code JSON as the concrete case while keeping the guidance host-neutral. Install with `copilot plugin install context-steering@context-kit`, `/plugin install context-steering@context-kit`, or `apm install context-steering@context-kit`.
+The placement model works across GitHub Copilot / `AGENTS.md`-style hosts and Claude Code. Hook and rule mechanisms differ by host; `examples/` uses Claude Code JSON as the concrete case while keeping the guidance host-neutral. Install with `copilot plugin install context-steering@context-kit`, `apm install context-steering@context-kit`, or `/plugin install context-steering@context-kit`.

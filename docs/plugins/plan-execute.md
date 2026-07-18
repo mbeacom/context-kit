@@ -8,13 +8,6 @@
 
 ## Install
 
-=== "Claude Code"
-
-    ```bash
-    /plugin marketplace add mbeacom/context-kit
-    /plugin install plan-execute@context-kit
-    ```
-
 === "GitHub Copilot"
 
     ```bash
@@ -27,6 +20,13 @@
     ```bash
     apm marketplace add mbeacom/context-kit
     apm install plan-execute@context-kit
+    ```
+
+=== "Claude Code"
+
+    ```bash
+    /plugin marketplace add mbeacom/context-kit
+    /plugin install plan-execute@context-kit
     ```
 
 ## Components

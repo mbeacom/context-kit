@@ -10,13 +10,6 @@ it also lands the [retrieval spine](retrieval-core.md).
 
 ## Install
 
-=== "Claude Code"
-
-    ```bash
-    /plugin marketplace add mbeacom/context-kit
-    /plugin install code-search@context-kit   # auto-installs retrieval-core
-    ```
-
 === "GitHub Copilot"
 
     ```bash
@@ -29,6 +22,13 @@ it also lands the [retrieval spine](retrieval-core.md).
     ```bash
     apm marketplace add mbeacom/context-kit
     apm install code-search@context-kit   # also pulls retrieval-core
+    ```
+
+=== "Claude Code"
+
+    ```bash
+    /plugin marketplace add mbeacom/context-kit
+    /plugin install code-search@context-kit   # auto-installs retrieval-core
     ```
 
 ## Skills

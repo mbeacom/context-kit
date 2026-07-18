@@ -60,19 +60,23 @@ asks you to run tests or make changes.
 
 ## Portability
 
-Claude Code and GitHub Copilot CLI install this plugin directly:
+GitHub Copilot CLI installs this plugin directly:
 
 ```bash
-/plugin marketplace add mbeacom/context-kit
-/plugin install verify@context-kit
 copilot plugin marketplace add mbeacom/context-kit
 copilot plugin install verify@context-kit
 ```
 
-APM users can install the same plugin; the APM manifest also pulls
-`retrieval-core`:
+APM installs the same plugin, and its manifest also pulls `retrieval-core`:
 
 ```bash
 apm marketplace add mbeacom/context-kit
 apm install verify@context-kit
+```
+
+Claude Code installs it via `/plugin`:
+
+```bash
+/plugin marketplace add mbeacom/context-kit
+/plugin install verify@context-kit
 ```

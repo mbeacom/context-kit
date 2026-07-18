@@ -2,7 +2,7 @@ site_name: context-kit
 site_url: https://mbeacom.github.io/context-kit/
 site_author: Mark Beacom
 site_description: >-
-  Context-engineering plugins for Claude Code, GitHub Copilot, and APM:
+  Context-engineering plugins for GitHub Copilot, APM, and Claude Code:
   retrieval modalities with a routing agent, local RAG, an Obsidian bridge,
   plan-big/execute-small delegation, context steering, read-only verification,
   and portable plugin authoring.

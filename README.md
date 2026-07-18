@@ -1,41 +1,24 @@
 # context-kit
 
-A [Claude Code](https://code.claude.com) plugin **marketplace** and
-GitHub Copilot-compatible **Agent Skills** pack for **context engineering** —
-getting the right information in front of an agent and keeping the wrong
-information out. It bundles complementary **retrieval modalities** — lexical,
-structural, structured-data, history, semantic (RAG), and graph — plus a routing
-agent that picks and composes them. Everything runs **locally**; the RAG layer
-keeps your corpus on your machine. Around that spine it adds **plan-execute**
-(a strong model plans; cheaper subagents execute), **context-steering** (put each
-rule at the cheapest layer that still fires), **verify** (a read-only checker for
-claims), and **plugin-forge** (author more portable plugins like these).
+A context-engineering plugin pack for **GitHub Copilot CLI**, Microsoft's
+[APM](https://github.com/microsoft/apm) (Agent Package Manager), and
+[Claude Code](https://code.claude.com) — getting the right information in front of
+an agent and keeping the wrong information out. It bundles complementary
+**retrieval modalities** — lexical, structural, structured-data, history, semantic
+(RAG), and graph — plus a routing agent that picks and composes them. Everything
+runs **locally**; the RAG layer keeps your corpus on your machine. Around that
+spine it adds **plan-execute** (a strong model plans; cheaper subagents execute),
+**context-steering** (put each rule at the cheapest layer that still fires),
+**verify** (a read-only checker for claims), and **plugin-forge** (author more
+portable plugins like these).
 
 📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
 guides, architecture, and a page for every plugin.
 
-All three hosts install the same plugins directly from the marketplace: Claude Code
-via `/plugin`, GitHub Copilot CLI via `copilot plugin`, and Microsoft's
-[APM](https://github.com/microsoft/apm) (Agent Package Manager) via `apm install` —
-no manual copying of skill folders.
-
-## Claude Code install
-
-```bash
-/plugin marketplace add mbeacom/context-kit
-```
-
-Then install what you need (installing `code-search` auto-installs `retrieval-core`):
-
-```bash
-/plugin install code-search@context-kit     # lexical/structural/data/history search
-/plugin install local-rag@context-kit        # local semantic search (turbovec + ollama)
-/plugin install obsidian@context-kit          # Obsidian vault → RAG bridge
-/plugin install plan-execute@context-kit      # plan-big/execute-small orchestration
-/plugin install context-steering@context-kit  # place guidance at the cheapest layer
-/plugin install verify@context-kit            # read-only claim verification (pulls retrieval-core)
-/plugin install plugin-forge@context-kit      # author portable plugins
-```
+All three hosts install the same plugins directly from one marketplace — GitHub
+Copilot CLI via `copilot plugin`, APM via `apm install`, and Claude Code via
+`/plugin` — no manual copying of skill folders. The catalog ships in Claude Code's
+marketplace schema, which Copilot and APM read too.
 
 ## GitHub Copilot install
 
@@ -82,6 +65,24 @@ layout directly; the per-plugin `apm.yml` carries APM metadata and (for
 targets, the `local-rag` bootstrap (APM does not run Claude's `SessionStart` hook),
 and maintainer notes.
 
+## Claude Code install
+
+```bash
+/plugin marketplace add mbeacom/context-kit
+```
+
+Then install what you need (installing `code-search` auto-installs `retrieval-core`):
+
+```bash
+/plugin install code-search@context-kit     # lexical/structural/data/history search
+/plugin install local-rag@context-kit        # local semantic search (turbovec + ollama)
+/plugin install obsidian@context-kit          # Obsidian vault → RAG bridge
+/plugin install plan-execute@context-kit      # plan-big/execute-small orchestration
+/plugin install context-steering@context-kit  # place guidance at the cheapest layer
+/plugin install verify@context-kit            # read-only claim verification (pulls retrieval-core)
+/plugin install plugin-forge@context-kit      # author portable plugins
+```
+
 ## Plugins
 
 | Plugin | What it does |
@@ -103,18 +104,19 @@ The skills degrade gracefully and tell you what's missing.
   `bash plugins/code-search/scripts/check-tools.sh` to see what's installed and
   the `brew install …` line for the rest.
 - **local-rag** — needs [`uv`](https://docs.astral.sh/uv/) and a running
-  [ollama](https://ollama.com) with an embedding model. Claude Code
-  auto-bootstraps the `rag` CLI on session start; Copilot/manual users should run
-  the bootstrap step in [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md):
-  `ollama serve` + `ollama pull nomic-embed-text`.
+  [ollama](https://ollama.com) with an embedding model. For GitHub Copilot, APM,
+  or manual use, run the bootstrap step in
+  [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) (`ollama serve` +
+  `ollama pull nomic-embed-text`); Claude Code auto-bootstraps the `rag` CLI on
+  session start.
 - **obsidian** — optional: the official `obsidian` CLI (with Obsidian running)
   for graph-accurate queries; otherwise falls back to `rg`/`fd`. Set your vault
-  path in the Claude plugin config (`vault_path`) or
-  `CONTEXT_KIT_OBSIDIAN_VAULT` for Copilot/manual usage.
+  path via `CONTEXT_KIT_OBSIDIAN_VAULT` (GitHub Copilot, APM, or manual usage) or
+  the Claude plugin config (`vault_path`).
 
 ## Usage
 
-Once installed in Claude Code or GitHub Copilot, your agent can load
+Once installed in GitHub Copilot, APM, or Claude Code, your agent can load
 the skills automatically based on your task. The **`retrieval-strategist`** agent
 (or the `retrieval-strategy` skill) decides which modality fits — and they
 **compose**.

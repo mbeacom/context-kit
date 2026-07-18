@@ -12,9 +12,11 @@ allowed-tools: Read Glob Grep Bash
 
 Pick a modality by **what you know about the query × what you know about the corpus.**
 
-This skill is portable across Claude Code and GitHub Copilot. Both hosts install it
-from the marketplace — Claude Code via `/plugin`, GitHub Copilot CLI via
-`copilot plugin install retrieval-core@context-kit`.
+This skill is portable across GitHub Copilot, APM, and Claude Code. Each host
+installs it from the `mbeacom/context-kit` marketplace — register the marketplace
+(`copilot plugin marketplace add`, `apm marketplace add`, or
+`/plugin marketplace add`), then install `retrieval-core@context-kit`. It also
+ships automatically with `code-search`.
 
 ## Decision flow
 

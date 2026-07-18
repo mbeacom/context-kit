@@ -1,6 +1,6 @@
 # Obsidian RAG Bridge
 
-A skill-only retrieval bridge for Claude Code and GitHub Copilot that connects
+A skill-only retrieval bridge for GitHub Copilot, APM, and Claude Code that connects
 an Obsidian vault to local semantic search. The pattern: **narrow to candidate
 notes via the vault's link graph or tags, then rerank semantically with `rag`.**
 

@@ -2,7 +2,7 @@
 
 Every `context-kit` plugin has two manifests:
 
-- `.claude-plugin/plugin.json` for Claude Code and GitHub Copilot compatible
+- `.claude-plugin/plugin.json` for GitHub Copilot and Claude Code compatible
   plugin metadata.
 - `apm.yml` for Agent Package Manager metadata and APM-native dependencies.
 
@@ -19,7 +19,7 @@ CLI listings.
   "name": "example-plugin",
   "displayName": "Example Plugin",
   "version": "0.1.0",
-  "description": "Author-ready description for Claude Code, GitHub Copilot, and marketplace readers. It can be one or two sentences.",
+  "description": "Author-ready description for GitHub Copilot, Claude Code, and marketplace readers. It can be one or two sentences.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",

@@ -13,7 +13,7 @@ allowed-tools: Bash(jq:*) Bash(yq:*) Bash(gron:*) Bash(duckdb:*) Bash(sqlite-uti
 
 Search beyond source code.
 
-This skill is portable across Claude Code and GitHub Copilot; keep the
+This skill is portable across GitHub Copilot, APM, and Claude Code; keep the
 `references/` folder next to `SKILL.md` when copying it into a Copilot skill
 location.
 

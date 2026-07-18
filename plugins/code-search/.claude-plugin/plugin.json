@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "code-search",
   "displayName": "Code Search",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "description": "Fast CLI search across modalities: lexical (rg/fd), structural (ast-grep/semgrep), structured-data (jq/yq/gron), history (git pickaxe), structured rewrite (comby), data files (duckdb), metrics (tokei/scc), and non-code docs (rga/pandoc/pdftotext).",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",
