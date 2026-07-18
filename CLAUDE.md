@@ -78,7 +78,9 @@ with `ruff` via pre-commit.
   uses it as the cache key, so pushing commits without a bump ships nothing. Bump
   the matching `apm.yml` `version` in lockstep.
 - **APM (Agent Package Manager) compatibility:** each plugin ships an `apm.yml`
-  that mirrors its `plugin.json` (`name`/`version`/`description` kept in sync). Do
+  that mirrors its `plugin.json` (`name`/`version` kept strictly in sync;
+  `description` is intentionally a more concise variant tuned for APM/CLI
+  listings). Do
   **not** add an `.apm/` directory — its absence keeps the plugin-native layout
   authoritative. APM does not read the plugin.json `dependencies` field, so
   inter-plugin dependencies live in `apm.yml` (e.g. `code-search` → a local-path

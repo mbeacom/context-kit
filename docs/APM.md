@@ -120,9 +120,11 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
   `category`, but before relaxing this rule still confirm `apm pack` doesn't churn
   ordering/formatting and doesn't list unshipped plugins (the catalog lists only
   shipped ones).
-- **Each plugin's `apm.yml` mirrors its `plugin.json`.** Keep `name`,
-  `version`, and `description` in sync when you bump a plugin; there is no
-  `.apm/` directory, so the plugin-native layout remains the source of truth.
+- **Each plugin's `apm.yml` mirrors its `plugin.json`.** Keep `name` and
+  `version` strictly in sync when you bump a plugin; `description` is
+  intentionally a more concise variant tuned for APM/CLI listings (the
+  `plugin.json` copy stays fuller). There is no `.apm/` directory, so the
+  plugin-native layout remains the source of truth.
 - **`code-search`'s spine dependency is a local sibling path**
   (`- path: ../retrieval-core`). `apm install code-search@productivity-skills`
   resolves it and deploys the spine. If you then install *another* plugin in the
