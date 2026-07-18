@@ -1,0 +1,15 @@
+# Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
+# Lets APM users install this plugin alongside the Claude Code / GitHub Copilot
+# flows: `apm install plugin-forge@context-kit`. There is no `.apm/`
+# directory, so the plugin-native layout (.claude-plugin/plugin.json + skills/ +
+# commands/ + scripts/) stays authoritative; APM consumes it as a plugin collection.
+# Keep name/version in sync with .claude-plugin/plugin.json; keep description as the
+# concise APM/CLI-listing variant of the plugin.json description.
+name: plugin-forge
+version: 0.1.0
+description: Portable plugin authoring conventions, scaffolding, and plugin.json ⇆ apm.yml drift checks.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
+keywords: [authoring, scaffold, plugin, apm, marketplace, manifest, claude-code, copilot]

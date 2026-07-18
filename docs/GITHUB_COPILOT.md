@@ -1,6 +1,6 @@
-# Using productivity-skills with GitHub Copilot
+# Using context-kit with GitHub Copilot
 
-`productivity-skills` is a plugin marketplace that both Claude Code and GitHub
+`context-kit` is a plugin marketplace that both Claude Code and GitHub
 Copilot CLI install from **directly** — the same plugins, from a single Markdown
 source. No manual copying of skill folders.
 
@@ -13,10 +13,10 @@ and the commands are identical across hosts.
 Register this marketplace, then install the plugins you want:
 
 ```bash
-copilot plugin marketplace add mbeacom/productivity-skills
-copilot plugin install code-search@productivity-skills      # auto-installs retrieval-core
-copilot plugin install local-rag@productivity-skills
-copilot plugin install obsidian@productivity-skills
+copilot plugin marketplace add mbeacom/context-kit
+copilot plugin install code-search@context-kit      # auto-installs retrieval-core
+copilot plugin install local-rag@context-kit
+copilot plugin install obsidian@context-kit
 ```
 
 Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
@@ -50,7 +50,7 @@ automatically via a `SessionStart` hook; GitHub Copilot does not run Claude hook
 so bootstrap it once yourself from a clone of this repo:
 
 ```bash
-export PRODUCTIVITY_SKILLS_DATA="$HOME/.local/share/productivity-skills/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ollama pull nomic-embed-text
@@ -62,14 +62,17 @@ Supported neutral environment variables:
 
 | Variable | Purpose | Claude fallback |
 | --- | --- | --- |
-| `PRODUCTIVITY_SKILLS_DATA` | venv and index storage for `local-rag` | `CLAUDE_PLUGIN_DATA` |
-| `PRODUCTIVITY_SKILLS_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
-| `PRODUCTIVITY_SKILLS_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
-| `PRODUCTIVITY_SKILLS_OBSIDIAN_VAULT` | vault path used by examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
+| `CONTEXT_KIT_DATA` | venv and index storage for `local-rag` | `CLAUDE_PLUGIN_DATA` |
+| `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
+| `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
+| `CONTEXT_KIT_OBSIDIAN_VAULT` | vault path used by examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
 
 The Claude-specific variables remain supported so existing plugin installs keep
-working. The `PRODUCTIVITY_SKILLS_*` names are preferred for portable docs and
-shell profiles shared across agents.
+working. The `CONTEXT_KIT_*` names are preferred for portable docs and
+shell profiles shared across agents. The former `PRODUCTIVITY_SKILLS_*` names
+(from before the marketplace was renamed to `context-kit`) are still honored as a
+deprecated alias — resolution order is `CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` →
+the Claude fallback — but will be dropped in a future release; migrate when convenient.
 
 ## Tooling expectations
 
@@ -94,7 +97,7 @@ When updating this repo, keep the reusable retrieval instructions agent-neutral:
 
 1. Put cross-agent workflow knowledge in `SKILL.md` and `references/`.
 2. Keep Claude marketplace mechanics in `.claude-plugin/`, hooks, and Claude-only docs.
-3. Prefer `PRODUCTIVITY_SKILLS_*` in portable examples, with `CLAUDE_PLUGIN_*`
+3. Prefer `CONTEXT_KIT_*` in portable examples, with `CLAUDE_PLUGIN_*`
    documented as the Claude fallback.
 4. Mention when a behavior is installed automatically by Claude (for example, the
    `local-rag` bootstrap hook) but must be run manually for GitHub Copilot.

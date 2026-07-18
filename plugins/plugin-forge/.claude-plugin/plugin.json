@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "plugin-forge",
+  "displayName": "Plugin Forge",
+  "version": "0.1.0",
+  "description": "Author portable Claude Code, GitHub Copilot, and APM plugins while keeping plugin.json and apm.yml in sync. Ships a conventions skill, a /scaffold-plugin command, and a manifest-drift validator.",
+  "author": { "name": "Mark Beacom" },
+  "homepage": "https://github.com/mbeacom/context-kit",
+  "repository": "https://github.com/mbeacom/context-kit",
+  "license": "MIT",
+  "keywords": ["authoring", "scaffold", "plugin", "apm", "marketplace", "manifest", "claude-code", "copilot"]
+}

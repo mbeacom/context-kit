@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "verify",
+  "displayName": "Verify",
+  "version": "0.1.0",
+  "description": "Read-only verification for claims about a repository: a verifier subagent and verify-before-trust skill check AI answers, plans, PR descriptions, and docs against the actual codebase. Reports per-claim verdicts with file:line evidence.",
+  "author": { "name": "Mark Beacom" },
+  "homepage": "https://github.com/mbeacom/context-kit",
+  "repository": "https://github.com/mbeacom/context-kit",
+  "license": "MIT",
+  "keywords": ["verification", "review", "read-only", "subagent", "trust", "claims", "evidence", "claude-code", "copilot"],
+  "dependencies": ["retrieval-core"]
+}

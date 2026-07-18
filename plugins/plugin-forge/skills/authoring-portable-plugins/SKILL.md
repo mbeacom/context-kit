@@ -1,0 +1,118 @@
+---
+name: authoring-portable-plugins
+description: "Use when creating a new plugin (or editing one) for a multi-host Claude Code / GitHub Copilot / APM marketplace — the required manifest files, the plugin.json ⇆ apm.yml mirroring rule, portable env-var and install conventions, the component directory layout, and how to add it to the catalog."
+license: MIT
+metadata:
+  author: Mark Beacom
+  version: "0.1.0"
+allowed-tools: Read Bash
+---
+
+# Authoring Portable Plugins
+
+Use this skill as the house rulebook for `context-kit` plugins: a Claude Code
+plugin marketplace that is also installable by GitHub Copilot CLI and APM. Keep
+new plugin knowledge portable across those hosts, and keep host-specific wiring
+isolated to manifests, install instructions, hooks, commands, or scripts.
+
+## Required invariants
+
+Create each plugin under `plugins/<name>/` and include these files before treating
+it as shippable:
+
+- `.claude-plugin/plugin.json` with `$schema`, `name`, `displayName`, `version`,
+  `description`, `author`, `homepage`, `repository`, `license`, and `keywords`.
+- A sibling `apm.yml` that mirrors the plugin metadata for Agent Package Manager.
+- `README.md`, `CHANGELOG.md`, and `LICENSE` using MIT licensing for Mark Beacom.
+- The component directories the plugin actually ships: `skills/`, `agents/`,
+  `commands/`, `scripts/`, hooks, MCP config, or other support files as needed.
+
+Keep `.claude-plugin/` reserved for `plugin.json`. Put every component directory
+at the plugin root.
+
+## Manifest mirroring rule
+
+Keep `plugin.json` and `apm.yml` aligned every time a plugin ships:
+
+- Keep `name` and `version` **strictly identical**. Claude Code uses `version` as
+  the cache key, so bump `plugin.json` and `apm.yml` together to ship updates.
+- Keep author, license, homepage, repository, and keywords aligned with the
+  plugin manifest. Let `apm.yml` use a shorter `description` tuned for CLI
+  listings while `plugin.json` can carry the fuller description.
+- Do **not** add an `.apm/` directory. The plugin-native layout remains the
+  authoritative source for Claude Code, Copilot, and APM.
+- Put inter-plugin APM dependencies in `apm.yml` because APM does not read the
+  Claude `plugin.json` `dependencies` field. Use `dependencies.apm` with sibling
+  local paths such as `- path: ../retrieval-core`.
+- Never run `apm pack` to regenerate `.claude-plugin/marketplace.json`. Generated
+  output drops the per-plugin `category` field; the upstream fix
+  `microsoft/apm#2189` is treated as unreleased for this repo.
+
+Run `${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh` from any working directory
+to catch `name` or `version` drift across all plugins.
+
+## Component layout
+
+Place components at the plugin root:
+
+- `skills/<skill-name>/SKILL.md`, with optional `references/` for progressive
+  disclosure details.
+- `agents/<agent-name>.md` for subagents.
+- `commands/<command-name>.md` for slash commands.
+- `scripts/` for deterministic helper scripts.
+- `hooks/` or `.mcp.json` only when the plugin actually needs them.
+
+Use kebab-case for plugin names, skill directories, command files, agent files,
+and scripts. Prefer a few well-scoped skills with reference files over many tiny
+skills; always-on skill metadata has a context cost.
+
+## Portability rules
+
+Write reusable bodies for Claude Code, GitHub Copilot, and APM rather than for a
+single host. Use these conventions:
+
+- Prefer portable environment variables named `CONTEXT_KIT_*`; document
+  `CLAUDE_PLUGIN_*` as the Claude fallback when needed. For example,
+  `CONTEXT_KIT_DATA` can fall back to `CLAUDE_PLUGIN_DATA`.
+- Use `${CLAUDE_PLUGIN_ROOT}` for paths to scripts or bundled resources inside a
+  plugin. Do not hardcode install locations or rely on the current working
+  directory.
+- Document all install flows:
+
+```bash
+/plugin marketplace add mbeacom/context-kit
+/plugin install <plugin-name>@context-kit
+copilot plugin marketplace add mbeacom/context-kit
+copilot plugin install <plugin-name>@context-kit
+apm marketplace add mbeacom/context-kit
+apm install <plugin-name>@context-kit
+```
+
+Keep Claude-only features clearly labeled as Claude fallbacks or extensions, and
+pair them with a host-neutral convention where one exists.
+
+## Catalog and release step
+
+Add `.claude-plugin/marketplace.json` entries only when a plugin is ready to ship.
+The catalog is hand-authored and shared by Claude Code, Copilot, and APM; stubs
+stay unlisted. A ready entry includes:
+
+- `name`
+- `source`
+- `description`
+- `category`
+- `tags`
+
+Bump both manifest versions for any shipped update before asking the parent repo
+to wire the catalog entry.
+
+## Resources and workflows
+
+- Read `references/manifests.md` for side-by-side `plugin.json` and `apm.yml`
+  examples, dependency syntax, versioning, and the `apm pack` warning.
+- Read `references/layout.md` for the canonical tree, marketplace entry shape,
+  and validation commands.
+- Use `/scaffold-plugin <new-plugin-name> "short description"` to create a
+  standard starter under `plugins/<name>/` without adding it to the catalog.
+- Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh` to validate manifest
+  drift across the repository.

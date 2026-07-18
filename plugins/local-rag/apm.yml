@@ -1,18 +1,18 @@
 # Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
 # Lets APM users install this plugin alongside the Claude Code / GitHub Copilot
-# flows: `apm install local-rag@productivity-skills`. There is no `.apm/`
+# flows: `apm install local-rag@context-kit`. There is no `.apm/`
 # directory, so the plugin-native layout (.claude-plugin/plugin.json + skills/ +
 # bin/) stays authoritative; APM consumes it as a plugin collection.
 # Keep name/version/description in sync with .claude-plugin/plugin.json.
 #
 # APM does not run the Claude SessionStart bootstrap hook, so the bin/rag venv
 # must be bootstrapped manually (same as GitHub Copilot). Config uses the
-# PRODUCTIVITY_SKILLS_* env vars, not Claude userConfig. See docs/APM.md.
+# CONTEXT_KIT_* env vars, not Claude userConfig. See docs/APM.md.
 name: local-rag
-version: 0.1.4
+version: 0.1.5
 description: Fully-local semantic RAG — chunk, embed via ollama, index with turbovec; a bin/rag CLI with hybrid retrieval.
 author: Mark Beacom
 license: MIT
-homepage: https://github.com/mbeacom/productivity-skills
-repository: https://github.com/mbeacom/productivity-skills
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
 keywords: [rag, vector-search, turbovec, ollama, embeddings, semantic]

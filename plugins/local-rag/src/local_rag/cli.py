@@ -20,15 +20,16 @@ def _first_env(*names: str) -> str | None:
 
 def _data_dir() -> Path:
     return Path(
-        _first_env("PRODUCTIVITY_SKILLS_DATA", "CLAUDE_PLUGIN_DATA")
+        _first_env("CONTEXT_KIT_DATA", "PRODUCTIVITY_SKILLS_DATA", "CLAUDE_PLUGIN_DATA")
         or Path.home() / ".claude/plugins/data/local-rag"
-    )
+    ).expanduser()
 
 
 def _make_embedder(args):
     model = (
         getattr(args, "model", None)
         or _first_env(
+            "CONTEXT_KIT_EMBED_MODEL",
             "PRODUCTIVITY_SKILLS_EMBED_MODEL",
             "CLAUDE_PLUGIN_OPTION_EMBED_MODEL",
         )
@@ -36,6 +37,7 @@ def _make_embedder(args):
     )
     host = (
         _first_env(
+            "CONTEXT_KIT_OLLAMA_HOST",
             "PRODUCTIVITY_SKILLS_OLLAMA_HOST",
             "CLAUDE_PLUGIN_OPTION_OLLAMA_HOST",
         )

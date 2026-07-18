@@ -14,7 +14,7 @@ Pick a modality by **what you know about the query × what you know about the co
 
 This skill is portable across Claude Code and GitHub Copilot. Both hosts install it
 from the marketplace — Claude Code via `/plugin`, GitHub Copilot CLI via
-`copilot plugin install retrieval-core@productivity-skills`.
+`copilot plugin install retrieval-core@context-kit`.
 
 ## Decision flow
 

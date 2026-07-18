@@ -1,13 +1,15 @@
-# productivity-skills
+# context-kit
 
 A [Claude Code](https://code.claude.com) plugin **marketplace** and
-GitHub Copilot-compatible **Agent Skills** pack for information retrieval. It
-bundles complementary **retrieval modalities** — lexical, structural,
-structured-data, history, semantic (RAG), and graph — plus a routing agent that
-picks and composes them. Everything runs **locally**; the RAG layer keeps your
-corpus on your machine. It also ships a **plan-execute** plugin for
-plan-big/execute-small orchestration (a strong model plans; cheaper subagents
-execute).
+GitHub Copilot-compatible **Agent Skills** pack for **context engineering** —
+getting the right information in front of an agent and keeping the wrong
+information out. It bundles complementary **retrieval modalities** — lexical,
+structural, structured-data, history, semantic (RAG), and graph — plus a routing
+agent that picks and composes them. Everything runs **locally**; the RAG layer
+keeps your corpus on your machine. Around that spine it adds **plan-execute**
+(a strong model plans; cheaper subagents execute), **context-steering** (put each
+rule at the cheapest layer that still fires), **verify** (a read-only checker for
+claims), and **plugin-forge** (author more portable plugins like these).
 
 All three hosts install the same plugins directly from the marketplace: Claude Code
 via `/plugin`, GitHub Copilot CLI via `copilot plugin`, and Microsoft's
@@ -17,16 +19,19 @@ no manual copying of skill folders.
 ## Claude Code install
 
 ```bash
-/plugin marketplace add mbeacom/productivity-skills
+/plugin marketplace add mbeacom/context-kit
 ```
 
 Then install what you need (installing `code-search` auto-installs `retrieval-core`):
 
 ```bash
-/plugin install code-search@productivity-skills     # lexical/structural/data/history search
-/plugin install local-rag@productivity-skills        # local semantic search (turbovec + ollama)
-/plugin install obsidian@productivity-skills          # Obsidian vault → RAG bridge
-/plugin install plan-execute@productivity-skills      # plan-big/execute-small orchestration
+/plugin install code-search@context-kit     # lexical/structural/data/history search
+/plugin install local-rag@context-kit        # local semantic search (turbovec + ollama)
+/plugin install obsidian@context-kit          # Obsidian vault → RAG bridge
+/plugin install plan-execute@context-kit      # plan-big/execute-small orchestration
+/plugin install context-steering@context-kit  # place guidance at the cheapest layer
+/plugin install verify@context-kit            # read-only claim verification (pulls retrieval-core)
+/plugin install plugin-forge@context-kit      # author portable plugins
 ```
 
 ## GitHub Copilot install
@@ -35,11 +40,14 @@ GitHub Copilot CLI installs these plugins directly from the marketplace — the 
 `OWNER/REPO` this repo publishes:
 
 ```bash
-copilot plugin marketplace add mbeacom/productivity-skills
-copilot plugin install code-search@productivity-skills      # auto-installs retrieval-core
-copilot plugin install local-rag@productivity-skills
-copilot plugin install obsidian@productivity-skills
-copilot plugin install plan-execute@productivity-skills   # plan-big/execute-small orchestration
+copilot plugin marketplace add mbeacom/context-kit
+copilot plugin install code-search@context-kit      # auto-installs retrieval-core
+copilot plugin install local-rag@context-kit
+copilot plugin install obsidian@context-kit
+copilot plugin install plan-execute@context-kit   # plan-big/execute-small orchestration
+copilot plugin install context-steering@context-kit
+copilot plugin install verify@context-kit          # auto-installs retrieval-core
+copilot plugin install plugin-forge@context-kit
 ```
 
 See [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) for details, including the
@@ -54,16 +62,20 @@ dependency resolution, and cross-harness deploy. Register the marketplace, then
 install:
 
 ```bash
-apm marketplace add mbeacom/productivity-skills
-apm install code-search@productivity-skills      # also pulls retrieval-core (the spine)
-apm install local-rag@productivity-skills
-apm install obsidian@productivity-skills
-apm install plan-execute@productivity-skills
+apm marketplace add mbeacom/context-kit
+apm install code-search@context-kit      # also pulls retrieval-core (the spine)
+apm install local-rag@context-kit
+apm install obsidian@context-kit
+apm install plan-execute@context-kit
+apm install context-steering@context-kit
+apm install verify@context-kit           # also pulls retrieval-core
+apm install plugin-forge@context-kit
 ```
 
 APM reads the repo's `.claude-plugin/marketplace.json` and each plugin's native
 layout directly; the per-plugin `apm.yml` carries APM metadata and (for
-`code-search`) the `retrieval-core` dependency. See [docs/APM.md](docs/APM.md) for
+`code-search` and `verify`) the `retrieval-core` dependency. See
+[docs/APM.md](docs/APM.md) for
 targets, the `local-rag` bootstrap (APM does not run Claude's `SessionStart` hook),
 and maintainer notes.
 
@@ -76,6 +88,9 @@ and maintainer notes.
 | **local-rag** | Fully-local semantic search: a `bin/rag` CLI that chunks a corpus, embeds it with **ollama**, and indexes it with **turbovec**. Notes-first, corpus-agnostic, with incremental indexing and hybrid `--allowlist` retrieval. |
 | **obsidian** | A skill-only **RAG bridge**: turn an Obsidian vault's graph/tags (official `obsidian` CLI, or `rg` fallback) into a candidate set fed to `local-rag`. For authoring/Bases/Canvas, use [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills). |
 | **plan-execute** | Plan-big/execute-small **orchestration**: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a strategy skill (`CLAUDE_CODE_SUBAGENT_MODEL` + delegation prompt, and how `/advisor` differs), a `/plan-big-execute-small` command, a bundled Workflow, and an `execution-worker` subagent. |
+| **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |
+| **verify** | **Verification**: a read-only `verifier` subagent (tools limited to Read/Grep/Glob) and a `verify-before-trust` skill that check claims — from an AI answer, plan, PR description, or docs — against the actual codebase, emitting per-claim verdicts (confirmed/dubious/refuted/unable-to-check) with `file:line` evidence. Composes with `retrieval-core`. |
+| **plugin-forge** | **Authoring**: a skill for the conventions of portable Claude Code / Copilot / APM plugins, a `/scaffold-plugin` command, and a `check-manifests.sh` validator that fails on `plugin.json` ⇆ `apm.yml` drift. Used to build the plugins in this very repo. |
 
 ## Requirements
 
@@ -92,7 +107,7 @@ The skills degrade gracefully and tell you what's missing.
 - **obsidian** — optional: the official `obsidian` CLI (with Obsidian running)
   for graph-accurate queries; otherwise falls back to `rg`/`fd`. Set your vault
   path in the Claude plugin config (`vault_path`) or
-  `PRODUCTIVITY_SKILLS_OBSIDIAN_VAULT` for Copilot/manual usage.
+  `CONTEXT_KIT_OBSIDIAN_VAULT` for Copilot/manual usage.
 
 ## Usage
 
@@ -128,7 +143,7 @@ rag status --name notes                       # counts, model, dim
 obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
 
 # rg fallback when Obsidian isn't running ($VAULT defaults to the plugin's configured vault_path)
-VAULT="${PRODUCTIVITY_SKILLS_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
+VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
 rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
 ```
 

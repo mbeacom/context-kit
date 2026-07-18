@@ -36,7 +36,7 @@ def test_allowlist_from_stdin(tmp_path, monkeypatch, capsys):
     assert out and all(h["path"] == "b.md" for h in out)
 
 
-def test_productivity_skills_env_overrides_claude_env(tmp_path, monkeypatch):
+def test_context_kit_data_overrides_claude_env(tmp_path, monkeypatch):
     vault = tmp_path / "vault"
     vault.mkdir()
     (vault / "note.md").write_text("# Note\n\nportable env\n")
@@ -44,7 +44,7 @@ def test_productivity_skills_env_overrides_claude_env(tmp_path, monkeypatch):
     portable_data = tmp_path / "portable-data"
     monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
     monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(claude_data))
-    monkeypatch.setenv("PRODUCTIVITY_SKILLS_DATA", str(portable_data))
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(portable_data))
 
     rc = cli.main(["index", str(vault), "--name", "t"])
 
@@ -53,7 +53,56 @@ def test_productivity_skills_env_overrides_claude_env(tmp_path, monkeypatch):
     assert not (claude_data / "indexes").exists()
 
 
-def test_productivity_skills_embed_env_overrides_claude_env(
+def test_context_kit_data_overrides_legacy_and_claude(tmp_path, monkeypatch):
+    """CONTEXT_KIT_DATA wins over the deprecated PRODUCTIVITY_SKILLS_DATA alias."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nprecedence\n")
+    claude_data = tmp_path / "claude-data"
+    legacy_data = tmp_path / "legacy-data"
+    portable_data = tmp_path / "portable-data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(claude_data))
+    monkeypatch.setenv("PRODUCTIVITY_SKILLS_DATA", str(legacy_data))
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(portable_data))
+
+    rc = cli.main(["index", str(vault), "--name", "t"])
+
+    assert rc == 0
+    assert (portable_data / "indexes" / "t" / "meta.sqlite").exists()
+    assert not (legacy_data / "indexes").exists()
+    assert not (claude_data / "indexes").exists()
+
+
+def test_legacy_productivity_skills_data_still_supported(tmp_path, monkeypatch):
+    """Back-compat: the pre-rename PRODUCTIVITY_SKILLS_DATA alias still resolves."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nback compat\n")
+    claude_data = tmp_path / "claude-data"
+    legacy_data = tmp_path / "legacy-data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(claude_data))
+    monkeypatch.setenv("PRODUCTIVITY_SKILLS_DATA", str(legacy_data))
+
+    rc = cli.main(["index", str(vault), "--name", "t"])
+
+    assert rc == 0
+    assert (legacy_data / "indexes" / "t" / "meta.sqlite").exists()
+    assert not (claude_data / "indexes").exists()
+
+
+def test_data_dir_expands_tilde(tmp_path, monkeypatch):
+    """A tilde in CONTEXT_KIT_DATA expands to the home dir, not a literal '~'."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("CONTEXT_KIT_DATA", "~/kit-data")
+
+    assert cli._data_dir() == home / "kit-data"
+
+
+def test_context_kit_embed_env_overrides_claude_env(
     tmp_path,
     monkeypatch,
 ):
@@ -75,10 +124,10 @@ def test_productivity_skills_embed_env_overrides_claude_env(
         "CLAUDE_PLUGIN_OPTION_OLLAMA_HOST",
         "http://claude-host:11434",
     )
-    monkeypatch.setenv("PRODUCTIVITY_SKILLS_DATA", str(data))
-    monkeypatch.setenv("PRODUCTIVITY_SKILLS_EMBED_MODEL", "portable-model")
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    monkeypatch.setenv("CONTEXT_KIT_EMBED_MODEL", "portable-model")
     monkeypatch.setenv(
-        "PRODUCTIVITY_SKILLS_OLLAMA_HOST",
+        "CONTEXT_KIT_OLLAMA_HOST",
         "http://portable-host:11434",
     )
     monkeypatch.setattr(cli, "OllamaEmbedder", CaptureEmbedder)
@@ -89,4 +138,44 @@ def test_productivity_skills_embed_env_overrides_claude_env(
     assert captured == {
         "model": "portable-model",
         "host": "http://portable-host:11434",
+    }
+
+
+def test_legacy_productivity_skills_embed_env_still_supported(
+    tmp_path,
+    monkeypatch,
+):
+    """Back-compat: the pre-rename PRODUCTIVITY_SKILLS_* embed vars still resolve."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nlegacy embed env\n")
+    data = tmp_path / "data"
+    captured = {}
+
+    class CaptureEmbedder(StubEmbedder):
+        def __init__(self, model, host):
+            self.model = model
+            self.host = host
+            captured["model"] = model
+            captured["host"] = host
+
+    monkeypatch.setenv("CLAUDE_PLUGIN_OPTION_EMBED_MODEL", "claude-model")
+    monkeypatch.setenv(
+        "CLAUDE_PLUGIN_OPTION_OLLAMA_HOST",
+        "http://claude-host:11434",
+    )
+    monkeypatch.setenv("PRODUCTIVITY_SKILLS_DATA", str(data))
+    monkeypatch.setenv("PRODUCTIVITY_SKILLS_EMBED_MODEL", "legacy-model")
+    monkeypatch.setenv(
+        "PRODUCTIVITY_SKILLS_OLLAMA_HOST",
+        "http://legacy-host:11434",
+    )
+    monkeypatch.setattr(cli, "OllamaEmbedder", CaptureEmbedder)
+
+    rc = cli.main(["index", str(vault), "--name", "t"])
+
+    assert rc == 0
+    assert captured == {
+        "model": "legacy-model",
+        "host": "http://legacy-host:11434",
     }

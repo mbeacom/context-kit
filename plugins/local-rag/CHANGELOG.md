@@ -1,9 +1,18 @@
 # Changelog
 
+## 0.1.5 — 2026-07-18
+
+- Rebrand: the marketplace was renamed `productivity-skills` → `context-kit`.
+  Environment variables are now `CONTEXT_KIT_*` (`CONTEXT_KIT_DATA`,
+  `CONTEXT_KIT_EMBED_MODEL`, `CONTEXT_KIT_OLLAMA_HOST`); the former
+  `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias, so resolution
+  order is `CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback. Updated URLs
+  and install commands (`… install local-rag@context-kit`).
+
 ## 0.1.4 — 2026-07-13
 
 - Add an `apm.yml` manifest so Agent Package Manager (`microsoft/apm`) users can
-  install this plugin (`apm install local-rag@productivity-skills`) alongside the
+  install this plugin (`apm install local-rag@context-kit`) alongside the
   Claude Code and GitHub Copilot flows. As with Copilot, APM does not run the
   Claude `SessionStart` bootstrap hook — bootstrap `bin/rag` manually and use the
   `PRODUCTIVITY_SKILLS_*` env vars (see docs/APM.md).

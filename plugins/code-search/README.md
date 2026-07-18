@@ -12,8 +12,8 @@ Depends on `retrieval-core` (auto-installed). Run `scripts/check-tools.sh` to se
 which tools are present and how to install the rest.
 
 GitHub Copilot CLI installs both skills with the plugin —
-`copilot plugin marketplace add mbeacom/productivity-skills` then
-`copilot plugin install code-search@productivity-skills`. The referenced CLI tools
+`copilot plugin marketplace add mbeacom/context-kit` then
+`copilot plugin install code-search@context-kit`. The referenced CLI tools
 still need to be installed locally.
 
 MIT © Mark Beacom.

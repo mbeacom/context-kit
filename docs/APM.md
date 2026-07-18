@@ -1,4 +1,4 @@
-# Using productivity-skills with APM (Agent Package Manager)
+# Using context-kit with APM (Agent Package Manager)
 
 [APM](https://github.com/microsoft/apm) is Microsoft's open-source dependency
 manager for AI coding agents — the `package.json`/`Cargo.toml` of agent context.
@@ -17,14 +17,14 @@ metadata and dependencies.
 ## Install for APM
 
 Register this marketplace, then install the plugins you want. The marketplace
-name defaults to the repo name, `productivity-skills`:
+name defaults to the repo name, `context-kit`:
 
 ```bash
-apm marketplace add mbeacom/productivity-skills
-apm install code-search@productivity-skills      # also pulls retrieval-core (the spine)
-apm install local-rag@productivity-skills
-apm install obsidian@productivity-skills
-apm install plan-execute@productivity-skills
+apm marketplace add mbeacom/context-kit
+apm install code-search@context-kit      # also pulls retrieval-core (the spine)
+apm install local-rag@context-kit
+apm install obsidian@context-kit
+apm install plan-execute@context-kit
 ```
 
 Installing `code-search` deploys the retrieval spine automatically: its
@@ -45,7 +45,7 @@ Each plugin directory is also a virtual subdirectory package, so you can install
 one straight from the repo:
 
 ```bash
-apm install mbeacom/productivity-skills/plugins/code-search
+apm install mbeacom/context-kit/plugins/code-search
 ```
 
 ## Where files land, and picking a target
@@ -55,8 +55,8 @@ to all of them (`.claude/`, `.github/`, `.cursor/`, `.codex/`, `.gemini/`, …),
 plus the cross-tool `.agents/skills/`. Pin a target for reproducibility:
 
 ```bash
-apm install code-search@productivity-skills --target claude
-apm install code-search@productivity-skills --target copilot,cursor
+apm install code-search@context-kit --target claude
+apm install code-search@context-kit --target copilot,cursor
 ```
 
 The retrieval `SKILL.md` bodies, their `references/`, and the agents are
@@ -80,7 +80,7 @@ clone of this repo, exactly as in
 [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md):
 
 ```bash
-export PRODUCTIVITY_SKILLS_DATA="$HOME/.local/share/productivity-skills/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ollama pull nomic-embed-text
@@ -94,10 +94,13 @@ APM plugins have no Claude-style `userConfig`, so configure `local-rag` and
 
 | Variable | Purpose | Claude fallback |
 | --- | --- | --- |
-| `PRODUCTIVITY_SKILLS_DATA` | venv and index storage for `local-rag` | `CLAUDE_PLUGIN_DATA` |
-| `PRODUCTIVITY_SKILLS_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
-| `PRODUCTIVITY_SKILLS_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
-| `PRODUCTIVITY_SKILLS_OBSIDIAN_VAULT` | vault path for `obsidian` examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
+| `CONTEXT_KIT_DATA` | venv and index storage for `local-rag` | `CLAUDE_PLUGIN_DATA` |
+| `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
+| `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
+| `CONTEXT_KIT_OBSIDIAN_VAULT` | vault path for `obsidian` examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
+
+The pre-rename `PRODUCTIVITY_SKILLS_*` names still work as a deprecated alias
+(`CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback).
 
 ## Tooling expectations
 
@@ -126,7 +129,7 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
   `plugin.json` copy stays fuller). There is no `.apm/` directory, so the
   plugin-native layout remains the source of truth.
 - **`code-search`'s spine dependency is a local sibling path**
-  (`- path: ../retrieval-core`). `apm install code-search@productivity-skills`
+  (`- path: ../retrieval-core`). `apm install code-search@context-kit`
   resolves it and deploys the spine. If you then install *another* plugin in the
   same project, APM re-reads code-search's manifest and logs a benign
   `Invalid transitive apm.yml … Invalid APM dependency 'retrieval-core'`

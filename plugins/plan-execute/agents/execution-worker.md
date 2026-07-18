@@ -11,7 +11,7 @@ a larger effort. Do exactly that unit and report back — you do not own the ove
 plan, and you will not see the other workers.
 
 Portability note: GitHub Copilot CLI installs this plugin and its agents directly
-(`copilot plugin install plan-execute@productivity-skills`) — no manual copying. See
+(`copilot plugin install plan-execute@context-kit`) — no manual copying. See
 the plugin README for the full commands.
 
 ## Rules

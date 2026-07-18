@@ -4,13 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-`productivity-skills` is a **Claude Code plugin marketplace** and a
+`context-kit` is a **Claude Code plugin marketplace** and a
 **GitHub Copilot-compatible Agent Skills pack** (not an application). It is a
-catalog of plugins/skills organized around **retrieval modalities** —
-complementary ways an agent finds information (lexical, structural,
-structured-data, history, semantic/RAG, graph), selected by what's known about
-the query and corpus, and composed together. See `docs/ARCHITECTURE.md` for the
-modality model and `docs/GITHUB_COPILOT.md` for Copilot setup notes.
+catalog of plugins/skills for **context engineering** — getting the right
+information in front of an agent and keeping the wrong information out. Its spine
+is organized around **retrieval modalities** — complementary ways an agent finds
+information (lexical, structural, structured-data, history, semantic/RAG, graph),
+selected by what's known about the query and corpus, and composed together —
+surrounded by plugins for orchestration, steering, verification, and authoring.
+See `docs/ARCHITECTURE.md` for the modality model and `docs/GITHUB_COPILOT.md` for
+Copilot setup notes.
 
 ## Layout
 
@@ -36,12 +39,27 @@ modality model and `docs/GITHUB_COPILOT.md` for Copilot setup notes.
   `dependencies: ["retrieval-core"]`, so installing it pulls the spine.
 - `local-rag` — fully-local semantic RAG. A `bin/rag` CLI (Python package under
   `src/local_rag/`, run via a uv venv bootstrapped into `${CLAUDE_PLUGIN_DATA}`
-  by a Claude `SessionStart` hook, or `${PRODUCTIVITY_SKILLS_DATA}` for
+  by a Claude `SessionStart` hook, or `${CONTEXT_KIT_DATA}` for
   Copilot/manual usage) that chunks → embeds via `ollama` → indexes with
   `turbovec`. All turbovec usage is isolated to `src/local_rag/index.py`.
 - `obsidian` — a **skill-only** RAG bridge (no code/deps): vault graph/tags
   (official `obsidian` CLI, or `rg` fallback) → `rag query --allowlist`. Authoring
   / Bases / Canvas are out of scope (defer to `kepano/obsidian-skills`).
+- `plan-execute` — plan-big/execute-small **orchestration**: a strong planner
+  delegates token-heavy work to a cheap `execution-worker` subagent. Ships a
+  strategy skill, a `/plan-big-execute-small` command, and a bundled Workflow.
+- `context-steering` — a **skill-only** teaching plugin: the `context-budget`
+  skill (a decision matrix for placing guidance in memory vs path-scoped rules vs
+  skills vs subagents vs hooks) plus inert `examples/` (rules + hooks). Ships NO
+  active hooks/rules — the examples are copy-paste templates.
+- `verify` — a read-only `verifier` subagent (tools: Read/Grep/Glob only) + a
+  `verify-before-trust` skill that check claims against the codebase and emit
+  per-claim verdicts with `file:line` evidence. Declares
+  `dependencies: ["retrieval-core"]`.
+- `plugin-forge` — authoring toolkit for portable plugins: the
+  `authoring-portable-plugins` skill, a `/scaffold-plugin` command, and
+  `scripts/check-manifests.sh` (fails on `plugin.json` ⇆ `apm.yml` name/version
+  drift; run it in CI-style checks).
 
 ## Commands
 
@@ -92,7 +110,7 @@ with `ruff` via pre-commit.
 - **GitHub Copilot compatibility:** GitHub Copilot CLI installs these plugins
   directly (`copilot plugin marketplace add` + `copilot plugin install`), so keep
   reusable workflow knowledge in `SKILL.md` + `references/` and portable across
-  hosts; prefer `PRODUCTIVITY_SKILLS_*` env examples with `CLAUDE_PLUGIN_*`
+  hosts; prefer `CONTEXT_KIT_*` env examples with `CLAUDE_PLUGIN_*`
   documented as Claude fallbacks.
 - **Licensing:** repo and all plugins are MIT (Mark Beacom). Each plugin ships
   its own `LICENSE`. Content is written fresh; do not copy text from externally

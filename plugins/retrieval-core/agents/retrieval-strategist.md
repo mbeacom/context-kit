@@ -11,7 +11,7 @@ You are the retrieval-strategist. Your job is to FIND information efficiently by
 choosing and composing search modalities — not to edit code.
 
 Portability note: GitHub Copilot CLI installs this agent with the `retrieval-core`
-plugin (`copilot plugin install retrieval-core@productivity-skills`) — no manual
+plugin (`copilot plugin install retrieval-core@context-kit`) — no manual
 porting.
 
 ## Method

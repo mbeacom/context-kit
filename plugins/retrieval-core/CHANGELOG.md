@@ -1,9 +1,16 @@
 # Changelog
 
+## 0.2.5 — 2026-07-18
+
+- Rebrand: the marketplace was renamed `productivity-skills` → `context-kit`.
+  Updated the `homepage`/`repository` URLs and install commands
+  (`… install retrieval-core@context-kit`). GitHub redirects the old repository
+  path, so existing marketplace registrations keep resolving.
+
 ## 0.2.4 — 2026-07-13
 
 - Add an `apm.yml` manifest so Agent Package Manager (`microsoft/apm`) users can
-  install this plugin (`apm install retrieval-core@productivity-skills`)
+  install this plugin (`apm install retrieval-core@context-kit`)
   alongside the Claude Code and GitHub Copilot flows. No `.apm/` directory, so
   the plugin-native layout stays authoritative.
 

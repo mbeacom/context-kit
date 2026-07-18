@@ -20,12 +20,12 @@ it with turbovec. Nothing leaves the machine.
 - Claude Code: the `rag` CLI is bootstrapped automatically on session start
   (uv venv). If `rag` is missing, run
   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"`.
-- GitHub Copilot/manual: clone this repo, set `PRODUCTIVITY_SKILLS_DATA`, run
+- GitHub Copilot/manual: clone this repo, set `CONTEXT_KIT_DATA`, run
   `plugins/local-rag/scripts/bootstrap.sh`, and add `plugins/local-rag/bin` to
   `PATH`.
 
-Portable environment variables prefer `PRODUCTIVITY_SKILLS_DATA`,
-`PRODUCTIVITY_SKILLS_EMBED_MODEL`, and `PRODUCTIVITY_SKILLS_OLLAMA_HOST`; Claude
+Portable environment variables prefer `CONTEXT_KIT_DATA`,
+`CONTEXT_KIT_EMBED_MODEL`, and `CONTEXT_KIT_OLLAMA_HOST`; Claude
 plugin variables remain supported as fallbacks.
 
 ## Use

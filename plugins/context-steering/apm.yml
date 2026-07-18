@@ -1,0 +1,14 @@
+# Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
+# Lets APM users install this plugin alongside the Claude Code / GitHub Copilot
+# flows: `apm install context-steering@context-kit`. There is no `.apm/`
+# directory, so the plugin-native layout (.claude-plugin/plugin.json + skills/)
+# stays authoritative; APM consumes it as a plugin collection.
+# Keep name/version/description in sync with .claude-plugin/plugin.json.
+name: context-steering
+version: 0.1.0
+description: Choose the cheapest guidance layer — memory, scoped rules, skills, subagents, or hooks — without bloating always-on context.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
+keywords: [steering, rules, hooks, skills, subagents, context, memory, claude-code, copilot]
