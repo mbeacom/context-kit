@@ -28,8 +28,10 @@ covered at the end so you pick the right one.
   broad research sweeps, large log/document review).
 - You want a strong model (Opus, Fable) to plan and synthesize, but the reading
   and mechanical edits don't need that tier.
-- You are NOT on the advisor beta, or you specifically want the strong model
-  leading rather than merely advising.
+- The advisor can't help here — a **Fable 5 main runs without any advisor today**
+  (see below), you're off the Anthropic API (Bedrock, Google Cloud, Foundry), or your
+  main model doesn't support it — or you specifically want the strong model leading
+  rather than merely advising.
 
 ## Delegation, interactive
 
@@ -105,16 +107,41 @@ read-only investigation).
 `/advisor` (the `advisorModel` setting) is the **server-side advisor tool**: a
 *cheaper main model* consults a stronger advisor mid-turn for a plan or course
 correction, then keeps executing. It is the inverse of delegation — the strong
-model advises rather than leads. Two constraints worth knowing:
+model advises rather than leads. What to know before picking it:
 
-- The advisor must be **at least as capable as** the main (executor) model — so a
-  weak main + strong advisor is the point, and a **Fable main + Fable advisor is a
-  no-op** self-consult.
-- **Fable 5 as the advisor is currently broken** (Claude Code bug
-  [#73019](https://github.com/anthropics/claude-code/issues/73019)): `/advisor fable`
-  returns "advisor unavailable" for every main model, on macOS and Windows. **Use
-  `/advisor opus` instead** — Opus 4.7/4.8 as the advisor works today. The advisor
-  tool itself is fine; only the Fable-advisor path is dead.
+- **Capability pairing.** The advisor must be **at least as capable as** the main
+  (executor) model — a weak main + strong advisor is the point. An Opus 4.8 main
+  accepts Fable, Opus 4.7, or Opus 4.8; a Sonnet 5 or Opus 4.6 advisor is rejected.
+  An equal-tier advisor (e.g. Opus main + Opus advisor) is **not** a no-op — it's a
+  legitimate independent second read, just not a *stronger* opinion.
+- **Fable 5 as the advisor is turned off right now** — a deliberate,
+  remotely-controlled rollout, not a billing gate. As of Claude Code v2.1.210+ the
+  [advisor doc](https://code.claude.com/docs/en/advisor) says so: the `/advisor`
+  picker shows a dimmed `Fable 5 (temporarily unavailable)` row, and Claude Code
+  rejects `/advisor fable` and `--advisor fable`. The underlying defect is
+  [#76199](https://github.com/anthropics/claude-code/issues/76199) — `advisorModel:
+  fable` plus *any* prior `tool_use` in the transcript deterministically returns
+  `unavailable` (the executor model is irrelevant, an Opus advisor is immune, and it
+  is not a context-size issue). **Use `/advisor opus` instead** — Opus 4.7/4.8 as the
+  advisor works today.
+- **A Fable 5 main session has no advisor at all.** A Fable main accepts only a
+  Fable advisor, and Fable isn't offered, so a Fable 5 session runs advisor-less
+  until the rollout returns it. That gap is exactly what delegation (this skill)
+  fills: plan big with Fable 5, execute small with cheaper subagents.
+
+Hardening notes (these bite CI and gateway users):
+
+- **Anthropic API only.** The advisor is a server-executed tool — not available on
+  Amazon Bedrock, Claude Platform on AWS, Google Cloud's Agent Platform, or Microsoft
+  Foundry. Through an LLM gateway it works only if the request is forwarded intact. On
+  those runtimes, delegation is the fallback.
+- **Deterministic off-switch.** `CLAUDE_CODE_DISABLE_ADVISOR_TOOL=1` disables the
+  advisor entirely: `/advisor` becomes unavailable, any `advisorModel` is ignored, and
+  `--advisor` is accepted but inert — existing scripts won't error. Clean when you want
+  delegation to be the only orchestration in play.
+- **Subagents inherit the advisor** and re-check the pairing against their *own* model,
+  so a Sonnet subagent under an Opus main can still consult the advisor even where the
+  parent pairing couldn't — useful when you combine delegation with an advisor.
 
 Rule of thumb: **cheap main that occasionally needs a smart second opinion →
 advisor. Strong main that should offload volume → delegation** (this skill).

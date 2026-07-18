@@ -73,5 +73,10 @@ Delegation (this plugin) and the `/advisor` tool are inverses of the same
 "strong where it counts, cheap where you can" idea: delegation puts the strong
 model in front leading and delegating; the advisor tool puts a cheap model in
 front and lets it consult a stronger advisor mid-turn. They're orthogonal and
-can be combined. The `plan-execute-strategy` skill explains when to reach for
-each.
+can be combined.
+
+Delegation is also the fallback wherever the advisor can't reach: a **Fable 5
+main currently runs with no advisor** (Fable-as-advisor is turned off pending a
+remote rollout), and the advisor is **Anthropic-API-only** (not Bedrock, Google
+Cloud, or Microsoft Foundry). The `plan-execute-strategy` skill explains when to
+reach for each, and carries the current advisor status and hardening notes.
