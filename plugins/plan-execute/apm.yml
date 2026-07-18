@@ -1,0 +1,14 @@
+# Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
+# Lets APM users install this plugin alongside the Claude Code / GitHub Copilot
+# flows: `apm install plan-execute@productivity-skills`. There is no `.apm/`
+# directory, so the plugin-native layout (.claude-plugin/plugin.json + skills/ +
+# agents/ + commands/) stays authoritative; APM consumes it as a plugin collection.
+# Keep name/version/description in sync with .claude-plugin/plugin.json.
+name: plan-execute
+version: 0.1.1
+description: Plan-big / execute-small orchestration — a strong model plans and delegates token-heavy work to cheaper subagents.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/productivity-skills
+repository: https://github.com/mbeacom/productivity-skills
+keywords: [orchestration, workflow, subagents, planning, delegation, multi-agent]

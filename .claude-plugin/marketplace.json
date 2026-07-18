@@ -10,30 +10,35 @@
     {
       "name": "retrieval-core",
       "source": "./plugins/retrieval-core",
+      "description": "The spine: a retrieval-strategist agent and retrieval-strategy skill that pick and compose search modalities.",
       "category": "retrieval",
       "tags": ["agent", "router", "search", "rag", "retrieval"]
     },
     {
       "name": "code-search",
       "source": "./plugins/code-search",
+      "description": "Fast CLI search across modalities: lexical, structural, structured-data, history, rewrite, metrics, and docs.",
       "category": "retrieval",
       "tags": ["ripgrep", "ast-grep", "semgrep", "jq", "search", "code"]
     },
     {
       "name": "local-rag",
       "source": "./plugins/local-rag",
+      "description": "Fully-local semantic RAG: chunk, embed via ollama, index with turbovec; a bin/rag CLI with hybrid retrieval.",
       "category": "retrieval",
       "tags": ["rag", "semantic", "turbovec", "ollama", "embeddings"]
     },
     {
       "name": "obsidian",
       "source": "./plugins/obsidian",
+      "description": "Skill-only RAG bridge: turn an Obsidian vault's graph and tags into a candidate set fed to local-rag.",
       "category": "retrieval",
       "tags": ["obsidian", "notes", "graph", "rag", "retrieval"]
     },
     {
       "name": "plan-execute",
       "source": "./plugins/plan-execute",
+      "description": "Plan-big / execute-small orchestration: a strong model plans and delegates token-heavy work to cheaper subagents.",
       "category": "orchestration",
       "tags": ["orchestration", "workflow", "subagents", "delegation", "multi-agent"]
     }
