@@ -1,8 +1,8 @@
 # Using context-kit with GitHub Copilot
 
 `context-kit` is a plugin marketplace that GitHub Copilot CLI installs from
-**directly** — the same plugins Claude Code and APM use, from a single Markdown
-source. No manual copying of skill folders.
+**directly** — the same plugins Claude Code and APM use, from one shared source.
+No manual copying of skill folders.
 
 GitHub Copilot CLI installs via `copilot plugin`; Claude Code installs via
 `/plugin` and APM via `apm install`. The retrieval `SKILL.md` bodies, their

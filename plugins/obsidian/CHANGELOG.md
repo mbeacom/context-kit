@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 — 2026-07-18
+
+- Lead the plugin README's host list with GitHub Copilot, APM, then Claude Code.
+
 ## 0.1.4 — 2026-07-18
 
 - Rebrand: the marketplace was renamed `productivity-skills` → `context-kit`. The

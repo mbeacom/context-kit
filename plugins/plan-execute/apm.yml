@@ -5,7 +5,7 @@
 # agents/ + commands/) stays authoritative; APM consumes it as a plugin collection.
 # Keep name/version/description in sync with .claude-plugin/plugin.json.
 name: plan-execute
-version: 0.1.3
+version: 0.1.4
 description: Plan-big / execute-small orchestration — a strong model plans and delegates token-heavy work to cheaper subagents.
 author: Mark Beacom
 license: MIT

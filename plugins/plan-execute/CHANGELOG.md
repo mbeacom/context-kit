@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 — 2026-07-18
+
+- Lead the install section with GitHub Copilot, then APM (new block), then
+  Claude Code in the plugin README.
+
 ## 0.1.3 — 2026-07-18
 
 - Rebrand: the marketplace was renamed `productivity-skills` → `context-kit`.

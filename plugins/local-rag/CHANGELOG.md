@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6 — 2026-07-18
+
+- Lead host guidance with GitHub Copilot, APM, then Claude Code in the plugin
+  README (the manual `rag` bootstrap now comes first; the Claude auto-bootstrap
+  note follows).
+
 ## 0.1.5 — 2026-07-18
 
 - Rebrand: the marketplace was renamed `productivity-skills` → `context-kit`.
