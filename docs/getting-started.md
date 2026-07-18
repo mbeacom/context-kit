@@ -6,9 +6,9 @@ copying of skill folders.
 
 | Host | Register the marketplace | Install a plugin |
 | --- | --- | --- |
-| **Claude Code** | `/plugin marketplace add mbeacom/context-kit` | `/plugin install <name>@context-kit` |
 | **GitHub Copilot CLI** | `copilot plugin marketplace add mbeacom/context-kit` | `copilot plugin install <name>@context-kit` |
 | **APM** | `apm marketplace add mbeacom/context-kit` | `apm install <name>@context-kit` |
+| **Claude Code** | `/plugin marketplace add mbeacom/context-kit` | `/plugin install <name>@context-kit` |
 
 Installing `code-search` (or `verify`) automatically pulls in the
 [`retrieval-core`](plugins/retrieval-core.md) spine.
@@ -17,20 +17,6 @@ Installing `code-search` (or `verify`) automatically pulls in the
 
 Pick the host you use. Installing `code-search` first is a good default — it
 brings the retrieval spine with it.
-
-=== "Claude Code"
-
-    ```bash
-    /plugin marketplace add mbeacom/context-kit
-
-    /plugin install code-search@context-kit      # lexical/structural/data/history search
-    /plugin install local-rag@context-kit         # local semantic search (turbovec + ollama)
-    /plugin install obsidian@context-kit           # Obsidian vault → RAG bridge
-    /plugin install plan-execute@context-kit       # plan-big / execute-small orchestration
-    /plugin install context-steering@context-kit   # place guidance at the cheapest layer
-    /plugin install verify@context-kit             # read-only claim verification
-    /plugin install plugin-forge@context-kit       # author portable plugins
-    ```
 
 === "GitHub Copilot"
 
@@ -68,6 +54,20 @@ brings the retrieval spine with it.
     dependency resolution, and cross-harness deploy. See the
     [APM guide](APM.md).
 
+=== "Claude Code"
+
+    ```bash
+    /plugin marketplace add mbeacom/context-kit
+
+    /plugin install code-search@context-kit      # lexical/structural/data/history search
+    /plugin install local-rag@context-kit         # local semantic search (turbovec + ollama)
+    /plugin install obsidian@context-kit           # Obsidian vault → RAG bridge
+    /plugin install plan-execute@context-kit       # plan-big / execute-small orchestration
+    /plugin install context-steering@context-kit   # place guidance at the cheapest layer
+    /plugin install verify@context-kit             # read-only claim verification
+    /plugin install plugin-forge@context-kit       # author portable plugins
+    ```
+
 ## Requirements
 
 The skills degrade gracefully and tell you what's missing. Nothing here calls a
@@ -89,8 +89,8 @@ cloud service.
 
     Needs [`uv`](https://docs.astral.sh/uv/) and a running
     [ollama](https://ollama.com) with an embedding model
-    (`ollama pull nomic-embed-text`). Claude Code auto-bootstraps the `rag` CLI;
-    Copilot/APM users bootstrap it once (below).
+    (`ollama pull nomic-embed-text`). GitHub Copilot and APM users bootstrap the
+    `rag` CLI once (below); Claude Code auto-bootstraps it.
 
 -   :material-notebook-outline:{ .lg .middle } **obsidian**
 

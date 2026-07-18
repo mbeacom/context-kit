@@ -8,9 +8,9 @@ index). Everything runs on your machine — no cloud calls, no API keys.
 It is notes-first but corpus-agnostic: loaders are pluggable, so the same engine
 can index Markdown notes, code, or any text corpus.
 
-The Claude Code plugin auto-bootstraps the CLI. GitHub Copilot or manual users
-can run the same CLI by bootstrapping it directly and setting the portable
-`CONTEXT_KIT_DATA` location.
+GitHub Copilot, APM, or manual users run the CLI by bootstrapping it directly and
+setting the portable `CONTEXT_KIT_DATA` location. The Claude Code plugin
+auto-bootstraps the CLI for you.
 
 ## Requirements
 
@@ -21,15 +21,17 @@ can run the same CLI by bootstrapping it directly and setting the portable
   ollama pull nomic-embed-text
   ```
 
-The venv is created automatically on Claude Code session start (via a
-`SessionStart` hook) into `${CLAUDE_PLUGIN_DATA}/venv`. For GitHub Copilot or
-manual usage, prefer a neutral data location:
+For GitHub Copilot, APM, or manual usage, bootstrap the venv yourself into a
+neutral data location:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
 bash scripts/bootstrap.sh
 export PATH="$PWD/bin:$PATH"
 ```
+
+Claude Code does this automatically on session start (via a `SessionStart` hook)
+into `${CLAUDE_PLUGIN_DATA}/venv`.
 
 ## Usage
 

@@ -13,7 +13,7 @@ allowed-tools: Bash(rg:*) Bash(fd:*) Bash(sg:*) Bash(ast-grep:*) Bash(semgrep:*)
 
 CLI search for source code. Pick the modality by what you know.
 
-This skill is portable across Claude Code and GitHub Copilot; keep the
+This skill is portable across GitHub Copilot, APM, and Claude Code; keep the
 `references/` folder next to `SKILL.md` when copying it into a Copilot skill
 location.
 

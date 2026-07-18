@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "verify",
   "displayName": "Verify",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read-only verification for claims about a repository: a verifier subagent and verify-before-trust skill check AI answers, plans, PR descriptions, and docs against the actual codebase. Reports per-claim verdicts with file:line evidence.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",

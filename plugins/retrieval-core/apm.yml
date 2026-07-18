@@ -5,7 +5,7 @@
 # agents/) stays authoritative; APM consumes it as a plugin collection.
 # Keep name/version/description in sync with .claude-plugin/plugin.json.
 name: retrieval-core
-version: 0.2.5
+version: 0.2.6
 description: The spine — a retrieval-strategist agent and retrieval-strategy skill that pick and compose search modalities.
 author: Mark Beacom
 license: MIT

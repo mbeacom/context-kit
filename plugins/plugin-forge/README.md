@@ -1,18 +1,11 @@
 # plugin-forge
 
-Plugin Forge helps authors create portable Claude Code, GitHub Copilot, and APM
+Plugin Forge helps authors create portable GitHub Copilot, APM, and Claude Code
 plugins for the `context-kit` marketplace. It packages the house authoring
 conventions, a scaffold command, and a manifest-drift validator so new plugins
 start with the right layout and keep `plugin.json` and `apm.yml` aligned.
 
 ## Install
-
-Claude Code:
-
-```bash
-/plugin marketplace add mbeacom/context-kit
-/plugin install plugin-forge@context-kit
-```
 
 GitHub Copilot CLI:
 
@@ -26,6 +19,13 @@ APM:
 ```bash
 apm marketplace add mbeacom/context-kit
 apm install plugin-forge@context-kit
+```
+
+Claude Code:
+
+```bash
+/plugin marketplace add mbeacom/context-kit
+/plugin install plugin-forge@context-kit
 ```
 
 ## Components

@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Context-engineering plugins for Claude Code and GitHub Copilot: retrieval modalities and a routing agent, local RAG, Obsidian, plan-big/execute-small delegation, context steering, read-only verification, and portable plugin authoring."
+    "description": "Context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities and a routing agent, local RAG, Obsidian, plan-big/execute-small delegation, context steering, read-only verification, and portable plugin authoring."
   },
   "plugins": [
     {
@@ -59,7 +59,7 @@
     {
       "name": "plugin-forge",
       "source": "./plugins/plugin-forge",
-      "description": "Author portable Claude Code / Copilot / APM plugins and keep plugin.json and apm.yml in sync: a conventions skill, a /scaffold-plugin command, and a manifest-drift validator.",
+      "description": "Author portable GitHub Copilot / APM / Claude Code plugins and keep plugin.json and apm.yml in sync: a conventions skill, a /scaffold-plugin command, and a manifest-drift validator.",
       "category": "authoring",
       "tags": ["authoring", "scaffold", "plugin", "apm", "manifest"]
     }

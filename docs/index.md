@@ -9,15 +9,15 @@ hide:
 # context-kit
 
 <p class="ck-tagline">
-Context-engineering plugins for Claude Code, GitHub Copilot, and APM — get the
+Context-engineering plugins for GitHub Copilot, APM, and Claude Code — get the
 right information in front of your agent, and keep the wrong information out.
 </p>
 
 <div class="ck-badges" markdown>
 ![License](https://img.shields.io/badge/License-MIT-4f46e5)
-![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-6366f1)
 ![GitHub Copilot](https://img.shields.io/badge/GitHub%20Copilot-plugin-6366f1)
 ![APM](https://img.shields.io/badge/APM-package-6366f1)
+![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-6366f1)
 ![Local first](https://img.shields.io/badge/Local-first-22c55e)
 </div>
 
@@ -28,12 +28,12 @@ right information in front of your agent, and keep the wrong information out.
 
 ---
 
-`context-kit` is a [Claude Code](https://code.claude.com) plugin **marketplace**
-and a GitHub Copilot-compatible **Agent Skills** pack for **context
-engineering**. Its spine is a set of complementary **retrieval modalities** —
-lexical, structural, structured-data, history, semantic (RAG), and graph — plus
-a routing agent that picks and composes them. Everything runs **locally**; the
-RAG layer keeps your corpus on your machine.
+`context-kit` is a context-engineering plugin pack for **GitHub Copilot CLI**,
+**APM** (Agent Package Manager), and [Claude Code](https://code.claude.com). Its
+spine is a set of complementary **retrieval modalities** — lexical, structural,
+structured-data, history, semantic (RAG), and graph — plus a routing agent that
+picks and composes them. Everything runs **locally**; the RAG layer keeps your
+corpus on your machine.
 
 ## Why context-kit
 
@@ -63,9 +63,9 @@ RAG layer keeps your corpus on your machine.
 
     ---
 
-    The same plugins install directly into Claude Code (`/plugin`), GitHub
-    Copilot CLI (`copilot plugin`), and Microsoft's APM (`apm install`) — no
-    manual copying of skill folders.
+    The same plugins install directly into GitHub Copilot CLI
+    (`copilot plugin`), Microsoft's APM (`apm install`), and Claude Code
+    (`/plugin`) — no manual copying of skill folders.
 
     [:octicons-arrow-right-24: Getting started](getting-started.md)
 
@@ -102,13 +102,6 @@ RAG layer keeps your corpus on your machine.
 
 ## Install in seconds
 
-=== "Claude Code"
-
-    ```bash
-    /plugin marketplace add mbeacom/context-kit
-    /plugin install code-search@context-kit   # auto-installs retrieval-core
-    ```
-
 === "GitHub Copilot"
 
     ```bash
@@ -121,6 +114,13 @@ RAG layer keeps your corpus on your machine.
     ```bash
     apm marketplace add mbeacom/context-kit
     apm install code-search@context-kit   # also pulls retrieval-core
+    ```
+
+=== "Claude Code"
+
+    ```bash
+    /plugin marketplace add mbeacom/context-kit
+    /plugin install code-search@context-kit   # auto-installs retrieval-core
     ```
 
 See [Getting started](getting-started.md) for the full plugin list, requirements,

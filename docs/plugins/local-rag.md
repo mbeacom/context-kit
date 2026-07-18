@@ -11,13 +11,6 @@ across sessions for fast repeat queries.
 
 ## Install
 
-=== "Claude Code"
-
-    ```bash
-    /plugin marketplace add mbeacom/context-kit
-    /plugin install local-rag@context-kit
-    ```
-
 === "GitHub Copilot"
 
     ```bash
@@ -30,6 +23,13 @@ across sessions for fast repeat queries.
     ```bash
     apm marketplace add mbeacom/context-kit
     apm install local-rag@context-kit
+    ```
+
+=== "Claude Code"
+
+    ```bash
+    /plugin marketplace add mbeacom/context-kit
+    /plugin install local-rag@context-kit
     ```
 
 ## Requirements

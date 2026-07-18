@@ -11,13 +11,6 @@ together when one isn't enough.
 
 ## Install
 
-=== "Claude Code"
-
-    ```bash
-    /plugin marketplace add mbeacom/context-kit
-    /plugin install retrieval-core@context-kit
-    ```
-
 === "GitHub Copilot"
 
     ```bash
@@ -30,6 +23,13 @@ together when one isn't enough.
     ```bash
     apm marketplace add mbeacom/context-kit
     apm install retrieval-core@context-kit
+    ```
+
+=== "Claude Code"
+
+    ```bash
+    /plugin marketplace add mbeacom/context-kit
+    /plugin install retrieval-core@context-kit
     ```
 
 You usually get it for free: installing [`code-search`](code-search.md) or

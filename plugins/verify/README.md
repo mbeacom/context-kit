@@ -6,13 +6,6 @@ against the actual repository before relying on them.
 
 ## Install
 
-Claude Code:
-
-```bash
-/plugin marketplace add mbeacom/context-kit
-/plugin install verify@context-kit
-```
-
 GitHub Copilot CLI:
 
 ```bash
@@ -29,6 +22,13 @@ apm install verify@context-kit
 
 The APM install also deploys `retrieval-core`, the retrieval spine this plugin
 uses to find evidence efficiently.
+
+Claude Code:
+
+```bash
+/plugin marketplace add mbeacom/context-kit
+/plugin install verify@context-kit
+```
 
 ## Components
 

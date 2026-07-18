@@ -4,13 +4,6 @@ Context Steering is a skill-only teaching plugin for deciding where guidance sho
 
 ## Install
 
-Claude Code:
-
-```bash
-/plugin marketplace add mbeacom/context-kit
-/plugin install context-steering@context-kit
-```
-
 GitHub Copilot CLI:
 
 ```bash
@@ -23,6 +16,13 @@ APM:
 ```bash
 apm marketplace add mbeacom/context-kit
 apm install context-steering@context-kit
+```
+
+Claude Code:
+
+```bash
+/plugin marketplace add mbeacom/context-kit
+/plugin install context-steering@context-kit
 ```
 
 ## Components

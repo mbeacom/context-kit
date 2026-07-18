@@ -6,7 +6,7 @@
 # Keep name/version in sync with .claude-plugin/plugin.json; description is a
 # concise APM/CLI listing variant.
 name: verify
-version: 0.1.0
+version: 0.1.1
 description: Read-only claim verification with per-claim verdicts and file:line evidence.
 author: Mark Beacom
 license: MIT

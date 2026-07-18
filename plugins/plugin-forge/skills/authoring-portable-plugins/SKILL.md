@@ -1,6 +1,6 @@
 ---
 name: authoring-portable-plugins
-description: "Use when creating a new plugin (or editing one) for a multi-host Claude Code / GitHub Copilot / APM marketplace — the required manifest files, the plugin.json ⇆ apm.yml mirroring rule, portable env-var and install conventions, the component directory layout, and how to add it to the catalog."
+description: "Use when creating a new plugin (or editing one) for a multi-host GitHub Copilot / APM / Claude Code marketplace — the required manifest files, the plugin.json ⇆ apm.yml mirroring rule, portable env-var and install conventions, the component directory layout, and how to add it to the catalog."
 license: MIT
 metadata:
   author: Mark Beacom
@@ -40,7 +40,7 @@ Keep `plugin.json` and `apm.yml` aligned every time a plugin ships:
   plugin manifest. Let `apm.yml` use a shorter `description` tuned for CLI
   listings while `plugin.json` can carry the fuller description.
 - Do **not** add an `.apm/` directory. The plugin-native layout remains the
-  authoritative source for Claude Code, Copilot, and APM.
+  authoritative source for GitHub Copilot, APM, and Claude Code.
 - Put inter-plugin APM dependencies in `apm.yml` because APM does not read the
   Claude `plugin.json` `dependencies` field. Use `dependencies.apm` with sibling
   local paths such as `- path: ../retrieval-core`.
@@ -68,7 +68,7 @@ skills; always-on skill metadata has a context cost.
 
 ## Portability rules
 
-Write reusable bodies for Claude Code, GitHub Copilot, and APM rather than for a
+Write reusable bodies for GitHub Copilot, APM, and Claude Code rather than for a
 single host. Use these conventions:
 
 - Prefer portable environment variables named `CONTEXT_KIT_*`; document
@@ -80,12 +80,12 @@ single host. Use these conventions:
 - Document all install flows:
 
 ```bash
-/plugin marketplace add mbeacom/context-kit
-/plugin install <plugin-name>@context-kit
 copilot plugin marketplace add mbeacom/context-kit
 copilot plugin install <plugin-name>@context-kit
 apm marketplace add mbeacom/context-kit
 apm install <plugin-name>@context-kit
+/plugin marketplace add mbeacom/context-kit
+/plugin install <plugin-name>@context-kit
 ```
 
 Keep Claude-only features clearly labeled as Claude fallbacks or extensions, and
@@ -94,7 +94,7 @@ pair them with a host-neutral convention where one exists.
 ## Catalog and release step
 
 Add `.claude-plugin/marketplace.json` entries only when a plugin is ready to ship.
-The catalog is hand-authored and shared by Claude Code, Copilot, and APM; stubs
+The catalog is hand-authored and shared by GitHub Copilot, APM, and Claude Code; stubs
 stay unlisted. A ready entry includes:
 
 - `name`

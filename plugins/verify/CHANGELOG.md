@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.1 — 2026-07-18
+
+- Order the install snippets in the `verify-before-trust` skill GitHub Copilot →
+  APM → Claude Code. Claude Code stays fully supported.
+
 ## 0.1.0 — 2026-07-18
 
 - Initial release.

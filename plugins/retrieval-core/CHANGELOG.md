@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.6 — 2026-07-18
+
+- Lead host guidance with GitHub Copilot, then APM, then Claude Code in the
+  `retrieval-strategy` skill's portability note. Claude Code stays fully
+  supported.
+
 ## 0.2.5 — 2026-07-18
 
 - Rebrand: the marketplace was renamed `productivity-skills` → `context-kit`.

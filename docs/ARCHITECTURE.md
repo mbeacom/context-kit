@@ -1,16 +1,18 @@
 # Architecture
 
-`context-kit` is a Claude Code **plugin marketplace** and a
-GitHub Copilot-compatible **Agent Skills** pack for **context engineering**. Its
+`context-kit` is a context-engineering plugin pack for **GitHub Copilot CLI**,
+**APM** (Agent Package Manager), and **Claude Code**. Its
 spine is organized around **retrieval modalities** — complementary ways an agent
 finds information, selected by what it knows about the query and the corpus, and
 composed together — surrounded by plugins for orchestration (`plan-execute`),
 steering (`context-steering`), verification (`verify`), and authoring
 (`plugin-forge`).
 
-Both hosts install the same plugins directly from the marketplace: Claude Code via
-`/plugin`, GitHub Copilot CLI via `copilot plugin`. The retrieval instructions in
-each `SKILL.md` are identical across hosts.
+All three hosts install the same plugins directly from one marketplace — GitHub
+Copilot CLI via `copilot plugin`, APM via `apm install`, and Claude Code via
+`/plugin`. The catalog ships in Claude Code's marketplace schema, which Copilot and
+APM read too. The retrieval instructions in each `SKILL.md` are identical across
+hosts.
 
 ## Modalities
 
@@ -70,12 +72,14 @@ other corpora (code, PDFs) can be added without a redesign.
 
 | Host | What it uses | Notes |
 | ---- | ------------ | ----- |
-| Claude Code | `.claude-plugin/marketplace.json`, per-plugin manifests, hooks, `CLAUDE_PLUGIN_*` env vars | Install/update via `/plugin` commands. |
-| GitHub Copilot | the same marketplace, via `copilot plugin marketplace add` + `copilot plugin install` | Installs plugins (skills, agents, commands) directly; run the local CLIs yourself. |
+| GitHub Copilot | the marketplace, via `copilot plugin marketplace add` + `copilot plugin install` | Installs plugins (skills, agents, commands) directly; run the local CLIs yourself. |
+| APM | the same marketplace + each plugin's `apm.yml`, via `apm marketplace add` + `apm install` | Cross-harness deploy with a lockfile and pre-install security scan; run the local CLIs yourself. |
+| Claude Code | `.claude-plugin/marketplace.json`, per-plugin manifests, hooks, `CLAUDE_PLUGIN_*` env vars | Install/update via `/plugin` commands; auto-bootstraps the `local-rag` CLI. |
 
 Portable examples should prefer `CONTEXT_KIT_*` environment variables,
 with `CLAUDE_PLUGIN_*` documented as the Claude plugin fallback. See
-[GITHUB_COPILOT.md](GITHUB_COPILOT.md) for a concrete Copilot setup.
+[GITHUB_COPILOT.md](GITHUB_COPILOT.md) for a concrete Copilot setup and
+[APM.md](APM.md) for the APM path.
 
 ## Layout
 

@@ -7,13 +7,6 @@
 
 ## Install
 
-=== "Claude Code"
-
-    ```bash
-    /plugin marketplace add mbeacom/context-kit
-    /plugin install plugin-forge@context-kit
-    ```
-
 === "GitHub Copilot"
 
     ```bash
@@ -26,6 +19,13 @@
     ```bash
     apm marketplace add mbeacom/context-kit
     apm install plugin-forge@context-kit
+    ```
+
+=== "Claude Code"
+
+    ```bash
+    /plugin marketplace add mbeacom/context-kit
+    /plugin install plugin-forge@context-kit
     ```
 
 ## Components

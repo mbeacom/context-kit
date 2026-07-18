@@ -1,12 +1,12 @@
 # Using context-kit with GitHub Copilot
 
-`context-kit` is a plugin marketplace that both Claude Code and GitHub
-Copilot CLI install from **directly** — the same plugins, from a single Markdown
+`context-kit` is a plugin marketplace that GitHub Copilot CLI installs from
+**directly** — the same plugins Claude Code and APM use, from a single Markdown
 source. No manual copying of skill folders.
 
-Claude Code installs via `/plugin`; GitHub Copilot CLI installs via
-`copilot plugin`. The retrieval `SKILL.md` bodies, their `references/`, the agents,
-and the commands are identical across hosts.
+GitHub Copilot CLI installs via `copilot plugin`; Claude Code installs via
+`/plugin` and APM via `apm install`. The retrieval `SKILL.md` bodies, their
+`references/`, the agents, and the commands are identical across hosts.
 
 ## Install for GitHub Copilot
 
@@ -24,12 +24,12 @@ Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
 
 ## What you get
 
-| Repository asset | Claude Code | GitHub Copilot |
+| Repository asset | GitHub Copilot | Claude Code |
 | --- | --- | --- |
-| `plugins/*/skills/<name>/SKILL.md` (+ `references/`) | Installed via `/plugin install` | Installed via `copilot plugin install` |
-| `plugins/retrieval-core/agents/retrieval-strategist.md` | Installed as a subagent | Installed with the plugin |
-| `plugins/local-rag/bin/rag` | Auto-bootstrapped by a Claude `SessionStart` hook | Bootstrap manually — see below |
-| `.claude-plugin/*` manifests | Marketplace packaging | Used to resolve the marketplace |
+| `plugins/*/skills/<name>/SKILL.md` (+ `references/`) | Installed via `copilot plugin install` | Installed via `/plugin install` |
+| `plugins/retrieval-core/agents/retrieval-strategist.md` | Installed with the plugin | Installed as a subagent |
+| `plugins/local-rag/bin/rag` | Bootstrap manually — see below | Auto-bootstrapped by a Claude `SessionStart` hook |
+| `.claude-plugin/*` manifests | Used to resolve the marketplace | Marketplace packaging |
 
 Copilot's discovery-critical skill frontmatter is `name` and `description`, which
 this repo's skills keep compatible.
