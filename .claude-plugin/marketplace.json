@@ -1,10 +1,10 @@
 {
-  "name": "productivity-skills",
+  "name": "context-kit",
   "owner": {
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Retrieval and orchestration plugins for Claude Code and GitHub Copilot: search modalities, a routing agent, local RAG, Obsidian, and plan-big/execute-small delegation."
+    "description": "Context-engineering plugins for Claude Code and GitHub Copilot: retrieval modalities and a routing agent, local RAG, Obsidian, plan-big/execute-small delegation, context steering, read-only verification, and portable plugin authoring."
   },
   "plugins": [
     {
@@ -41,6 +41,27 @@
       "description": "Plan-big / execute-small orchestration: a strong model plans and delegates token-heavy work to cheaper subagents.",
       "category": "orchestration",
       "tags": ["orchestration", "workflow", "subagents", "delegation", "multi-agent"]
+    },
+    {
+      "name": "context-steering",
+      "source": "./plugins/context-steering",
+      "description": "Choose where guidance lives — always-on memory, path-scoped rules, on-demand skills, subagents, or deterministic hooks — to steer agents while keeping the always-on context budget small.",
+      "category": "steering",
+      "tags": ["steering", "rules", "hooks", "skills", "context", "memory"]
+    },
+    {
+      "name": "verify",
+      "source": "./plugins/verify",
+      "description": "Read-only verification: a verifier subagent and verify-before-trust skill check claims against the actual codebase and emit per-claim verdicts with file:line evidence.",
+      "category": "verification",
+      "tags": ["verification", "review", "read-only", "subagent", "evidence"]
+    },
+    {
+      "name": "plugin-forge",
+      "source": "./plugins/plugin-forge",
+      "description": "Author portable Claude Code / Copilot / APM plugins and keep plugin.json and apm.yml in sync: a conventions skill, a /scaffold-plugin command, and a manifest-drift validator.",
+      "category": "authoring",
+      "tags": ["authoring", "scaffold", "plugin", "apm", "manifest"]
     }
   ]
 }

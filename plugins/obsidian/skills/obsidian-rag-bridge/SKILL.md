@@ -31,7 +31,7 @@ Extract note paths from the output to feed step 2.
 directly; note the limitations (won't resolve aliases or `[[link#heading]]`):
 
 ```bash
-VAULT="${PRODUCTIVITY_SKILLS_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
+VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
 rg -l '\[\[Project X' "$VAULT"           # approx backlinks
 rg -l '(^|\s)#decision' "$VAULT"         # notes with a tag
 fd -e md . "$VAULT"                      # all notes

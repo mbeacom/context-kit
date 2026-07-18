@@ -48,7 +48,7 @@ obsidian backlinks / rg tag search
 obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
 
 # Tag-based fallback (rg)
-VAULT="${PRODUCTIVITY_SKILLS_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
+VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
 rg -l '(^|\s)#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
 ```
 

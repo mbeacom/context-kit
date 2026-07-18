@@ -2,7 +2,7 @@
 # Idempotent uv-based venv bootstrap into the plugin data dir.
 set -euo pipefail
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-DATA="${PRODUCTIVITY_SKILLS_DATA:-${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/local-rag}}"
+DATA="${CONTEXT_KIT_DATA:-${PRODUCTIVITY_SKILLS_DATA:-${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/local-rag}}}"
 mkdir -p "$DATA"
 VENV="$DATA/venv"
 STAMP="$DATA/pyproject.sha"

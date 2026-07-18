@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "context-steering",
+  "displayName": "Context Steering",
+  "version": "0.1.0",
+  "description": "Choose where guidance lives — always-on memory, path-scoped rules, on-demand skills, delegated subagents, or deterministic hooks — to steer agents while keeping the always-on context budget small.",
+  "author": { "name": "Mark Beacom" },
+  "homepage": "https://github.com/mbeacom/context-kit",
+  "repository": "https://github.com/mbeacom/context-kit",
+  "license": "MIT",
+  "keywords": ["steering", "rules", "hooks", "skills", "subagents", "context", "memory", "claude-code", "copilot"]
+}

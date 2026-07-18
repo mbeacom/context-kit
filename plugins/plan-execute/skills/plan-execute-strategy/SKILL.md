@@ -152,8 +152,8 @@ GitHub Copilot CLI supports this plugin format directly — no manual file copyi
 Register the marketplace and install the plugin:
 
 ```bash
-copilot plugin marketplace add mbeacom/productivity-skills
-copilot plugin install plan-execute@productivity-skills
+copilot plugin marketplace add mbeacom/context-kit
+copilot plugin install plan-execute@context-kit
 ```
 
 The scripted `Workflow` and `CLAUDE_CODE_SUBAGENT_MODEL` are Claude Code features;

@@ -10,7 +10,7 @@ can index Markdown notes, code, or any text corpus.
 
 The Claude Code plugin auto-bootstraps the CLI. GitHub Copilot or manual users
 can run the same CLI by bootstrapping it directly and setting the portable
-`PRODUCTIVITY_SKILLS_DATA` location.
+`CONTEXT_KIT_DATA` location.
 
 ## Requirements
 
@@ -26,7 +26,7 @@ The venv is created automatically on Claude Code session start (via a
 manual usage, prefer a neutral data location:
 
 ```bash
-export PRODUCTIVITY_SKILLS_DATA="$HOME/.local/share/productivity-skills/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
 bash scripts/bootstrap.sh
 export PATH="$PWD/bin:$PATH"
 ```
@@ -41,16 +41,19 @@ rag query "your question" --name X
 ```
 
 Each named index is persisted under
-`${PRODUCTIVITY_SKILLS_DATA}/indexes/<name>/` (or `${CLAUDE_PLUGIN_DATA}` inside
+`${CONTEXT_KIT_DATA}/indexes/<name>/` (or `${CLAUDE_PLUGIN_DATA}` inside
 Claude Code), so queries are fast and survive across sessions.
 
 Portable environment variables:
 
 | Variable | Purpose | Claude fallback |
 | --- | --- | --- |
-| `PRODUCTIVITY_SKILLS_DATA` | venv and index storage | `CLAUDE_PLUGIN_DATA` |
-| `PRODUCTIVITY_SKILLS_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
-| `PRODUCTIVITY_SKILLS_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
+| `CONTEXT_KIT_DATA` | venv and index storage | `CLAUDE_PLUGIN_DATA` |
+| `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
+| `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
+
+The pre-rename `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias
+(`CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback).
 
 ## Hybrid retrieval
 

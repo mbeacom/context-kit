@@ -1,16 +1,16 @@
 # Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
 # Lets APM users install this plugin alongside the Claude Code / GitHub Copilot
-# flows: `apm install code-search@productivity-skills`. There is no `.apm/`
+# flows: `apm install code-search@context-kit`. There is no `.apm/`
 # directory, so the plugin-native layout (.claude-plugin/plugin.json + skills/)
 # stays authoritative; APM consumes it as a plugin collection.
 # Keep name/version/description in sync with .claude-plugin/plugin.json.
 name: code-search
-version: 0.2.3
+version: 0.2.4
 description: Fast CLI search across modalities — lexical, structural, structured-data, history, rewrite, metrics, and docs.
 author: Mark Beacom
 license: MIT
-homepage: https://github.com/mbeacom/productivity-skills
-repository: https://github.com/mbeacom/productivity-skills
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
 keywords: [ripgrep, ast-grep, semgrep, fd, jq, search, code, rga]
 
 dependencies:

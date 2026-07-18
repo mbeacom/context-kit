@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"${CLAUDE_FILE_PATHS:-}\" ]; then prettier --write \"$CLAUDE_FILE_PATHS\"; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
