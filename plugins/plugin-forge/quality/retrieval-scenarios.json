@@ -1,0 +1,636 @@
+{
+  "schema_version": 1,
+  "evaluation_boundary": "Deterministic intended-routing contracts only; passing does not measure live-model routing accuracy.",
+  "routes": {
+    "lexical": {
+      "kind": "modality",
+      "plugin": "code-search",
+      "tools": ["rg", "fd"]
+    },
+    "structural": {
+      "kind": "modality",
+      "plugin": "code-search",
+      "tools": ["ast-grep", "semgrep"]
+    },
+    "code-intelligence": {
+      "kind": "modality",
+      "plugin": "code-search",
+      "tools": ["LSP", "global", "ctags"]
+    },
+    "structured-data": {
+      "kind": "modality",
+      "plugin": "code-search",
+      "tools": ["jq", "yq", "gron"]
+    },
+    "history": {
+      "kind": "modality",
+      "plugin": "code-search",
+      "tools": ["git log -S/-G/-L", "difftastic"]
+    },
+    "data-files": {
+      "kind": "modality",
+      "plugin": "code-search",
+      "tools": ["duckdb", "sqlite-utils"]
+    },
+    "metrics": {
+      "kind": "modality",
+      "plugin": "code-search",
+      "tools": ["tokei", "scc"]
+    },
+    "docs": {
+      "kind": "modality",
+      "plugin": "code-search",
+      "tools": ["rga", "pandoc", "pdftotext"]
+    },
+    "semantic-rag": {
+      "kind": "modality",
+      "plugin": "local-rag",
+      "tools": ["rag index", "rag query"]
+    },
+    "graph": {
+      "kind": "modality",
+      "plugin": "obsidian",
+      "tools": ["obsidian", "rg"]
+    },
+    "durable-memory": {
+      "kind": "modality",
+      "plugin": "memory",
+      "tools": ["memory recall", "mempalace"]
+    },
+    "handoff": {
+      "kind": "non-retrieval",
+      "plugin": "context-handoff",
+      "tools": ["context-handoff"]
+    },
+    "verify-before-trust": {
+      "kind": "non-retrieval",
+      "plugin": "verify",
+      "tools": ["verify-before-trust"]
+    },
+    "runtime-evidence": {
+      "kind": "non-retrieval",
+      "plugin": "runtime-evidence",
+      "tools": ["run-evidence-command.py"]
+    }
+  },
+  "compositions": {
+    "hybrid-rerank": {
+      "step_variants": [
+        ["lexical", "semantic-rag"],
+        ["structured-data", "semantic-rag"],
+        ["graph", "semantic-rag"]
+      ]
+    },
+    "scope-then-search": {
+      "step_variants": [["graph", "semantic-rag"]]
+    },
+    "find-then-pin": {
+      "step_variants": [["semantic-rag", "lexical"]]
+    },
+    "resolve-then-pin": {
+      "step_variants": [["code-intelligence", "lexical"]]
+    },
+    "recall-then-pin": {
+      "step_variants": [["durable-memory", "lexical"]]
+    },
+    "recall-then-verify": {
+      "step_variants": [["durable-memory", "verify-before-trust"]]
+    },
+    "retrieve-then-expand": {
+      "step_variants": [
+        ["semantic-rag", "semantic-rag"],
+        ["durable-memory", "durable-memory"]
+      ]
+    },
+    "verify-then-observe": {
+      "step_variants": [
+        ["verify-before-trust", "runtime-evidence", "verify-before-trust"]
+      ]
+    },
+    "verify-then-hand-off": {
+      "step_variants": [["verify-before-trust", "handoff"]]
+    }
+  },
+  "scenarios": [
+    {
+      "id": "lexical-exact-error-code",
+      "query": "Find every source occurrence of the exact error code E_CFG_104.",
+      "corpus_cues": ["source tree", "exact token is known"],
+      "expected": {
+        "route": "lexical",
+        "plugins": ["code-search"],
+        "tools": ["rg"]
+      },
+      "rationale": "An exact token in a bounded source tree is the cheapest lexical lookup.",
+      "near_misses": [
+        {
+          "query": "Find the configuration failure described as rejecting incomplete ownership metadata; I do not know its wording.",
+          "expected_route": "semantic-rag",
+          "reason": "The intent is known but no literal token or symbol is available."
+        }
+      ]
+    },
+    {
+      "id": "structural-call-inside-handler",
+      "query": "Find functions that call retry() from inside an exception handler regardless of variable names.",
+      "corpus_cues": ["source code", "syntax shape matters more than spelling"],
+      "expected": {
+        "route": "structural",
+        "plugins": ["code-search"],
+        "tools": ["ast-grep"]
+      },
+      "rationale": "The query describes a syntax relationship rather than a stable literal.",
+      "near_misses": [
+        {
+          "query": "Find the exact retry_limit token in Python files.",
+          "expected_route": "lexical",
+          "reason": "A literal token and file type are already known."
+        }
+      ]
+    },
+    {
+      "id": "code-intelligence-symbol-callers",
+      "query": "Resolve the parseConfig symbol and list its true callers and references.",
+      "corpus_cues": ["typed source code", "symbol identity is known"],
+      "expected": {
+        "route": "code-intelligence",
+        "plugins": ["code-search"],
+        "tools": ["LSP"]
+      },
+      "rationale": "Symbol identity and caller relationships require language-aware resolution.",
+      "near_misses": [
+        {
+          "query": "Find the literal text parseConfig in documentation comments.",
+          "expected_route": "lexical",
+          "reason": "Text occurrences do not require symbol resolution."
+        }
+      ]
+    },
+    {
+      "id": "structured-data-config-owners",
+      "query": "Select YAML service records whose metadata.owner field is missing.",
+      "corpus_cues": ["YAML configuration", "schema path is known"],
+      "expected": {
+        "route": "structured-data",
+        "plugins": ["code-search"],
+        "tools": ["yq"]
+      },
+      "rationale": "A known schema path in configuration data is a structured-data query.",
+      "near_misses": [
+        {
+          "query": "Aggregate ten million ownership rows from Parquet by team and month.",
+          "expected_route": "data-files",
+          "reason": "Large tabular aggregation belongs in an analytical data engine."
+        }
+      ]
+    },
+    {
+      "id": "history-timeout-rationale",
+      "query": "When did the request timeout change from 30 to 60 seconds, and why?",
+      "corpus_cues": ["git repository", "change provenance is required"],
+      "expected": {
+        "route": "history",
+        "plugins": ["code-search"],
+        "tools": ["git log -S/-G/-L"]
+      },
+      "rationale": "The question asks for change timing and rationale rather than current text.",
+      "near_misses": [
+        {
+          "query": "List current source lines containing request_timeout.",
+          "expected_route": "lexical",
+          "reason": "Current exact occurrences do not require history."
+        }
+      ]
+    },
+    {
+      "id": "data-files-parquet-aggregation",
+      "query": "Compute monthly p95 latency by service from these partitioned Parquet files.",
+      "corpus_cues": ["large tabular corpus", "Parquet partitions"],
+      "expected": {
+        "route": "data-files",
+        "plugins": ["code-search"],
+        "tools": ["duckdb"]
+      },
+      "rationale": "Columnar aggregation at scale is a data-files workload.",
+      "near_misses": [
+        {
+          "query": "Read the timeout value at server.http.timeout in one YAML file.",
+          "expected_route": "structured-data",
+          "reason": "A single known schema path needs a structured-data selector, not analytics."
+        }
+      ]
+    },
+    {
+      "id": "metrics-language-size",
+      "query": "Report code size by language and compare source line counts.",
+      "corpus_cues": ["source repository", "aggregate size metrics"],
+      "expected": {
+        "route": "metrics",
+        "plugins": ["code-search"],
+        "tools": ["tokei"]
+      },
+      "rationale": "The requested result is a codebase sizing metric, not content retrieval.",
+      "near_misses": [
+        {
+          "query": "Find source files containing the exact phrase cyclomatic complexity.",
+          "expected_route": "lexical",
+          "reason": "Searching for a literal phrase is lexical even when the phrase names a metric."
+        }
+      ]
+    },
+    {
+      "id": "docs-pdf-invoice-terms",
+      "query": "Search the PDF contract archive for termination clauses and invoice terms.",
+      "corpus_cues": ["PDF archive", "content is inside non-code documents"],
+      "expected": {
+        "route": "docs",
+        "plugins": ["code-search"],
+        "tools": ["rga", "pdftotext"]
+      },
+      "rationale": "The corpus requires non-code document extraction before searching.",
+      "near_misses": [
+        {
+          "query": "Sum invoice totals by vendor from the exported CSV ledger.",
+          "expected_route": "data-files",
+          "reason": "The exported ledger is structured tabular data."
+        }
+      ]
+    },
+    {
+      "id": "semantic-rag-conceptual-policy",
+      "query": "Find where this large notes corpus discusses gradual trust reduction without using those exact words.",
+      "corpus_cues": ["large prose corpus", "only the concept is known"],
+      "expected": {
+        "route": "semantic-rag",
+        "plugins": ["local-rag"],
+        "tools": ["rag index", "rag query"]
+      },
+      "rationale": "Meaning-only retrieval over unfamiliar prose requires semantic search.",
+      "near_misses": [
+        {
+          "query": "Find the exact quoted phrase gradual trust reduction in markdown files.",
+          "expected_route": "lexical",
+          "reason": "A known phrase should be searched lexically first."
+        }
+      ]
+    },
+    {
+      "id": "graph-vault-backlinks",
+      "query": "Use Obsidian backlinks and tags to find notes related to Project Atlas.",
+      "corpus_cues": ["Obsidian vault", "human-authored wikilinks and tags"],
+      "expected": {
+        "route": "graph",
+        "plugins": ["obsidian"],
+        "tools": ["obsidian"]
+      },
+      "rationale": "Explicit vault relationships are graph evidence.",
+      "near_misses": [
+        {
+          "query": "Search a plain markdown folder with no links for notes conceptually related to Project Atlas.",
+          "expected_route": "semantic-rag",
+          "reason": "Without a link graph, conceptual similarity is the useful signal."
+        }
+      ]
+    },
+    {
+      "id": "durable-memory-retry-decision",
+      "query": "Recall why this project adopted its retry policy across earlier sessions.",
+      "corpus_cues": ["prior reviewed decision", "cross-session project context"],
+      "expected": {
+        "route": "durable-memory",
+        "plugins": ["memory"],
+        "tools": ["memory recall"]
+      },
+      "rationale": "A prior reviewed project decision is durable-memory material.",
+      "near_misses": [
+        {
+          "query": "Resume the current branch from its saved next action and unresolved items.",
+          "expected_route": "handoff",
+          "reason": "Authoritative current task state belongs to a validated handoff."
+        }
+      ]
+    },
+    {
+      "id": "handoff-current-task-state",
+      "query": "Resume this branch from the saved task state and identify the next action.",
+      "corpus_cues": ["current repository task", "bounded handoff artifact"],
+      "expected": {
+        "route": "handoff",
+        "plugins": ["context-handoff"],
+        "tools": ["context-handoff"]
+      },
+      "rationale": "Current task continuity is a handoff route, not long-term recall.",
+      "near_misses": [
+        {
+          "query": "Recall the settled architectural decision that led to this repository layout.",
+          "expected_route": "durable-memory",
+          "reason": "A settled historical decision belongs to durable memory."
+        }
+      ]
+    },
+    {
+      "id": "verify-stale-memory-claim",
+      "query": "Check this stale recalled deployment claim against current repository evidence before using it.",
+      "corpus_cues": ["memory result is stale", "claim is consequential"],
+      "expected": {
+        "route": "verify-before-trust",
+        "plugins": ["verify"],
+        "tools": ["verify-before-trust"]
+      },
+      "rationale": "Stale consequential recall must be independently verified before action.",
+      "near_misses": [
+        {
+          "query": "Recall which deployment strategy the project previously selected.",
+          "expected_route": "durable-memory",
+          "reason": "The first task is recall; verification follows only when the result must be trusted."
+        }
+      ]
+    },
+    {
+      "id": "runtime-evidence-approved-reproduction",
+      "query": "Static verification cannot settle this runtime claim; run the reviewed reproduction command ID.",
+      "corpus_cues": ["verdict is unable-to-check", "approved exact command ID exists"],
+      "expected": {
+        "route": "runtime-evidence",
+        "plugins": ["runtime-evidence"],
+        "tools": ["run-evidence-command.py"]
+      },
+      "rationale": "Controlled runtime observation is allowed only after static evidence is insufficient.",
+      "near_misses": [
+        {
+          "query": "Verify whether the documented default matches the checked-in configuration.",
+          "expected_route": "verify-before-trust",
+          "reason": "A repository claim should be settled statically before runtime escalation."
+        }
+      ]
+    },
+    {
+      "id": "hybrid-rerank-bounded-candidates",
+      "query": "Find files mentioning retry, then semantically rerank only those candidates for backoff intent.",
+      "corpus_cues": ["exact narrowing term", "semantic ranking needed inside the candidate set"],
+      "expected": {
+        "route": "lexical",
+        "plugins": ["code-search", "local-rag"],
+        "tools": ["rg", "rag query"],
+        "composition": {
+          "name": "hybrid-rerank",
+          "steps": ["lexical", "semantic-rag"]
+        }
+      },
+      "rationale": "Cheap lexical narrowing should bound semantic reranking.",
+      "near_misses": [
+        {
+          "query": "Find the exact retry token in one known source directory.",
+          "expected_route": "lexical",
+          "reason": "No semantic ranking is needed for a literal bounded lookup."
+        }
+      ]
+    },
+    {
+      "id": "hybrid-rerank-structured-candidates",
+      "query": "Select config records with missing owners, then semantically rerank only those records for operational risk.",
+      "corpus_cues": ["known JSON schema", "semantic ranking within selected records"],
+      "expected": {
+        "route": "structured-data",
+        "plugins": ["code-search", "local-rag"],
+        "tools": ["jq", "rag query"],
+        "composition": {
+          "name": "hybrid-rerank",
+          "steps": ["structured-data", "semantic-rag"]
+        }
+      },
+      "rationale": "Schema selection bounds the records before semantic reranking.",
+      "near_misses": [
+        {
+          "query": "Select config records whose metadata.owner field is missing.",
+          "expected_route": "structured-data",
+          "reason": "The schema filter alone answers the bounded request."
+        }
+      ]
+    },
+    {
+      "id": "hybrid-rerank-graph-candidates",
+      "query": "Collect notes linked to Project Atlas, then semantically rerank those candidates for rollout risk.",
+      "corpus_cues": ["Obsidian link graph", "semantic ranking of graph candidates"],
+      "expected": {
+        "route": "graph",
+        "plugins": ["obsidian", "local-rag"],
+        "tools": ["obsidian", "rag query"],
+        "composition": {
+          "name": "hybrid-rerank",
+          "steps": ["graph", "semantic-rag"]
+        }
+      },
+      "rationale": "Graph retrieval yields candidates that semantic search reranks by intent.",
+      "near_misses": [
+        {
+          "query": "List notes linked directly to Project Atlas.",
+          "expected_route": "graph",
+          "reason": "Direct graph traversal answers the request without semantic reranking."
+        }
+      ]
+    },
+    {
+      "id": "scope-then-search-vault-subgraph",
+      "query": "Use Project Atlas backlinks to bound the note set, then search that subgraph by meaning.",
+      "corpus_cues": ["Obsidian link graph", "semantic query within related notes"],
+      "expected": {
+        "route": "graph",
+        "plugins": ["obsidian", "local-rag"],
+        "tools": ["obsidian", "rag query"],
+        "composition": {
+          "name": "scope-then-search",
+          "steps": ["graph", "semantic-rag"]
+        }
+      },
+      "rationale": "The graph supplies scope before semantic retrieval.",
+      "near_misses": [
+        {
+          "query": "List every backlink to the Project Atlas note without semantic ranking.",
+          "expected_route": "graph",
+          "reason": "Graph traversal alone answers the request."
+        }
+      ]
+    },
+    {
+      "id": "find-then-pin-prose-region",
+      "query": "Search the handbook by meaning for incident ownership, then pin the exact lines.",
+      "corpus_cues": ["large prose handbook", "line-precise evidence is required"],
+      "expected": {
+        "route": "semantic-rag",
+        "plugins": ["local-rag", "code-search"],
+        "tools": ["rag query", "rg"],
+        "composition": {
+          "name": "find-then-pin",
+          "steps": ["semantic-rag", "lexical"]
+        }
+      },
+      "rationale": "Semantic discovery finds the region and lexical search pins evidence.",
+      "near_misses": [
+        {
+          "query": "Find the exact incident_owner key and show its lines.",
+          "expected_route": "lexical",
+          "reason": "An exact key can be pinned directly."
+        }
+      ]
+    },
+    {
+      "id": "resolve-then-pin-overloaded-symbol",
+      "query": "Resolve the overloaded render symbol to its real references, then pin the exact source lines.",
+      "corpus_cues": ["symbol is overloaded", "precise line evidence is required"],
+      "expected": {
+        "route": "code-intelligence",
+        "plugins": ["code-search"],
+        "tools": ["LSP", "rg"],
+        "composition": {
+          "name": "resolve-then-pin",
+          "steps": ["code-intelligence", "lexical"]
+        }
+      },
+      "rationale": "Language-aware resolution precedes exact line pinning.",
+      "near_misses": [
+        {
+          "query": "Find the literal word render in template files.",
+          "expected_route": "lexical",
+          "reason": "Literal template text is not a symbol-resolution task."
+        }
+      ]
+    },
+    {
+      "id": "recall-then-pin-current-evidence",
+      "query": "Recall the prior queue decision, open its source, and pin what the current repository implements.",
+      "corpus_cues": ["reviewed prior decision", "current evidence must confirm it"],
+      "expected": {
+        "route": "durable-memory",
+        "plugins": ["memory", "code-search"],
+        "tools": ["memory recall", "rg"],
+        "composition": {
+          "name": "recall-then-pin",
+          "steps": ["durable-memory", "lexical"]
+        }
+      },
+      "rationale": "Memory locates the decision; current source evidence pins the claim.",
+      "near_misses": [
+        {
+          "query": "Resume the queue migration from the current handoff's next action.",
+          "expected_route": "handoff",
+          "reason": "Current in-progress state is authoritative in a handoff."
+        }
+      ]
+    },
+    {
+      "id": "recall-then-verify-conflict",
+      "query": "Recall the earlier retention rule, then verify it because current documentation conflicts.",
+      "corpus_cues": ["durable memory exists", "current source conflicts with recall"],
+      "expected": {
+        "route": "durable-memory",
+        "plugins": ["memory", "verify"],
+        "tools": ["memory recall", "verify-before-trust"],
+        "composition": {
+          "name": "recall-then-verify",
+          "steps": ["durable-memory", "verify-before-trust"]
+        }
+      },
+      "rationale": "Conflicting memory must return to independent verification.",
+      "near_misses": [
+        {
+          "query": "Recall the historical retention decision for background context only.",
+          "expected_route": "durable-memory",
+          "reason": "Non-consequential recall without conflict does not require the verification composition."
+        }
+      ]
+    },
+    {
+      "id": "retrieve-then-expand-bounded-neighbors",
+      "query": "Start with a compact semantic result, then follow only its bounded neighbor links if context is insufficient.",
+      "corpus_cues": ["large prose corpus", "progressive bounded expansion"],
+      "expected": {
+        "route": "semantic-rag",
+        "plugins": ["local-rag"],
+        "tools": ["rag query"],
+        "composition": {
+          "name": "retrieve-then-expand",
+          "steps": ["semantic-rag", "semantic-rag"]
+        }
+      },
+      "rationale": "The composition preserves a compact initial result and expands only bounded context.",
+      "near_misses": [
+        {
+          "query": "Read the exact known heading from one markdown file.",
+          "expected_route": "lexical",
+          "reason": "A known location needs no retrieval expansion."
+        }
+      ]
+    },
+    {
+      "id": "retrieve-then-expand-memory-neighbors",
+      "query": "Recall the authentication decision, then follow only its bounded neighboring episodes if the first record is insufficient.",
+      "corpus_cues": ["prior reviewed decision", "bounded memory neighbors may be required"],
+      "expected": {
+        "route": "durable-memory",
+        "plugins": ["memory"],
+        "tools": ["memory recall"],
+        "composition": {
+          "name": "retrieve-then-expand",
+          "steps": ["durable-memory", "durable-memory"]
+        }
+      },
+      "rationale": "Durable recall expands only to bounded neighboring records when the compact result is insufficient.",
+      "near_misses": [
+        {
+          "query": "Recall the settled authentication decision and return its cited source.",
+          "expected_route": "durable-memory",
+          "reason": "A sufficient single recall does not require bounded neighbor expansion."
+        }
+      ]
+    },
+    {
+      "id": "verify-then-observe-runtime",
+      "query": "Verify the cache claim statically, collect approved runtime evidence only if unresolved, then return it for a final verdict.",
+      "corpus_cues": ["runtime behavior claim", "static verdict may be unable-to-check"],
+      "expected": {
+        "route": "verify-before-trust",
+        "plugins": ["verify", "runtime-evidence"],
+        "tools": ["verify-before-trust", "run-evidence-command.py"],
+        "composition": {
+          "name": "verify-then-observe",
+          "steps": [
+            "verify-before-trust",
+            "runtime-evidence",
+            "verify-before-trust"
+          ]
+        }
+      },
+      "rationale": "Runtime observation is a controlled escalation that returns evidence to verification.",
+      "near_misses": [
+        {
+          "query": "Check whether the cache flag exists in the current config file.",
+          "expected_route": "verify-before-trust",
+          "reason": "Static repository evidence is sufficient, so no observation step is justified."
+        }
+      ]
+    },
+    {
+      "id": "verify-then-hand-off-state",
+      "query": "Verify the migration facts, then compile only the bounded proven state into a resumable handoff.",
+      "corpus_cues": ["cross-session continuation", "handoff facts require repository provenance"],
+      "expected": {
+        "route": "verify-before-trust",
+        "plugins": ["verify", "context-handoff"],
+        "tools": ["verify-before-trust", "context-handoff"],
+        "composition": {
+          "name": "verify-then-hand-off",
+          "steps": ["verify-before-trust", "handoff"]
+        }
+      },
+      "rationale": "Verification establishes trustworthy facts before handoff compilation.",
+      "near_misses": [
+        {
+          "query": "Resume an already validated handoff and report its next action.",
+          "expected_route": "handoff",
+          "reason": "The existing artifact should be validated and resumed rather than recompiled."
+        }
+      ]
+    }
+  ]
+}

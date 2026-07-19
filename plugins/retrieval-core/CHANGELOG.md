@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-07-19
+
+- Document the deterministic retrieval contract corpus, its complete
+  modality/route/composition coverage, and the explicit boundary between static
+  validation and future non-blocking live-model evaluation.
+- Add verify-then-observe and verify-then-hand-off to the operative strategy skill
+  and agent so the enforced cross-plugin compositions are available in context.
+
 ## 0.4.0 — 2026-07-19
 
 - Add durable memory as a distinct modality for prior decisions, constraints,

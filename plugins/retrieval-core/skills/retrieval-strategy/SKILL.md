@@ -52,6 +52,11 @@ Semantic, graph, and durable recall are available as the **local-rag**,
   `verify-before-trust` before it affects behavior.
 - **Retrieve then expand:** begin with a compact memory/RAG result → follow only
   its bounded cue, neighbor, or source links when more context is required.
+- **Verify then observe:** `verify-before-trust` first → only an
+  `unable-to-check` runtime claim escalates through `runtime-evidence`'s exact-ID
+  allowlisted runner → return bounded observations for a final verdict.
+- **Verify then hand off:** `verify-before-trust` establishes provenance-backed
+  facts → compile only the proven task state into a `context-handoff` artifact.
 
 ## Defaults
 
@@ -63,6 +68,8 @@ Semantic, graph, and durable recall are available as the **local-rag**,
    labels and freshness; current repository/runtime evidence wins conflicts.
 5. If a needed plugin (`local-rag`, `obsidian`, `memory`) isn't installed, say so and
    suggest installing it — don't assume its tools exist.
-6. If `rtk` is installed, prefix the rtk-wrapped commands (`rg`/`git`/`find`/
+6. Verification, runtime evidence, and handoff are separate plugins too. Recommend
+   those routes when warranted, but do not fabricate unavailable agents or commands.
+7. If `rtk` is installed, prefix the rtk-wrapped commands (`rg`/`git`/`find`/
    `diff`) for compact output — it passes other tools through unchanged. (See
    the `code-search` plugin's rtk reference.)

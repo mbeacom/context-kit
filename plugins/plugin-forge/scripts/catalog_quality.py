@@ -14,6 +14,37 @@ from typing import Any
 TOKEN_RE = re.compile(r"[a-z0-9]+")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 CONTRACT_HEADING_RE = re.compile(r"^## (?:Output contract|Report)\s*$", re.MULTILINE)
+REQUIRED_ROUTE_KINDS = {
+    "lexical": "modality",
+    "structural": "modality",
+    "code-intelligence": "modality",
+    "structured-data": "modality",
+    "history": "modality",
+    "data-files": "modality",
+    "metrics": "modality",
+    "docs": "modality",
+    "semantic-rag": "modality",
+    "graph": "modality",
+    "durable-memory": "modality",
+    "handoff": "non-retrieval",
+    "verify-before-trust": "non-retrieval",
+    "runtime-evidence": "non-retrieval",
+}
+REQUIRED_COMPOSITIONS = {
+    "hybrid-rerank",
+    "scope-then-search",
+    "find-then-pin",
+    "resolve-then-pin",
+    "recall-then-pin",
+    "recall-then-verify",
+    "retrieve-then-expand",
+    "verify-then-observe",
+    "verify-then-hand-off",
+}
+RETRIEVAL_EVALUATION_BOUNDARY = (
+    "Deterministic intended-routing contracts only; passing does not measure "
+    "live-model routing accuracy."
+)
 STOPWORDS = {
     "a",
     "an",
@@ -67,6 +98,10 @@ class ValidationResult:
     fixture_count: int = 0
     fixture_example_count: int = 0
     contract_count: int = 0
+    retrieval_route_count: int = 0
+    retrieval_composition_count: int = 0
+    retrieval_scenario_count: int = 0
+    retrieval_near_miss_count: int = 0
 
 
 def _unquote(value: str) -> str:
@@ -367,11 +402,411 @@ def _validate_contracts(
     return valid
 
 
+def _string_list(
+    value: Any,
+    label: str,
+    errors: list[str],
+    *,
+    minimum: int = 1,
+    unique: bool = True,
+) -> list[str]:
+    if not isinstance(value, list) or not all(
+        isinstance(item, str) and item.strip() for item in value
+    ):
+        errors.append(f"{label} must be an array of non-empty strings")
+        return []
+    if len(value) < minimum:
+        errors.append(f"{label} needs at least {minimum} item(s)")
+    if unique and len(value) != len(set(value)):
+        errors.append(f"{label} must not contain duplicates")
+    return value
+
+
+def _check_fields(
+    value: dict[str, Any],
+    label: str,
+    errors: list[str],
+    *,
+    required: set[str],
+    optional: set[str] | None = None,
+) -> None:
+    optional = optional or set()
+    for field in sorted(required - set(value)):
+        errors.append(f"{label} is missing `{field}`")
+    for field in sorted(set(value) - required - optional):
+        errors.append(f"{label} has unknown field `{field}`")
+
+
+def _scenario_text(
+    value: Any,
+    label: str,
+    errors: list[str],
+    seen_queries: dict[str, str],
+) -> None:
+    if not isinstance(value, str) or len(value.strip()) < 12:
+        errors.append(f"{label} must be a substantive string")
+        return
+    terms = content_tokens(value)
+    if len(terms) < 3:
+        errors.append(f"{label} is too weak to be a useful query")
+    normalized = " ".join(TOKEN_RE.findall(value.lower()))
+    previous = seen_queries.get(normalized)
+    if previous is not None:
+        errors.append(f"{label} duplicates {previous}")
+    else:
+        seen_queries[normalized] = label
+
+
+def _ordered_unique(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(values))
+
+
+def _shipped_plugin_names(repo_root: Path, errors: list[str]) -> set[str]:
+    marketplace = load_json(
+        repo_root / ".claude-plugin/marketplace.json",
+        "marketplace",
+        errors,
+    )
+    entries = marketplace.get("plugins")
+    if not isinstance(entries, list):
+        errors.append("marketplace: `plugins` must be an array")
+        return set()
+
+    shipped: set[str] = set()
+    for index, entry in enumerate(entries):
+        label = f"marketplace: plugins[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{label} must be an object")
+            continue
+        name = entry.get("name")
+        source = entry.get("source")
+        if not isinstance(name, str) or not NAME_RE.fullmatch(name):
+            errors.append(f"{label}.name must be a kebab-case plugin name")
+            continue
+        if name in shipped:
+            errors.append(f"{label}.name duplicates shipped plugin `{name}`")
+            continue
+        if not isinstance(source, str) or not source.strip():
+            errors.append(f"{label}.source must be a non-empty path")
+            continue
+
+        manifest = load_json(
+            repo_root / source / ".claude-plugin/plugin.json",
+            f"{label} manifest",
+            errors,
+        )
+        if manifest.get("name") != name:
+            errors.append(
+                f"{label} manifest name `{manifest.get('name')}` does not match `{name}`"
+            )
+            continue
+        shipped.add(name)
+    return shipped
+
+
+def _validate_retrieval_scenarios(
+    data: dict[str, Any],
+    repo_root: Path,
+    errors: list[str],
+) -> tuple[int, int, int, int]:
+    if data.get("schema_version") != 1:
+        errors.append("retrieval scenarios: `schema_version` must be 1")
+    if data.get("evaluation_boundary") != RETRIEVAL_EVALUATION_BOUNDARY:
+        errors.append(
+            "retrieval scenarios: `evaluation_boundary` must equal the canonical "
+            "static-evaluation disclaimer"
+        )
+
+    routes = data.get("routes")
+    if not isinstance(routes, dict):
+        errors.append("retrieval scenarios: `routes` must be an object")
+        routes = {}
+    actual_route_ids = set(routes)
+    required_route_ids = set(REQUIRED_ROUTE_KINDS)
+    for route_id in sorted(required_route_ids - actual_route_ids):
+        errors.append(f"retrieval scenarios: missing documented route `{route_id}`")
+    for route_id in sorted(actual_route_ids - required_route_ids):
+        errors.append(f"retrieval scenarios: unknown route `{route_id}`")
+
+    known_plugins = _shipped_plugin_names(repo_root, errors)
+    route_plugins: dict[str, str] = {}
+    route_tools: dict[str, set[str]] = {}
+    for route_id in sorted(actual_route_ids):
+        label = f"retrieval scenarios: route `{route_id}`"
+        entry = routes[route_id]
+        if not isinstance(entry, dict):
+            errors.append(f"{label} must be an object")
+            continue
+        _check_fields(
+            entry,
+            label,
+            errors,
+            required={"kind", "plugin", "tools"},
+        )
+        kind = entry.get("kind")
+        expected_kind = REQUIRED_ROUTE_KINDS.get(route_id)
+        if kind not in {"modality", "non-retrieval"}:
+            errors.append(f"{label}.kind must be `modality` or `non-retrieval`")
+        elif expected_kind is not None and kind != expected_kind:
+            errors.append(f"{label}.kind must be `{expected_kind}`")
+        plugin = entry.get("plugin")
+        if not isinstance(plugin, str) or not NAME_RE.fullmatch(plugin):
+            errors.append(f"{label}.plugin must be a kebab-case plugin name")
+        else:
+            route_plugins[route_id] = plugin
+            if plugin not in known_plugins:
+                errors.append(f"{label}.plugin references unknown plugin `{plugin}`")
+        tools = _string_list(entry.get("tools"), f"{label}.tools", errors)
+        route_tools[route_id] = set(tools)
+
+    compositions = data.get("compositions")
+    if not isinstance(compositions, dict):
+        errors.append("retrieval scenarios: `compositions` must be an object")
+        compositions = {}
+    actual_composition_ids = set(compositions)
+    for name in sorted(REQUIRED_COMPOSITIONS - actual_composition_ids):
+        errors.append(f"retrieval scenarios: missing documented composition `{name}`")
+    for name in sorted(actual_composition_ids - REQUIRED_COMPOSITIONS):
+        errors.append(f"retrieval scenarios: unknown composition `{name}`")
+
+    composition_variants: dict[str, list[list[str]]] = {}
+    for name in sorted(actual_composition_ids):
+        label = f"retrieval scenarios: composition `{name}`"
+        entry = compositions[name]
+        if not isinstance(entry, dict):
+            errors.append(f"{label} must be an object")
+            continue
+        _check_fields(entry, label, errors, required={"step_variants"})
+        variants = entry.get("step_variants")
+        if not isinstance(variants, list) or not variants:
+            errors.append(f"{label}.step_variants must be a non-empty array")
+            continue
+        valid_variants: list[list[str]] = []
+        seen_variants: set[tuple[str, ...]] = set()
+        for index, variant in enumerate(variants):
+            variant_label = f"{label}.step_variants[{index}]"
+            steps = _string_list(
+                variant, variant_label, errors, minimum=2, unique=False
+            )
+            if any(step not in actual_route_ids for step in steps):
+                errors.append(f"{variant_label} references an unknown route")
+            key = tuple(steps)
+            if key in seen_variants:
+                errors.append(f"{variant_label} duplicates an earlier step variant")
+            seen_variants.add(key)
+            if steps:
+                valid_variants.append(steps)
+        composition_variants[name] = valid_variants
+
+    scenarios = data.get("scenarios")
+    if not isinstance(scenarios, list):
+        errors.append("retrieval scenarios: `scenarios` must be an array")
+        return (
+            len(actual_route_ids & required_route_ids),
+            len(actual_composition_ids & REQUIRED_COMPOSITIONS),
+            0,
+            0,
+        )
+
+    seen_ids: set[str] = set()
+    seen_queries: dict[str, str] = {}
+    covered_routes: set[str] = set()
+    covered_compositions: set[str] = set()
+    covered_composition_variants: set[tuple[str, tuple[str, ...]]] = set()
+    near_miss_count = 0
+    for index, scenario in enumerate(scenarios):
+        label = f"retrieval scenarios: scenarios[{index}]"
+        if not isinstance(scenario, dict):
+            errors.append(f"{label} must be an object")
+            continue
+        _check_fields(
+            scenario,
+            label,
+            errors,
+            required={
+                "id",
+                "query",
+                "corpus_cues",
+                "expected",
+                "rationale",
+                "near_misses",
+            },
+        )
+        scenario_id = scenario.get("id")
+        if not isinstance(scenario_id, str) or not NAME_RE.fullmatch(scenario_id):
+            errors.append(f"{label}.id must be a kebab-case identifier")
+        elif scenario_id in seen_ids:
+            errors.append(f"{label}.id duplicates `{scenario_id}`")
+        else:
+            seen_ids.add(scenario_id)
+        _scenario_text(scenario.get("query"), f"{label}.query", errors, seen_queries)
+        cues = _string_list(scenario.get("corpus_cues"), f"{label}.corpus_cues", errors)
+        for cue_index, cue in enumerate(cues):
+            if len(cue.strip()) < 4:
+                errors.append(
+                    f"{label}.corpus_cues[{cue_index}] must be a substantive cue"
+                )
+        rationale = scenario.get("rationale")
+        if not isinstance(rationale, str) or len(rationale.strip()) < 12:
+            errors.append(f"{label}.rationale must be a substantive string")
+
+        expected = scenario.get("expected")
+        route_id: str | None = None
+        composition_name: str | None = None
+        participating_routes: list[str] = []
+        if not isinstance(expected, dict):
+            errors.append(f"{label}.expected must be an object")
+        else:
+            _check_fields(
+                expected,
+                f"{label}.expected",
+                errors,
+                required={"route", "plugins", "tools"},
+                optional={"composition"},
+            )
+            route = expected.get("route")
+            if not isinstance(route, str) or route not in actual_route_ids:
+                errors.append(f"{label}.expected.route references an unknown route")
+            else:
+                route_id = route
+                covered_routes.add(route)
+                participating_routes = [route]
+
+            composition = expected.get("composition")
+            if composition is not None:
+                if not isinstance(composition, dict):
+                    errors.append(f"{label}.expected.composition must be an object")
+                else:
+                    _check_fields(
+                        composition,
+                        f"{label}.expected.composition",
+                        errors,
+                        required={"name", "steps"},
+                    )
+                    name = composition.get("name")
+                    steps = _string_list(
+                        composition.get("steps"),
+                        f"{label}.expected.composition.steps",
+                        errors,
+                        minimum=2,
+                        unique=False,
+                    )
+                    if not isinstance(name, str) or name not in actual_composition_ids:
+                        errors.append(
+                            f"{label}.expected.composition.name references an "
+                            "unknown composition"
+                        )
+                    else:
+                        composition_name = name
+                        covered_compositions.add(name)
+                        if steps not in composition_variants.get(name, []):
+                            errors.append(
+                                f"{label}.expected.composition.steps do not match "
+                                f"contract `{name}`"
+                            )
+                        else:
+                            covered_composition_variants.add((name, tuple(steps)))
+                    if route_id is not None and steps and steps[0] != route_id:
+                        errors.append(
+                            f"{label}.expected.route must equal the first "
+                            "composition step"
+                        )
+                    if steps:
+                        participating_routes = steps
+
+            plugins = _string_list(
+                expected.get("plugins"), f"{label}.expected.plugins", errors
+            )
+            expected_plugins = _ordered_unique(
+                [
+                    route_plugins[step]
+                    for step in participating_routes
+                    if step in route_plugins
+                ]
+            )
+            if plugins != expected_plugins:
+                errors.append(
+                    f"{label}.expected.plugins must match participating route "
+                    f"plugins {expected_plugins}"
+                )
+
+            tools = _string_list(
+                expected.get("tools"), f"{label}.expected.tools", errors
+            )
+            allowed_tools = set().union(
+                *(route_tools.get(step, set()) for step in participating_routes)
+            )
+            for tool in tools:
+                if tool not in allowed_tools:
+                    errors.append(
+                        f"{label}.expected.tools references unknown tool `{tool}`"
+                    )
+            for step in _ordered_unique(participating_routes):
+                if step in route_tools and not (set(tools) & route_tools[step]):
+                    errors.append(
+                        f"{label}.expected.tools does not represent route `{step}`"
+                    )
+
+        near_misses = scenario.get("near_misses")
+        if not isinstance(near_misses, list) or not near_misses:
+            errors.append(f"{label}.near_misses must be a non-empty array")
+            continue
+        for near_index, near_miss in enumerate(near_misses):
+            near_label = f"{label}.near_misses[{near_index}]"
+            near_miss_count += 1
+            if not isinstance(near_miss, dict):
+                errors.append(f"{near_label} must be an object")
+                continue
+            _check_fields(
+                near_miss,
+                near_label,
+                errors,
+                required={"query", "expected_route", "reason"},
+            )
+            _scenario_text(
+                near_miss.get("query"),
+                f"{near_label}.query",
+                errors,
+                seen_queries,
+            )
+            near_route = near_miss.get("expected_route")
+            if not isinstance(near_route, str) or near_route not in actual_route_ids:
+                errors.append(
+                    f"{near_label}.expected_route references an unknown route"
+                )
+            elif near_route == route_id and composition_name is None:
+                errors.append(
+                    f"{near_label}.expected_route must differ from the primary route"
+                )
+            reason = near_miss.get("reason")
+            if not isinstance(reason, str) or len(reason.strip()) < 12:
+                errors.append(f"{near_label}.reason must explain the routing boundary")
+
+    for route_id in sorted(required_route_ids - covered_routes):
+        errors.append(f"retrieval scenarios: route `{route_id}` has no scenario")
+    for name in sorted(REQUIRED_COMPOSITIONS - covered_compositions):
+        errors.append(f"retrieval scenarios: composition `{name}` has no scenario")
+    for name, variants in sorted(composition_variants.items()):
+        for steps in variants:
+            if (name, tuple(steps)) not in covered_composition_variants:
+                errors.append(
+                    f"retrieval scenarios: composition `{name}` step variant "
+                    f"{steps} has no scenario"
+                )
+    return (
+        len(actual_route_ids & required_route_ids),
+        len(actual_composition_ids & REQUIRED_COMPOSITIONS),
+        len(scenarios),
+        near_miss_count,
+    )
+
+
 def validate_repository(
     repo_root: Path,
     *,
     policy_path: Path | None = None,
     fixtures_path: Path | None = None,
+    retrieval_scenarios_path: Path | None = None,
 ) -> ValidationResult:
     repo_root = repo_root.resolve()
     policy_path = policy_path or (
@@ -380,11 +815,17 @@ def validate_repository(
     fixtures_path = fixtures_path or (
         repo_root / "plugins/plugin-forge/quality/discovery-fixtures.json"
     )
+    retrieval_scenarios_path = retrieval_scenarios_path or (
+        repo_root / "plugins/plugin-forge/quality/retrieval-scenarios.json"
+    )
     errors: list[str] = []
     components, discovery_errors = discover_components(repo_root)
     errors.extend(discovery_errors)
     policy = load_json(policy_path, "policy", errors)
     fixtures = load_json(fixtures_path, "fixtures", errors)
+    retrieval_scenarios = load_json(
+        retrieval_scenarios_path, "retrieval scenarios", errors
+    )
 
     budget = _integer(
         policy,
@@ -443,6 +884,12 @@ def validate_repository(
         errors,
     )
     contract_count = _validate_contracts(policy, components, errors)
+    (
+        retrieval_route_count,
+        retrieval_composition_count,
+        retrieval_scenario_count,
+        retrieval_near_miss_count,
+    ) = _validate_retrieval_scenarios(retrieval_scenarios, repo_root, errors)
 
     return ValidationResult(
         errors=errors,
@@ -455,6 +902,10 @@ def validate_repository(
         fixture_count=fixture_count,
         fixture_example_count=fixture_example_count,
         contract_count=contract_count,
+        retrieval_route_count=retrieval_route_count,
+        retrieval_composition_count=retrieval_composition_count,
+        retrieval_scenario_count=retrieval_scenario_count,
+        retrieval_near_miss_count=retrieval_near_miss_count,
     )
 
 
@@ -478,6 +929,14 @@ def _print_report(result: ValidationResult) -> None:
         f"{result.fixture_example_count} positive/negative examples"
     )
     print(f"Agent output contracts: {result.contract_count} validated")
+    print(
+        "Retrieval contracts: "
+        f"{result.retrieval_route_count} routes, "
+        f"{result.retrieval_composition_count} compositions, "
+        f"{result.retrieval_scenario_count} scenarios, "
+        f"{result.retrieval_near_miss_count} near misses"
+    )
+    print("Evaluation boundary: deterministic contracts, not live-model accuracy")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -490,11 +949,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--policy", type=Path)
     parser.add_argument("--fixtures", type=Path)
+    parser.add_argument("--retrieval-scenarios", type=Path)
     args = parser.parse_args(argv)
     result = validate_repository(
         args.repo_root,
         policy_path=args.policy,
         fixtures_path=args.fixtures,
+        retrieval_scenarios_path=args.retrieval_scenarios,
     )
     _print_report(result)
     for error in result.errors:

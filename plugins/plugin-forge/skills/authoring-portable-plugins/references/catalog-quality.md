@@ -14,8 +14,10 @@ bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 
 The first command reads
 `plugins/plugin-forge/quality/discovery-policy.json` and
-`plugins/plugin-forge/quality/discovery-fixtures.json`. The second runs hermetic
-Python unit tests and a mocked Node smoke test for the existing
+`plugins/plugin-forge/quality/discovery-fixtures.json`, plus the retrieval
+contract corpus in
+`plugins/plugin-forge/quality/retrieval-scenarios.json`. The second runs
+hermetic Python unit tests and a mocked Node smoke test for the existing
 plan-big/execute-small workflow. Neither command uses the network or requires a
 model credential.
 
@@ -68,6 +70,46 @@ These fixtures are reviewable routing hypotheses. Static validation proves only
 coverage and basic fixture hygiene; it does **not** prove that GitHub Copilot,
 Claude Code, or any other model will route those prompts as intended.
 
+## Retrieval route and composition contracts
+
+`retrieval-scenarios.json` is a schema-versioned, model-free contract corpus for
+the routing decisions documented by `retrieval-core`. It keeps three layers in
+one reviewable file:
+
+- `routes` declares every retrieval modality and non-retrieval escalation, its
+  owning plugin, and the tools that scenarios may reference;
+- `compositions` declares named, ordered route-step variants; and
+- `scenarios` provides a stable ID, natural-language query, corpus cues, expected
+  primary route, exact composition steps when applicable, participating plugins
+  and tools, rationale, and at least one realistic near miss.
+
+The validator requires exact coverage of the documented route and composition
+IDs and at least one scenario for every declared composition step variant. It
+rejects unknown or missing routes, compositions, plugins, and tools; composition
+steps that do not match a declared variant; plugin lists that do not match the
+participating routes; weak or duplicate queries; uncovered contracts or
+variants; and near misses that do not cross a routing boundary. Plugin references
+must resolve to shipped plugin manifests.
+
+This is a **static contract suite**. Passing means the corpus is internally
+consistent and completely covers the documented routing surface. It does not run
+an agent, score a model response, or measure routing accuracy.
+
+### Add or change a scenario
+
+1. Choose the documented route or composition boundary being exercised.
+2. Add a unique kebab-case scenario ID, a query, concrete corpus cues, and a
+   concise rationale.
+3. Set `expected.route` to the first route used. For a composition, copy one
+   declared `step_variants` sequence exactly into `expected.composition.steps`.
+4. List participating plugins in first-use order and select only tools declared
+   by those routes. The validator checks both references.
+5. Add a near miss whose expected primary route differs, or whose query needs
+   only the primary route rather than the parent scenario's composition.
+6. Run both catalog-quality commands above. When adding a newly documented route
+   or composition, update the validator's required contract set and add at least
+   one primary scenario for every declared variant in the same change.
+
 ## Agent output contracts
 
 Agents with a formal response shape use an explicit Markdown section marker.
@@ -91,8 +133,14 @@ without making model or network calls.
 
 ## Future live-model evaluation
 
-Positive/negative fixtures can later feed a scheduled live-model routing
-evaluation. Keep that job credentialed, rate-limited, and **non-blocking** because
-model routing is probabilistic and provider behavior changes. Store trend data
-and review regressions rather than turning stochastic results into a pull-request
-gate. Deterministic policy and fixture checks remain the blocking CI contract.
+Discovery fixtures and `retrieval-scenarios.json` can later feed a scheduled
+live-model routing evaluation. The retrieval corpus already provides stable IDs,
+queries, corpus cues, expected routes/compositions, and near misses; a future
+runner should record provider/model/version and observed selections separately
+rather than writing results back into the contract file.
+
+Keep that job credentialed, rate-limited, and **non-blocking** because model
+routing is probabilistic and provider behavior changes. Store trend data and
+review regressions rather than turning stochastic results into a pull-request
+gate. Deterministic policy, fixture, and retrieval-contract checks remain the
+blocking CI contract.
