@@ -2,7 +2,7 @@
 name: code-search
 description: "Use when searching source code: text/regex (ripgrep), structural/AST patterns (ast-grep, semgrep), symbol definitions/references/call hierarchy (LSP, GNU Global, ctags), when/why code changed (git history), structural rewrites (comby), or codebase size/complexity (tokei, scc)."
 license: MIT
-compatibility: "Requires ripgrep (rg). Optional: fd, ast-grep (sg), semgrep, comby, difftastic, tokei, scc, and rtk (rtk-ai/rtk) for compact rg/git output."
+compatibility: "Requires ripgrep (rg). Optional: fd, ast-grep (sg), semgrep, comby, difftastic, tokei, scc, GNU Global (global), universal-ctags (ctags), and rtk (rtk-ai/rtk) for compact rg/git output."
 metadata:
   author: Mark Beacom
   version: "0.1.0"

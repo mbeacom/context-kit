@@ -34,6 +34,11 @@ global -c  parse            # completion: symbols with this prefix
 `global` is the strongest portable CLI for **references**. Re-run `gtags`
 (or `global -u`) after edits to refresh the index.
 
+Note: `gtags`'s native parser covers C/C++, Java, PHP, assembly, and Yacc. For
+TypeScript, Python, Go, Rust, and most other languages, index with a pluggable
+backend — e.g. `gtags --gtagslabel=native-pygments` (needs the Pygments plugin)
+or `export GTAGSLABEL=native-pygments` — or the index stays empty for those files.
+
 ## universal-ctags — definitions
 
 ```bash
@@ -54,9 +59,12 @@ index`) scales better than re-running `gtags`. Overkill for a single package.
 ## Compose with the other modalities
 
 ```bash
-# Resolve then pin: get the real callers, then expand exact lines with context.
-global -xr parseConfig | awk '{print $3}' | sort -u \
-  | xargs -I{} rg -n -C2 'parseConfig' {}
+# Resolve then pin: real callers as file:line:text — line-precise, no re-grep.
+global --result=grep -r parseConfig
+# ...and to show context at exactly those lines (not re-search the whole file):
+global -xr parseConfig | while read -r _ line file _; do
+  sed -n "$(( line > 2 ? line - 2 : 1 )),$(( line + 2 ))p" "$file"
+done
 
 # Shape then resolve: ast-grep finds a call shape; code intelligence confirms the
 # real binding and dedupes text-only overmatches.

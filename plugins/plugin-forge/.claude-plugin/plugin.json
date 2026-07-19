@@ -3,7 +3,7 @@
   "name": "plugin-forge",
   "displayName": "Plugin Forge",
   "version": "0.2.0",
-  "description": "Author portable GitHub Copilot, APM, and Claude Code plugins while keeping plugin.json and apm.yml in sync. Ships a conventions skill, a /scaffold-plugin command, and a manifest-drift validator.",
+  "description": "Author portable GitHub Copilot, APM, and Claude Code plugins while keeping plugin.json and apm.yml in sync. Ships a conventions skill, a /scaffold-plugin command, and manifest-drift + skill-discovery validators.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",

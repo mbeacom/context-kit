@@ -60,21 +60,34 @@ def unquote(value):
 
 
 def parse_frontmatter(path):
-    """Return a dict of top-level scalar frontmatter fields, or None if the file
-    has no opening/closing `---` fence. Nested (indented) keys are ignored; we
-    only need the top-level `name` and `description` scalars."""
+    """Return a dict of top-level frontmatter fields (raw, not yet unquoted), or
+    None if the file has no opening/closing `---` fence. Indented lines are folded
+    into the active key's value, so quoted single-line, block-scalar (`|`/`>`), and
+    wrapped multi-line descriptions all parse. Nested mapping children are folded
+    too but never read — only `name` and `description` are used."""
     with open(path, encoding="utf-8") as handle:
         lines = handle.read().splitlines()
     if not lines or lines[0].strip() != "---":
         return None
     fields = {}
+    active = None
     for line in lines[1:]:
         if line.strip() == "---":
             return fields
-        if not line or line[0] in (" ", "\t") or ":" not in line:
-            continue  # continuation / nested / non key:value line
+        if not line:
+            continue
+        if line[0] in (" ", "\t"):
+            if active is not None:  # fold continuation / block-scalar body
+                fields[active] = (fields[active] + " " + line.strip()).strip()
+            continue
+        if ":" not in line:
+            continue
         key, value = line.split(":", 1)
-        fields[key.strip()] = unquote(value)
+        active = key.strip()
+        value = value.strip()
+        if value[:1] in ("|", ">"):  # YAML block scalar; the text follows indented
+            value = ""
+        fields[active] = value
     return None  # never closed: treat as malformed
 
 
@@ -99,7 +112,7 @@ for path, expected, kind in sorted(discover(plugins_dir)):
         errors.append(f"{label}: missing or unterminated YAML frontmatter")
         continue
 
-    name = fields.get("name", "")
+    name = unquote(fields.get("name", ""))
     if not name:
         errors.append(f"{label}: missing `name`")
     else:
@@ -110,7 +123,7 @@ for path, expected, kind in sorted(discover(plugins_dir)):
                 f"{label}: name '{name}' does not match {kind} name '{expected}'"
             )
 
-    desc = fields.get("description", "")
+    desc = unquote(fields.get("description", ""))
     if not desc:
         errors.append(f"{label}: missing `description`")
     else:

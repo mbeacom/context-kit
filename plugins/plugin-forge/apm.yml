@@ -7,7 +7,7 @@
 # concise APM/CLI-listing variant of the plugin.json description.
 name: plugin-forge
 version: 0.2.0
-description: Portable plugin authoring conventions, scaffolding, and plugin.json ⇆ apm.yml drift checks.
+description: Portable plugin authoring conventions, scaffolding, and manifest + skill-discovery frontmatter checks.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit
