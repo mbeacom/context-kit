@@ -227,3 +227,7 @@ __marimo__/
 
 # Internal dev process artifacts (brainstorm specs / implementation plans) — kept local, not published
 docs/superpowers/
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json
