@@ -1,0 +1,16 @@
+# Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
+# Keep name/version in sync with .claude-plugin/plugin.json; description is a
+# concise APM/CLI listing variant.
+name: runtime-evidence
+version: 0.1.0
+description: Controlled runtime evidence collection through a user-owned command allowlist.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
+keywords: [runtime, evidence, verification, testing, allowlist, reproduction, claude-code, copilot]
+
+dependencies:
+  apm:
+    # runtime-evidence composes with verify. verify already pulls retrieval-core.
+    - path: ../verify
