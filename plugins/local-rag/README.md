@@ -27,7 +27,7 @@ For GitHub Copilot, APM, or manual usage, bootstrap the venv yourself into a
 neutral data location:
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash scripts/bootstrap.sh
 export PATH="$PWD/bin:$PATH"
 ```

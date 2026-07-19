@@ -85,7 +85,7 @@ examples.
 For GitHub Copilot, APM, or manual use:
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 rag list

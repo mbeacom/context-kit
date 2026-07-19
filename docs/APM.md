@@ -91,7 +91,7 @@ clone of this repo, exactly as in
 [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md):
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ollama pull nomic-embed-text

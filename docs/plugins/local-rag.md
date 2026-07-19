@@ -49,7 +49,7 @@ hook) into `${CLAUDE_PLUGIN_DATA}/venv`. **GitHub Copilot and APM don't run Clau
 hooks**, so bootstrap it once yourself from a clone:
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ```

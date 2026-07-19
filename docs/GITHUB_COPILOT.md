@@ -65,7 +65,7 @@ automatically via a `SessionStart` hook; GitHub Copilot does not run Claude hook
 so bootstrap it once yourself from a clone of this repo:
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ollama pull nomic-embed-text

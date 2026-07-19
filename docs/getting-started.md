@@ -142,7 +142,7 @@ GitHub Copilot and APM do not run Claude hooks, so `local-rag` needs one manual
 bootstrap from a clone:
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ollama pull nomic-embed-text
