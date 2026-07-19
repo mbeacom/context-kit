@@ -55,5 +55,6 @@ pre-commit run --all-files                             # markdownlint + shellche
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
+python3 -m unittest discover -s tests/integration -p 'test_*.py'
 cd plugins/local-rag && uv run --group dev pytest -q   # local-rag Python tests
 ```

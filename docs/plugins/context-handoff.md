@@ -71,6 +71,13 @@ state, and repository provenance.
     [`memory`](memory.md) plugin can archive a validated handoff as historical
     evidence; resume must still freshness-check it.
 
+## Integration boundary
+
+The [continuity integration test](../ARCHITECTURE.md#tested-verification-to-continuity-boundary)
+checks matching, mismatched, and stale repository anchors through this real
+validator before local memory archival. The handoff remains authoritative task
+state after archival.
+
 ## At a glance
 
 | | |

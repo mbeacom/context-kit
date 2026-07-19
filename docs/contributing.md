@@ -35,10 +35,11 @@ bash plugins/plugin-forge/scripts/test-release-readiness.sh
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 
-# Run the two standard-library plugin suites
+# Run the focused standard-library suites and their cross-plugin integration
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
+python3 -m unittest discover -s tests/integration -p 'test_*.py'
 
 # Run the local-rag Python tests
 cd plugins/local-rag && uv run --group dev pytest -q
@@ -48,6 +49,8 @@ CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including release-readiness and catalog-quality
 checks), and the `local-rag` pytest suite plus all focused standard-library
 suites above.
+The integration suite uses a temporary local Git repository, the real script
+entry points, local memory mode, and no network or external MemPalace process.
 
 ## Build the docs locally
 

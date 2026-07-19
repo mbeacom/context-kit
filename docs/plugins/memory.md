@@ -106,6 +106,11 @@ dependencies, enable a writable MCP server, or use a global knowledge graph.
 Consolidation is propose-only. A replacement creates a new record and
 `supersedes` edge; prior evidence remains auditable.
 
+The [continuity integration test](../ARCHITECTURE.md#tested-verification-to-continuity-boundary)
+archives a current handoff, captures an accepted local record from that preserved
+source, recalls its labels, and then proves newer repository state takes
+precedence. No MemPalace process or network is involved.
+
 ## Opt-in automatic capture
 
 Claude lifecycle hooks ship **disabled**. Enable only after provider setup,
