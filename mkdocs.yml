@@ -135,6 +135,7 @@ nav:
       - GitHub Copilot: GITHUB_COPILOT.md
       - APM (Agent Package Manager): APM.md
   - Contributing: contributing.md
+  - Releasing plugins: releasing.md
 
 watch:
   - docs

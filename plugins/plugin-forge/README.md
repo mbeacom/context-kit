@@ -2,9 +2,9 @@
 
 Plugin Forge helps authors create portable GitHub Copilot, APM, and Claude Code
 plugins for the `context-kit` marketplace. It packages the house authoring
-conventions, a scaffold command, and a manifest-drift validator so new plugins
-start with the right layout, keep `plugin.json` and `apm.yml` aligned, and preserve
-clear, bounded discovery metadata as the catalog grows.
+conventions, a scaffold command, and deterministic validators so new plugins
+start with the right layout, keep `plugin.json` and `apm.yml` aligned, preserve
+clear discovery metadata, and remain release-ready as the catalog grows.
 
 ## Install
 
@@ -36,9 +36,11 @@ Claude Code:
 | **`authoring-portable-plugins`** skill | The context-kit rulebook for plugin layout, manifest mirroring, portable install/env-var conventions, catalog entries, and release versioning. |
 | **`/scaffold-plugin`** command | Creates a standard plugin skeleton under `plugins/<name>/` with `plugin.json`, `apm.yml`, README, CHANGELOG, LICENSE, and a starter skill. |
 | **`scripts/check-manifests.sh`** | Validates every shipped plugin's `plugin.json` and sibling `apm.yml` have matching `name` and `version` fields. |
+| **`scripts/check-release-readiness.sh`** | Validates shipped catalog sources, release metadata/assets, latest changelog versions, and direct/transitive dependency graph parity. |
 | **`scripts/check-skills.sh`** | Validates each skill/agent's discovery frontmatter, name, trigger phrasing, and per-description length. |
 | **`scripts/check-catalog-quality.sh`** | Enforces the aggregate discovery budget, description distinctness, centralized fixture coverage, and explicit agent output contracts. |
 | **`scripts/test-catalog-quality.sh`** | Runs stdlib validator tests plus a mocked, no-network smoke test for the plan-big/execute-small workflow. |
+| **`scripts/test-release-readiness.sh`** | Runs hermetic release-readiness regression tests. |
 
 ## Use it in this repo
 
@@ -51,9 +53,11 @@ Run the deterministic checks from the repository root before opening a PR:
 
 ```bash
 bash plugins/plugin-forge/scripts/check-manifests.sh
+bash plugins/plugin-forge/scripts/check-release-readiness.sh
 bash plugins/plugin-forge/scripts/check-skills.sh
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
+bash plugins/plugin-forge/scripts/test-release-readiness.sh
 ```
 
 The policy and centralized positive/negative query fixtures live under

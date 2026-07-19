@@ -2,8 +2,8 @@
 
 !!! abstract "Author portable plugins"
     The house authoring toolkit: conventions, `/scaffold-plugin`,
-    manifest/frontmatter validators, and a deterministic catalog-quality gate.
-    It's the same toolkit used to build this marketplace.
+    manifest/frontmatter validators, and deterministic catalog-quality and
+    release-readiness gates. It's the same toolkit used to build this marketplace.
 
 ## Install
 
@@ -35,9 +35,11 @@
 | **`authoring-portable-plugins`** skill | The context-kit rulebook for plugin layout, manifest mirroring, portable install/env-var conventions, catalog entries, and release versioning. |
 | **`/scaffold-plugin`** command | Creates a standard plugin skeleton under `plugins/<name>/` with `plugin.json`, `apm.yml`, README, CHANGELOG, LICENSE, and a starter skill. |
 | **`scripts/check-manifests.sh`** | Validates every shipped plugin's `plugin.json` and sibling `apm.yml` have matching `name` and `version` fields. |
+| **`scripts/check-release-readiness.sh`** | Validates shipped catalog sources, release metadata/assets, latest changelog versions, and direct/transitive dependency graph parity. |
 | **`scripts/check-skills.sh`** | Checks skill/agent discovery frontmatter, names, trigger phrasing, and per-description limits. |
 | **`scripts/check-catalog-quality.sh`** | Enforces the 4096-character aggregate discovery budget, description-overlap policy, centralized fixture coverage, and agent output contracts. |
 | **`scripts/test-catalog-quality.sh`** | Runs stdlib regression tests and a mocked, no-network plan-execute workflow smoke test. |
+| **`scripts/test-release-readiness.sh`** | Runs hermetic release-readiness regression tests. |
 
 ## Use it in this repo
 
@@ -55,9 +57,11 @@ Run the deterministic checks from the repository root before opening a PR:
 
 ```bash
 bash plugins/plugin-forge/scripts/check-manifests.sh
+bash plugins/plugin-forge/scripts/check-release-readiness.sh
 bash plugins/plugin-forge/scripts/check-skills.sh
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
+bash plugins/plugin-forge/scripts/test-release-readiness.sh
 ```
 
 !!! tip "Why the mirrored manifests"
@@ -72,6 +76,12 @@ near-duplicate descriptions unless an exact pair is justified in policy, require
 central positive/negative fixtures for every component, and preserves explicit
 agent output contracts.
 
+The release-readiness gate stays separate from `check-manifests.sh`: the existing
+check owns `name`/`version` mirroring, while release readiness resolves every
+shipped source and dependency path, checks required metadata and assets, requires
+the manifest version to be the latest changelog release, and compares both direct
+and transitive dependency graphs.
+
 !!! warning "Static fixtures are not routing proof"
     Fixture validation proves coverage and basic hygiene, not that a model will
     route a prompt correctly. The workflow smoke test injects mocked agents and
@@ -83,6 +93,6 @@ agent output contracts.
 | | |
 | --- | --- |
 | **Category** | authoring |
-| **Provides** | skill, command, manifest/frontmatter/catalog validators, regression and smoke tests |
+| **Provides** | skill, command, manifest/frontmatter/catalog/release validators, regression and smoke tests |
 | **Dependencies** | none |
 | **License** | MIT |

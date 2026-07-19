@@ -15,6 +15,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_ROOT="$(cd "${PLUGIN_DIR}/../.." && pwd)"
 
-python3 -m unittest discover -s "${PLUGIN_DIR}/tests" -p 'test_*.py'
+python3 -m unittest discover \
+  -s "${PLUGIN_DIR}/tests" \
+  -p 'test_catalog_quality.py'
 node "${PLUGIN_DIR}/tests/smoke-plan-workflow.mjs" \
   "${REPO_ROOT}/plugins/plan-execute/workflows/plan-big-execute-small.workflow.js"

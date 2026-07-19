@@ -42,6 +42,19 @@ repos:
         language: system
         pass_filenames: false
         files: '^plugins/.*/(\.claude-plugin/plugin\.json|apm\.yml)$'
+      - id: check-release-readiness
+        name: shipped plugin release readiness
+        entry: bash plugins/plugin-forge/scripts/check-release-readiness.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        files: '^(\.claude-plugin/marketplace\.json|plugins/.+)'
+      - id: test-release-readiness
+        name: release readiness regression tests
+        entry: bash plugins/plugin-forge/scripts/test-release-readiness.sh
+        language: system
+        pass_filenames: false
+        files: '^plugins/plugin-forge/(scripts/(release_readiness\.py|check-release-readiness\.sh|test-release-readiness\.sh)|tests/test_release_readiness\.py)$'
       - id: check-skills
         name: skill/agent discovery frontmatter
         entry: bash plugins/plugin-forge/scripts/check-skills.sh

@@ -80,7 +80,7 @@
     {
       "name": "plugin-forge",
       "source": "./plugins/plugin-forge",
-      "description": "Author portable GitHub Copilot, APM, and Claude Code plugins with scaffolding, manifest/frontmatter checks, and a deterministic catalog discovery-quality gate.",
+      "description": "Author portable GitHub Copilot, APM, and Claude Code plugins with scaffolding, manifest/frontmatter checks, and deterministic catalog and release-readiness gates.",
       "category": "authoring",
       "tags": ["authoring", "scaffold", "plugin", "apm", "manifest", "catalog-quality", "discovery", "validation"]
     }

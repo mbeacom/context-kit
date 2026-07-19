@@ -200,6 +200,8 @@ for p in plugins/*/; do claude plugin validate "$p" --strict; done
 pre-commit run --all-files
 
 # Run catalog gates and focused unit tests
+bash plugins/plugin-forge/scripts/check-release-readiness.sh
+bash plugins/plugin-forge/scripts/test-release-readiness.sh
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
