@@ -1,0 +1,29 @@
+{
+  "aggregate_description_max_chars": 4096,
+  "similarity_threshold": 0.72,
+  "minimum_positive_fixtures": 2,
+  "minimum_negative_fixtures": 2,
+  "similarity_allowlist": [],
+  "agent_output_contracts": {
+    "plugins/plan-execute/agents/execution-worker.md": {
+      "marker": "## Report",
+      "required_terms": [
+        "Summary",
+        "Changed / Findings",
+        "Verified",
+        "Deviations",
+        "Concerns / Unresolved"
+      ]
+    },
+    "plugins/verify/agents/verifier.md": {
+      "marker": "## Output contract",
+      "required_terms": [
+        "VERDICT",
+        "confirmed",
+        "dubious",
+        "refuted",
+        "unable-to-check"
+      ]
+    }
+  }
+}

@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "components": {
+    "plugins/code-search/skills/code-search/SKILL.md": {
+      "positive": [
+        "Find every reference to the parseConfig symbol and show its callers.",
+        "Search the source tree for an AST pattern and explain when it changed."
+      ],
+      "negative": [
+        "Search a PDF archive for source attribution and revenue tables.",
+        "Choose a semantic retrieval strategy for an unfamiliar notes corpus."
+      ]
+    },
+    "plugins/code-search/skills/data-and-docs-search/SKILL.md": {
+      "positive": [
+        "Query these JSON and YAML files for records with missing owners.",
+        "Search inside the attached PDF and spreadsheet archive for invoice totals."
+      ],
+      "negative": [
+        "Find all source code references to the UserService class.",
+        "Build a semantic index over my markdown vault."
+      ]
+    },
+    "plugins/context-steering/skills/context-budget/SKILL.md": {
+      "positive": [
+        "Should this guidance live in AGENTS.md, a skill, a hook, or a subagent?",
+        "Help reduce our always-on context budget without losing important rules."
+      ],
+      "negative": [
+        "Search the current context for the implementation of this symbol.",
+        "Verify whether the pull request description matches the code."
+      ]
+    },
+    "plugins/local-rag/skills/local-rag/SKILL.md": {
+      "positive": [
+        "Build a local semantic index for this markdown corpus and query by meaning.",
+        "I remember the idea but not the words; search my notes vault semantically."
+      ],
+      "negative": [
+        "Use exact keywords to search source code for this function name.",
+        "Follow Obsidian backlinks and tags before searching candidate notes."
+      ]
+    },
+    "plugins/obsidian/skills/obsidian-rag-bridge/SKILL.md": {
+      "positive": [
+        "Use Obsidian backlinks and tags to narrow notes before semantic search.",
+        "Retrieve related vault notes by combining the link graph with local RAG."
+      ],
+      "negative": [
+        "Write a new Obsidian Canvas and update my project note.",
+        "Run semantic search over a plain markdown corpus with no vault graph."
+      ]
+    },
+    "plugins/plan-execute/agents/execution-worker.md": {
+      "positive": [
+        "Delegate this one scoped investigation to a cheaper worker and return findings.",
+        "Implement only this isolated sub-task, verify it, and report deviations."
+      ],
+      "negative": [
+        "Plan the overall task and coordinate all execution workers.",
+        "Independently verify every claim in a completed pull request."
+      ]
+    },
+    "plugins/plan-execute/skills/plan-execute-strategy/SKILL.md": {
+      "positive": [
+        "Decide how a strong planner should split this audit across cheap executors.",
+        "Configure the plan-big execute-small workflow and worker model effort."
+      ],
+      "negative": [
+        "Execute this single small delegated task without planning the rest.",
+        "Choose between lexical and semantic search for this corpus."
+      ]
+    },
+    "plugins/plugin-forge/skills/authoring-portable-plugins/SKILL.md": {
+      "positive": [
+        "Create a portable marketplace plugin with matching plugin.json and apm.yml.",
+        "Which component layout and release steps should this new plugin follow?"
+      ],
+      "negative": [
+        "Install an existing plugin from the marketplace for this project.",
+        "Search source code for every caller of a renamed function."
+      ]
+    },
+    "plugins/retrieval-core/agents/retrieval-strategist.md": {
+      "positive": [
+        "Investigate where this behavior is handled when the right search strategy is unclear.",
+        "Plan and run a multi-modal retrieval pass across code, history, and notes."
+      ],
+      "negative": [
+        "Use this exact regex to search one known source file.",
+        "Edit the implementation after the bug location has already been identified."
+      ]
+    },
+    "plugins/retrieval-core/skills/retrieval-strategy/SKILL.md": {
+      "positive": [
+        "Choose the best retrieval modality for this query and unfamiliar corpus.",
+        "Should I compose lexical, graph, and semantic search for this investigation?"
+      ],
+      "negative": [
+        "Run this exact source code search command and return its matches.",
+        "Verify these claims against files using read-only evidence."
+      ]
+    },
+    "plugins/verify/agents/verifier.md": {
+      "positive": [
+        "Independently verify each claim in this migration note against the codebase.",
+        "Check this pull request summary and return evidence-backed verdicts per claim."
+      ],
+      "negative": [
+        "Edit the code to fix every issue described in this review.",
+        "Search broadly for where an unknown feature might be implemented."
+      ]
+    },
+    "plugins/verify/skills/verify-before-trust/SKILL.md": {
+      "positive": [
+        "Check whether this AI answer is true before I rely on its claims.",
+        "Verify the plan assumptions against actual code and cite evidence."
+      ],
+      "negative": [
+        "Generate a new implementation plan from these requirements.",
+        "Find where this feature lives using multiple search modalities."
+      ]
+    }
+  }
+}

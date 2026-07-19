@@ -48,3 +48,15 @@ repos:
         language: system
         pass_filenames: false
         files: '^plugins/.*/(SKILL\.md|agents/.*\.md)$'
+      - id: check-catalog-quality
+        name: aggregate catalog discovery quality
+        entry: bash plugins/plugin-forge/scripts/check-catalog-quality.sh
+        language: system
+        pass_filenames: false
+        files: '^(plugins/.*/(SKILL\.md|agents/.*\.md)|plugins/plugin-forge/(quality/.*\.json|scripts/(catalog_quality\.py|check-catalog-quality\.sh)))$'
+      - id: test-catalog-quality
+        name: catalog quality and workflow smoke tests
+        entry: bash plugins/plugin-forge/scripts/test-catalog-quality.sh
+        language: system
+        pass_filenames: false
+        files: '^(plugins/.*/(SKILL\.md|agents/.*\.md)|plugins/plan-execute/workflows/plan-big-execute-small\.workflow\.js|plugins/plugin-forge/(quality/.*\.json|scripts/(catalog_quality\.py|test-catalog-quality\.sh)|tests/.*))$'
