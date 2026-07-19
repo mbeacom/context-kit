@@ -13,13 +13,14 @@ from pathlib import Path
 from typing import Any
 
 SEMVER_CORE_RE = re.compile(
-    r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
     r"(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$"
 )
 RELEASE_HEADING_RE = re.compile(
-    r"^##\s+(?P<version>\S+)\s+(?:—|-)\s+" r"(?P<date>\d{4}-\d{2}-\d{2})\s*$"
+    r"^##\s+(?P<version>\S+)\s+(?:—|–|-)\s+" r"(?P<date>\d{4}-\d{2}-\d{2})\s*$"
 )
-RELEASE_LIKE_RE = re.compile(r"^##\s+\d+\.\d+\.\S+")
+LEVEL_TWO_HEADING_RE = re.compile(r"^##\s+(?P<title>.+?)\s*$")
+FENCE_RE = re.compile(r"^\s{0,3}(?P<marker>`{3,}|~{3,})")
 TOP_LEVEL_YAML_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*):(?:\s*(.*))?$")
 APM_PATH_RE = re.compile(r"^-\s+path:\s*(.+?)\s*$")
 REQUIRED_ASSETS = ("README.md", "CHANGELOG.md", "LICENSE", "apm.yml")
@@ -60,15 +61,15 @@ class ValidationResult:
     dependency_edge_count: int = 0
 
 
-def _load_json(path: Path, label: str, errors: list[str]) -> dict[str, Any]:
+def _load_json(path: Path, label: str, errors: list[str]) -> dict[str, Any] | None:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         errors.append(f"{label}: cannot load JSON: {exc}")
-        return {}
+        return None
     if not isinstance(data, dict):
         errors.append(f"{label}: top level must be an object")
-        return {}
+        return None
     return data
 
 
@@ -243,7 +244,7 @@ def _validate_changelog(
         errors.append(f"{label}: cannot read: {exc}")
         return
 
-    release_line = next((line for line in lines if RELEASE_LIKE_RE.match(line)), None)
+    release_line = _latest_release_heading(lines)
     if release_line is None:
         errors.append(
             f"{label}: no release heading like `## {version} — YYYY-MM-DD` found"
@@ -263,6 +264,28 @@ def _validate_changelog(
         date.fromisoformat(match.group("date"))
     except ValueError:
         errors.append(f"{label}: release date `{match.group('date')}` is invalid")
+
+
+def _latest_release_heading(lines: list[str]) -> str | None:
+    fence_character: str | None = None
+    fence_length = 0
+    for line in lines:
+        fence = FENCE_RE.match(line)
+        if fence:
+            marker = fence.group("marker")
+            if fence_character is None:
+                fence_character = marker[0]
+                fence_length = len(marker)
+            elif marker[0] == fence_character and len(marker) >= fence_length:
+                fence_character = None
+                fence_length = 0
+            continue
+        if fence_character is not None:
+            continue
+        heading = LEVEL_TWO_HEADING_RE.fullmatch(line)
+        if heading and heading.group("title").casefold() != "unreleased":
+            return line
+    return None
 
 
 def _has_component(directory: Path) -> bool:
@@ -337,6 +360,8 @@ def validate_repository(repo_root: Path) -> ValidationResult:
     catalog_path = repo_root / ".claude-plugin/marketplace.json"
     errors: list[str] = []
     catalog = _load_json(catalog_path, ".claude-plugin/marketplace.json", errors)
+    if catalog is None:
+        return ValidationResult(errors)
     entries = catalog.get("plugins")
     if not isinstance(entries, list):
         errors.append("catalog: `plugins` must be an array")
@@ -386,7 +411,7 @@ def validate_repository(repo_root: Path) -> ValidationResult:
 
         manifest_path = directory / ".claude-plugin/plugin.json"
         manifest = _load_json(manifest_path, f"{plugin_label}: plugin.json", errors)
-        if not manifest:
+        if manifest is None:
             continue
         _validate_manifest_metadata(manifest, f"{plugin_label}: plugin.json", errors)
         manifest_name = manifest.get("name")

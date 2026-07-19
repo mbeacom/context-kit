@@ -141,6 +141,23 @@ class ReleaseReadinessTests(unittest.TestCase):
             result.errors,
         )
 
+    def test_empty_manifest_is_validated_instead_of_silently_skipped(self) -> None:
+        directory = self._write_plugin("alpha")
+        (directory / ".claude-plugin/plugin.json").write_text(
+            "{}",
+            encoding="utf-8",
+        )
+
+        result = self._validate()
+
+        self.assertTrue(
+            any(
+                "`$schema` must be a non-empty string" in error
+                for error in result.errors
+            ),
+            result.errors,
+        )
+
     def test_latest_changelog_release_must_match_manifest(self) -> None:
         self._write_plugin("alpha", version="2.0.0", changelog_version="1.9.0")
 
@@ -174,6 +191,44 @@ class ReleaseReadinessTests(unittest.TestCase):
             ),
             result.errors,
         )
+
+    def test_prefixed_newest_changelog_release_is_not_skipped(self) -> None:
+        directory = self._write_plugin("alpha", version="1.0.0")
+        (directory / "CHANGELOG.md").write_text(
+            "# Changelog\n\n"
+            "## v2.0.0 — 2026-07-19\n\n"
+            "- Malformed new release.\n\n"
+            "## 1.0.0 — 2026-07-19\n\n"
+            "- Older valid release.\n",
+            encoding="utf-8",
+        )
+
+        result = self._validate()
+
+        self.assertTrue(
+            any(
+                "malformed latest release heading `## v2.0.0 — 2026-07-19`" in error
+                for error in result.errors
+            ),
+            result.errors,
+        )
+
+    def test_unreleased_and_fenced_headings_do_not_hide_latest_release(self) -> None:
+        directory = self._write_plugin("alpha", version="1.0.0")
+        (directory / "CHANGELOG.md").write_text(
+            "# Changelog\n\n"
+            "## Unreleased\n\n"
+            "```markdown\n"
+            "## example\n"
+            "```\n\n"
+            "## 1.0.0 – 2026-07-19\n\n"
+            "- Valid release with an en dash.\n",
+            encoding="utf-8",
+        )
+
+        result = self._validate()
+
+        self.assertEqual([], result.errors)
 
     def test_direct_and_transitive_dependency_mismatches_are_reported(self) -> None:
         self._write_plugin("gamma")
@@ -271,9 +326,22 @@ class ReleaseReadinessTests(unittest.TestCase):
             "1.0.0-alpha..1",
             "1.0.0-01",
             "1.0.0+build..1",
+            "1٠.0.0",
         ):
             with self.subTest(version=version):
                 self.assertFalse(release_readiness._is_semver(version))
+
+    def test_invalid_catalog_json_fails_without_attribute_error(self) -> None:
+        catalog = self.repo / ".claude-plugin/marketplace.json"
+        catalog.parent.mkdir(parents=True, exist_ok=True)
+        catalog.write_text("not-json", encoding="utf-8")
+
+        result = release_readiness.validate_repository(self.repo)
+
+        self.assertTrue(
+            any("cannot load JSON" in error for error in result.errors),
+            result.errors,
+        )
 
     def test_catalog_source_cannot_escape_plugins_directory(self) -> None:
         self.plugins.append(
