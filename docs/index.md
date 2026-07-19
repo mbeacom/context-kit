@@ -22,7 +22,8 @@ right information in front of your agent, and keep the wrong information out.
 </div>
 
 [Get started :material-rocket-launch-outline:](getting-started.md){ .md-button .md-button--primary }
-[Browse the plugins :material-view-grid-outline:](plugins/index.md){ .md-button }
+[Follow a recipe :material-chef-hat:](cookbook.md){ .md-button }
+[Review trust boundaries :material-shield-lock-outline:](security.md){ .md-button }
 
 </div>
 
@@ -32,9 +33,10 @@ right information in front of your agent, and keep the wrong information out.
 **APM** (Agent Package Manager), and [Claude Code](https://code.claude.com). Its
 spine is a set of complementary **retrieval modalities** — lexical, structural,
 code-intelligence, structured-data, history, semantic (RAG), graph, and durable
-memory — plus a routing agent that picks and composes them. The provided tooling
-runs locally, and the RAG/memory layers keep corpora and reviewed records on your
-machine. Around that retrieval spine, eleven shipped plugins add
+memory — plus a routing agent that picks and composes them. Default workflows
+keep indexes and reviewed records on your machine; configured model endpoints,
+providers, and allowlisted commands can reach external systems. Around that
+retrieval spine, eleven shipped plugins add
 orchestration, steering, read-only verification and change-impact analysis,
 controlled runtime evidence, cross-session handoff, and authoring quality.
 
@@ -157,6 +159,19 @@ controlled runtime evidence, cross-session handoff, and authoring quality.
 
 See [Getting started](getting-started.md) for the full plugin list, requirements,
 and your first search.
+
+## Operate with clear boundaries
+
+<div class="grid cards" markdown>
+
+- :material-chef-hat: **[Cookbook](cookbook.md)** — six task-oriented journeys
+  that compose retrieval, verification, continuity, and orchestration.
+- :material-shield-lock-outline: **[Security and trust](security.md)** — decide
+  what can execute, what leaves the process, and where retained data lives.
+- :material-lifebuoy: **[Troubleshooting and lifecycle](troubleshooting.md)** —
+  verify first run, diagnose refusal modes, update safely, and uninstall.
+
+</div>
 
 ## Pick a modality by what you know
 

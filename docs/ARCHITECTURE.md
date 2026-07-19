@@ -131,19 +131,20 @@ contract and coverage validation only: no model runs in CI, and passing does not
 measure routing accuracy. Future scheduled live-model evaluation can consume the
 same stable corpus and store probabilistic trend results separately.
 
-`local-rag` keeps everything local: ollama for embeddings, turbovec for the index,
-and SQLite FTS5/BM25 for opt-in hybrid rank fusion
+`local-rag` keeps storage and embedding local by default: Ollama for embeddings,
+turbovec for the index, and SQLite FTS5/BM25 for opt-in hybrid rank fusion
 (persisted under `${CONTEXT_KIT_DATA}` or, in Claude Code,
-`${CLAUDE_PLUGIN_DATA}`), nothing leaves the machine. The markdown loader is the
-first-class path, but the indexer is built behind a pluggable loader interface so
-other corpora (code, PDFs) can be added without a redesign.
+`${CLAUDE_PLUGIN_DATA}`). A configured remote `CONTEXT_KIT_OLLAMA_HOST` receives
+corpus chunks and queries. The Markdown loader is the first-class path, but the
+indexer is built behind a pluggable loader interface so other corpora (code, PDFs)
+can be added without a redesign.
 
 ## Agent host compatibility
 
 | Host | What it uses | Notes |
 | ---- | ------------ | ----- |
 | GitHub Copilot | the marketplace, via `copilot plugin marketplace add` + `copilot plugin install` | Installs plugins (skills, agents, commands) directly; run the local CLIs yourself. |
-| APM | the same marketplace + each plugin's `apm.yml`, via `apm marketplace add` + `apm install` | Cross-harness deploy with a lockfile and pre-install security scan; run the local CLIs yourself. |
+| APM | the same marketplace + each plugin's `apm.yml`, via `apm marketplace add` + `apm install` | Cross-harness deploy with a lockfile and audit/policy checks; run the local CLIs yourself. |
 | Claude Code | `.claude-plugin/marketplace.json`, per-plugin manifests, hooks, `CLAUDE_PLUGIN_*` env vars | Install/update via `/plugin` commands; auto-bootstraps the `local-rag` CLI. |
 
 Portable examples should prefer `CONTEXT_KIT_*` environment variables,

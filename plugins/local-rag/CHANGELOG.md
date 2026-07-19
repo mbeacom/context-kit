@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-07-19
+
+- Clarify the configurable Ollama trust boundary: storage and embedding are
+  local by default, while a remote `CONTEXT_KIT_OLLAMA_HOST` receives submitted
+  corpus chunks and queries.
+
 ## 0.3.0 — 2026-07-19
 
 - Add automation-safe `rag remove --name NAME --yes` for permanent deletion of

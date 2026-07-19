@@ -1,9 +1,11 @@
 # Local RAG
 
-A fully-local semantic search engine with an opt-in hybrid mode. `local-rag` ships a `bin/rag` CLI that
-chunks and embeds a corpus with [`ollama`](https://ollama.com) and indexes it
-with [`turbovec`](https://github.com/RyanCodrai/turbovec) (a quantized vector
-index). Everything runs on your machine — no cloud calls, no API keys.
+A local-first semantic search engine with an opt-in hybrid mode. `local-rag`
+ships a `bin/rag` CLI that chunks and embeds a corpus through
+[`ollama`](https://ollama.com) and indexes it with
+[`turbovec`](https://github.com/RyanCodrai/turbovec) (a quantized vector index).
+The default Ollama endpoint is localhost and needs no API key; a configured
+remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
 
 It is notes-first but corpus-agnostic: loaders are pluggable, so the same engine
 can index Markdown notes, code, or any text corpus.

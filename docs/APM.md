@@ -3,7 +3,7 @@
 [APM](https://github.com/microsoft/apm) is Microsoft's open-source dependency
 manager for AI coding agents — the `package.json`/`Cargo.toml` of agent context.
 It installs the **same plugins** this repo publishes for GitHub Copilot and
-Claude Code, adds a committed lockfile, a pre-install security scan, transitive
+Claude Code, adds a committed lockfile, audit/policy checks, transitive
 dependency resolution, and cross-harness deployment, and works across Claude
 Code, Copilot, Cursor, Codex, Gemini, Windsurf, Kiro, and OpenCode from one
 registration.
