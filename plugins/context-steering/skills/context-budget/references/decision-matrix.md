@@ -34,6 +34,12 @@ Context steering is a placement problem. Each layer trades reliability, scope, a
 - Avoid when judgment is required, when the action is host-specific and not available in the target environment, or when a human should approve the action.
 - Anti-pattern — **prose enforcement**: encoding a formatting rule as a paragraph and hoping the model remembers. Make it a `PostToolUse` hook so it runs every time.
 
+## MCP server
+
+- Use for a live external system or action the repo and local CLIs cannot provide on their own: querying a ticketing system or database, driving a browser, or calling a SaaS API, with auth and fresh state each turn.
+- Avoid when the knowledge is static how-to (cheaper as a skill), when the data is local (a CLI or subagent can fetch it on demand with no standing cost), or when you would connect a server you rarely call.
+- Anti-pattern — **server sprawl**: connecting a dozen MCP servers whose tool schemas sit in context every turn while you use two. Every connected server taxes the always-on budget like an always-matching skill. See [`mcp-as-context.md`](mcp-as-context.md).
+
 ## Combining layers
 
-Good steering stacks layers without duplicating them. A short memory line can say "API conventions are path-scoped under `src/api/**`"; the scoped rule carries the conventions; a skill explains how to design a new API surface; a hook enforces formatting or secret checks. Each layer owns its trigger.
+Good steering stacks layers without duplicating them. A short memory line can say "API conventions are path-scoped under `src/api/**`"; the scoped rule carries the conventions; a skill explains how to design a new API surface; a hook enforces formatting or secret checks; an MCP server adds a live external source only when the local layers genuinely cannot answer. Each layer owns its trigger, and you reach for MCP last.

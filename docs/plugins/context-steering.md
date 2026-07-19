@@ -2,8 +2,9 @@
 
 !!! abstract "Place guidance at the cheapest layer that still fires"
     A skill-only teaching plugin for deciding where guidance should live —
-    always-on memory, path-scoped rules, on-demand skills, delegated subagents, or
-    deterministic hooks — without turning every turn into a context-budget tax.
+    always-on memory, path-scoped rules, on-demand skills, delegated subagents,
+    MCP servers, or deterministic hooks — without turning every turn into a
+    context-budget tax.
 
 ## Install
 
@@ -32,7 +33,7 @@
 
 | Component | What it is |
 | --- | --- |
-| **`context-budget`** skill | A decision matrix for placing guidance in always-on memory, path-scoped rules, skills, subagents, or hooks while keeping the always-on budget small. |
+| **`context-budget`** skill | A decision matrix for placing guidance in always-on memory, path-scoped rules, skills, subagents, MCP servers, or hooks while keeping the always-on budget small. |
 | **`examples/`** directory | Inert, copy-paste templates for path-scoped rules and Claude Code hook JSON — documentation examples, not active hooks or rules. |
 
 ## The idea
