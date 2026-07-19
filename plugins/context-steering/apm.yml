@@ -5,8 +5,8 @@
 # stays authoritative; APM consumes it as a plugin collection.
 # Keep name/version/description in sync with .claude-plugin/plugin.json.
 name: context-steering
-version: 0.1.1
-description: Choose the cheapest guidance layer — memory, scoped rules, skills, subagents, or hooks — without bloating always-on context.
+version: 0.2.0
+description: Choose the cheapest guidance layer — memory, scoped rules, skills, subagents, MCP servers, or hooks — without bloating always-on context.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit

@@ -17,9 +17,9 @@
     {
       "name": "code-search",
       "source": "./plugins/code-search",
-      "description": "Fast CLI search across modalities: lexical, structural, structured-data, history, rewrite, metrics, and docs.",
+      "description": "Fast CLI search across modalities: lexical, structural, code-intelligence, structured-data, history, rewrite, metrics, and docs.",
       "category": "retrieval",
-      "tags": ["ripgrep", "ast-grep", "semgrep", "jq", "search", "code"]
+      "tags": ["ripgrep", "ast-grep", "semgrep", "jq", "search", "code", "code-intelligence"]
     },
     {
       "name": "local-rag",
@@ -45,9 +45,9 @@
     {
       "name": "context-steering",
       "source": "./plugins/context-steering",
-      "description": "Choose where guidance lives — always-on memory, path-scoped rules, on-demand skills, subagents, or deterministic hooks — to steer agents while keeping the always-on context budget small.",
+      "description": "Choose where guidance lives — always-on memory, path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — to steer agents while keeping the always-on context budget small.",
       "category": "steering",
-      "tags": ["steering", "rules", "hooks", "skills", "context", "memory"]
+      "tags": ["steering", "rules", "hooks", "skills", "context", "memory", "mcp"]
     },
     {
       "name": "verify",

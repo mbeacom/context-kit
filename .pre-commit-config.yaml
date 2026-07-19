@@ -33,3 +33,18 @@ repos:
         files: '^plugins/local-rag/.*\.py$'
       - id: ruff-format
         files: '^plugins/local-rag/.*\.py$'
+
+  - repo: local
+    hooks:
+      - id: check-manifests
+        name: plugin.json ⇆ apm.yml manifest sync
+        entry: bash plugins/plugin-forge/scripts/check-manifests.sh
+        language: system
+        pass_filenames: false
+        files: '^plugins/.*/(\.claude-plugin/plugin\.json|apm\.yml)$'
+      - id: check-skills
+        name: skill/agent discovery frontmatter
+        entry: bash plugins/plugin-forge/scripts/check-skills.sh
+        language: system
+        pass_filenames: false
+        files: '^plugins/.*/(SKILL\.md|agents/.*\.md)$'

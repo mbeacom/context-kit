@@ -1,6 +1,6 @@
 ---
 name: retrieval-strategy
-description: "Use when deciding HOW to find information — choosing or composing search modalities (lexical, structural, structured-data, history, semantic/RAG, graph) for a query and corpus."
+description: "Use when deciding HOW to find information — choosing or composing search modalities (lexical, structural, code-intelligence, structured-data, history, semantic/RAG, graph) for a query and corpus."
 license: MIT
 metadata:
   author: Mark Beacom
@@ -22,6 +22,7 @@ ships automatically with `code-search`.
 
 - Know the exact token / regex / filename? → **lexical** (`rg`, `fd`)
 - Know the code *shape*, not the text? → **structural** (`ast-grep`, `semgrep`)
+- Know the *symbol* (function/type) — want its definition, callers/references, or call hierarchy? → **code-intelligence** (host LSP / `global` / `ctags`)
 - Querying JSON / YAML / config by schema? → **structured-data** (`jq`, `yq`, `gron`)
 - Asking *when/why* something changed? → **history** (`git log -S/-G/-L`)
 - Tabular data at scale (CSV/Parquet)? → **data files** (`duckdb`, `sqlite-utils`)
@@ -30,7 +31,7 @@ ships automatically with `code-search`.
 - Only know the *meaning/intent*, or corpus is huge / unfamiliar / prose? → **semantic / RAG** (`local-rag`: `rag index` then `rag query`)
 - Corpus is an Obsidian vault / link graph? → **graph** (`obsidian` bridge: graph/tags → `rag query --allowlist`). For authoring/Bases/Canvas use `kepano/obsidian-skills`.
 
-Lexical/structural/structured-data/history/metrics/docs live in **code-search**.
+Lexical/structural/code-intelligence/structured-data/history/metrics/docs live in **code-search**.
 Semantic and graph are available as the **local-rag** and **obsidian** plugins.
 
 ## Composition (modalities are layers, not rivals)
@@ -38,6 +39,7 @@ Semantic and graph are available as the **local-rag** and **obsidian** plugins.
 - **Hybrid rerank:** narrow with lexical/structured-data or the obsidian graph → pipe candidate file paths to `rag query --allowlist -` (turbovec reranks only those).
 - **Scope then search:** graph backlinks narrow to a subgraph → RAG within it.
 - **Find then pin:** RAG surfaces candidate regions → `rg` pins exact lines.
+- **Resolve then pin:** code-intelligence (LSP/`global`) returns the true symbol definition or references → `rg` pins and expands the exact lines.
 
 ## Defaults
 

@@ -19,8 +19,8 @@ orchestration, steering, verification, and authoring.
 
     ---
 
-    Lexical, structural, structured-data, history, rewrite, metrics, and
-    non-code doc search. Two skills split by corpus.
+    Lexical, structural, code-intelligence, structured-data, history, rewrite,
+    metrics, and non-code doc search. Two skills split by corpus.
 
     `retrieval` · shipped
 
@@ -56,7 +56,7 @@ orchestration, steering, verification, and authoring.
     ---
 
     Place guidance at the cheapest layer that still fires — memory, rules,
-    skills, subagents, or hooks.
+    skills, subagents, MCP servers, or hooks.
 
     `steering` · shipped
 

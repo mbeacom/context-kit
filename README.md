@@ -4,7 +4,7 @@ A context-engineering plugin pack for **GitHub Copilot CLI**, Microsoft's
 [APM](https://github.com/microsoft/apm) (Agent Package Manager), and
 [Claude Code](https://code.claude.com) — getting the right information in front of
 an agent and keeping the wrong information out. It bundles complementary
-**retrieval modalities** — lexical, structural, structured-data, history, semantic
+**retrieval modalities** — lexical, structural, code-intelligence, structured-data, history, semantic
 (RAG), and graph — plus a routing agent that picks and composes them. Everything
 runs **locally**; the RAG layer keeps your corpus on your machine. Around that
 spine it adds **plan-execute** (a strong model plans; cheaper subagents execute),
@@ -88,11 +88,11 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 | Plugin | What it does |
 | --- | --- |
 | **retrieval-core** | The spine: a `retrieval-strategist` agent + `retrieval-strategy` skill that choose and compose modalities. Other plugins depend on it. |
-| **code-search** | Lexical (`rg`/`fd`), structural (`ast-grep`/`semgrep`), structured-data (`jq`/`yq`/`gron`), history (`git` pickaxe/`difftastic`), structured rewrite (`comby`), metrics (`tokei`/`scc`), and non-code docs (`rga`/`pandoc`/`pdftotext`). Two skills: `code-search` (code) and `data-and-docs-search` (data/docs). |
+| **code-search** | Lexical (`rg`/`fd`), structural (`ast-grep`/`semgrep`), code-intelligence (LSP/`global`/`ctags`), structured-data (`jq`/`yq`/`gron`), history (`git` pickaxe/`difftastic`), structured rewrite (`comby`), metrics (`tokei`/`scc`), and non-code docs (`rga`/`pandoc`/`pdftotext`). Two skills: `code-search` (code) and `data-and-docs-search` (data/docs). |
 | **local-rag** | Fully-local semantic search: a `bin/rag` CLI that chunks a corpus, embeds it with **ollama**, and indexes it with **turbovec**. Notes-first, corpus-agnostic, with incremental indexing and hybrid `--allowlist` retrieval. |
 | **obsidian** | A skill-only **RAG bridge**: turn an Obsidian vault's graph/tags (official `obsidian` CLI, or `rg` fallback) into a candidate set fed to `local-rag`. For authoring/Bases/Canvas, use [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills). |
 | **plan-execute** | Plan-big/execute-small **orchestration**: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a strategy skill (`CLAUDE_CODE_SUBAGENT_MODEL` + delegation prompt, and how `/advisor` differs), a `/plan-big-execute-small` command, a bundled Workflow, and an `execution-worker` subagent. |
-| **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |
+| **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |
 | **verify** | **Verification**: a read-only `verifier` subagent (tools limited to Read/Grep/Glob) and a `verify-before-trust` skill that check claims — from an AI answer, plan, PR description, or docs — against the actual codebase, emitting per-claim verdicts (confirmed/dubious/refuted/unable-to-check) with `file:line` evidence. Composes with `retrieval-core`. |
 | **plugin-forge** | **Authoring**: a skill for the conventions of portable Claude Code / Copilot / APM plugins, a `/scaffold-plugin` command, and a `check-manifests.sh` validator that fails on `plugin.json` ⇆ `apm.yml` drift. Used to build the plugins in this very repo. |
 
@@ -127,6 +127,7 @@ the skills automatically based on your task. The **`retrieval-strategist`** agen
 | --- | --- | --- |
 | an exact token / regex / filename | lexical | `rg -t py 'def login'` · `fd -e ts` |
 | the code *shape*, not the text | structural | `sg -p 'logger.debug($$$)' --lang js` |
+| the *symbol* — its defs / refs / callers | code-intelligence | `global -xr parseConfig` · `ctags -R` |
 | a JSON/YAML schema path | structured-data | `jq '.scripts' package.json` · `gron x.json \| rg token` |
 | *when/why* code changed | history | `git log -S'retry' -- src/` |
 | only the *meaning/intent* | semantic (RAG) | `rag query "how do we handle backoff" --name notes` |

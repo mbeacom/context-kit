@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-07-18
+
+- Add a **code-intelligence** modality: symbol definitions, references, and call
+  hierarchy via host LSP tools, GNU Global (`global`), or universal-ctags, with a
+  `references/code-intelligence.md` guide and a decision-table row — filling the
+  gap between lexical (`rg`) and structural (`sg`) search. `check-tools.sh` now
+  reports `ctags` and `global`.
+
 ## 0.2.5 — 2026-07-18
 
 - Lead host guidance with GitHub Copilot, then APM, then Claude Code in the
