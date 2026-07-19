@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-07-19
+
+- Add durable memory as a distinct modality for prior decisions, constraints,
+  procedures, preferences, and bounded episodes.
+- Distinguish current task handoffs from long-term recall.
+- Add recall-then-pin, recall-then-verify, and retrieve-then-expand compositions.
+- Require source/freshness labels and current evidence when memory conflicts.
+
 ## 0.3.0 — 2026-07-18
 
 - Route the new **code-intelligence** modality (symbol definitions, references,

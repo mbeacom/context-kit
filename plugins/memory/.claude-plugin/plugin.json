@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "memory",
+  "displayName": "Durable Memory",
+  "version": "0.1.0",
+  "description": "Provenance-bound durable memory across sessions: reviewed records, recall-then-verify workflows, an optional MemPalace provider adapter, and opt-in lifecycle capture.",
+  "author": { "name": "Mark Beacom" },
+  "homepage": "https://github.com/mbeacom/context-kit",
+  "repository": "https://github.com/mbeacom/context-kit",
+  "license": "MIT",
+  "keywords": ["memory", "mempalace", "rag", "retrieval", "provenance", "continuity"],
+  "dependencies": ["context-handoff"],
+  "userConfig": {
+    "provider": {
+      "type": "string",
+      "title": "Memory provider",
+      "description": "External provider: none or mempalace",
+      "default": "none"
+    },
+    "memory_home": {
+      "type": "string",
+      "title": "Memory home",
+      "description": "Local root for reviewed records and project-isolated provider data",
+      "default": "~/.local/share/context-kit/memory"
+    },
+    "project": {
+      "type": "string",
+      "title": "Memory project",
+      "description": "Explicit project scope, preferably owner/repository",
+      "default": ""
+    },
+    "auto_capture": {
+      "type": "boolean",
+      "title": "Automatic lifecycle capture",
+      "description": "Forward Claude lifecycle events to the configured provider",
+      "default": false
+    }
+  }
+}

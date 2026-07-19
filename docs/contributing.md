@@ -36,6 +36,7 @@ bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 # Run the two standard-library plugin suites
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
 
 # Run the local-rag Python tests
 cd plugins/local-rag && uv run --group dev pytest -q
@@ -43,7 +44,7 @@ cd plugins/local-rag && uv run --group dev pytest -q
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including the catalog-quality checks), and the
-`local-rag` pytest suite plus both focused standard-library suites above.
+`local-rag` pytest suite plus all focused standard-library suites above.
 
 ## Build the docs locally
 

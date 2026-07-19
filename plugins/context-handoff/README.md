@@ -5,8 +5,11 @@ sessions and hosts. The artifact records what is known, what changed, what
 remains, and which repository state those claims were checked against.
 
 This is not generic native session persistence. It does not serialize a chat,
-restore hidden model state, install lifecycle hooks, or ingest handoffs into
-long-term RAG. In v0.1, the manual commands are authoritative.
+restore hidden model state, install lifecycle hooks, or automatically ingest
+handoffs into long-term RAG or memory. Manual commands remain authoritative.
+The separate `memory` plugin can archive a validated handoff only when explicitly
+requested; that copy is historical evidence and must be freshness-checked again
+before resumption.
 
 ## Install
 
@@ -61,6 +64,9 @@ to the repository root.
 | **`/write-handoff`** command | Gathers repository provenance, compiles verified task state, writes the artifact, and validates it. |
 | **`/resume-handoff`** command | Validates structure and current repository identity before trusting the artifact, then rechecks stale claims. |
 | **`scripts/validate-handoff.py`** | A standard-library validator with distinct invalid, mismatch, and stale exit statuses. |
+
+For explicit historical retention after validation, install `memory` and run
+`/archive-handoff`. This does not change the resume contract.
 
 ## Artifact contract
 

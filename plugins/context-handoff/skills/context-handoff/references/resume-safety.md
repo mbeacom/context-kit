@@ -28,6 +28,7 @@ Avoid "close enough" branch or repository matching. Normalize common Git remote
 forms to a stable `owner/name` identity while compiling, then compare exact
 normalized identities.
 
-Do not use the artifact as an automatic RAG source. If a later workflow indexes
-handoffs, require a separate explicit retention policy, freshness strategy, and
-deletion path.
+Do not use the artifact as an automatic RAG or memory source. The separate
+`memory` plugin may archive it only after an explicit request and this freshness
+check. Archived copies remain historical evidence and retain an explicit
+retention/deletion policy; they do not become authoritative resume state.

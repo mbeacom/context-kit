@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from pathlib import Path
 
@@ -8,6 +9,8 @@ from .loaders.markdown import Chunk
 
 
 class MetaStore:
+    FTS_SCHEMA_VERSION = "1"
+
     def __init__(self, db_path):
         self.path = Path(db_path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -35,6 +38,38 @@ class MetaStore:
             CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
             """
         )
+        try:
+            self.db.executescript(
+                """
+                CREATE VIRTUAL TABLE IF NOT EXISTS chunks_fts
+                USING fts5(text, content='chunks', content_rowid='id');
+                CREATE TRIGGER IF NOT EXISTS chunks_fts_ai AFTER INSERT ON chunks BEGIN
+                    INSERT INTO chunks_fts(rowid, text) VALUES (new.id, new.text);
+                END;
+                CREATE TRIGGER IF NOT EXISTS chunks_fts_ad AFTER DELETE ON chunks BEGIN
+                    INSERT INTO chunks_fts(chunks_fts, rowid, text)
+                    VALUES ('delete', old.id, old.text);
+                END;
+                CREATE TRIGGER IF NOT EXISTS chunks_fts_au AFTER UPDATE OF text ON chunks BEGIN
+                    INSERT INTO chunks_fts(chunks_fts, rowid, text)
+                    VALUES ('delete', old.id, old.text);
+                    INSERT INTO chunks_fts(rowid, text) VALUES (new.id, new.text);
+                END;
+                """
+            )
+        except sqlite3.OperationalError as error:
+            if "fts5" not in str(error).lower():
+                raise
+            self.fts5_available = False
+        else:
+            self.fts5_available = True
+            if self.get_meta("fts_schema_version") != self.FTS_SCHEMA_VERSION:
+                self.db.execute("INSERT INTO chunks_fts(chunks_fts) VALUES ('rebuild')")
+                self.db.execute(
+                    "INSERT INTO meta(key, value) VALUES('fts_schema_version', ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                    (self.FTS_SCHEMA_VERSION,),
+                )
         self.db.commit()
 
     def file_hash(self, path: str) -> str | None:
@@ -72,6 +107,52 @@ class MetaStore:
         self.db.execute("DELETE FROM chunks WHERE path=?", (path,))
         self.db.execute("DELETE FROM files WHERE path=?", (path,))
         self.db.commit()
+
+    def lexical_search(
+        self,
+        text: str,
+        k: int,
+        allowlist: list[int] | None = None,
+    ) -> list[tuple[int, float]]:
+        """Return FTS5 BM25 candidates in stable rank order.
+
+        BM25 scores are SQLite's native values (smaller is better); callers retain
+        them as retrieval metadata rather than trying to compare them to vectors.
+        """
+        if not self.fts5_available:
+            raise RuntimeError("SQLite FTS5 is unavailable; hybrid retrieval is not supported.")
+        terms = re.findall(r"\w+", text, flags=re.UNICODE)
+        if not terms or k <= 0:
+            return []
+        match = " OR ".join(f'"{term.replace(chr(34), chr(34) * 2)}"' for term in terms)
+        join = ""
+        if allowlist is not None:
+            if not allowlist:
+                return []
+            self.db.execute(
+                "CREATE TEMP TABLE IF NOT EXISTS fts_allowlist (id INTEGER PRIMARY KEY)"
+            )
+            self.db.execute("DELETE FROM fts_allowlist")
+            self.db.executemany(
+                "INSERT INTO fts_allowlist(id) VALUES(?)",
+                ((chunk_id,) for chunk_id in allowlist),
+            )
+            join = " JOIN fts_allowlist allowed ON allowed.id = chunks.id"
+        rows = self.db.execute(
+            """
+            SELECT chunks.id, bm25(chunks_fts) AS score
+            FROM chunks_fts
+            JOIN chunks ON chunks.id = chunks_fts.rowid
+            """
+            + join
+            + """
+            WHERE chunks_fts MATCH ?
+            ORDER BY score ASC, chunks.id ASC
+            LIMIT ?
+            """,
+            (match, k),
+        ).fetchall()
+        return [(row["id"], float(row["score"])) for row in rows]
 
     def chunk_ids_for_paths(self, paths: list[str]) -> list[int]:
         if not paths:
@@ -111,6 +192,7 @@ class MetaStore:
             "chunks": chunks,
             "model": self.get_meta("model"),
             "dim": self.get_meta("dim"),
+            "fts5": self.fts5_available,
         }
 
     def set_meta(self, key: str, value: str) -> None:

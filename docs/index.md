@@ -31,9 +31,10 @@ right information in front of your agent, and keep the wrong information out.
 `context-kit` is a context-engineering plugin pack for **GitHub Copilot CLI**,
 **APM** (Agent Package Manager), and [Claude Code](https://code.claude.com). Its
 spine is a set of complementary **retrieval modalities** — lexical, structural,
-code-intelligence, structured-data, history, semantic (RAG), and graph — plus a routing agent that
-picks and composes them. The provided tooling runs locally, and the RAG layer
-keeps your corpus on your machine. Around that retrieval spine, ten shipped plugins add
+code-intelligence, structured-data, history, semantic (RAG), graph, and durable
+memory — plus a routing agent that picks and composes them. The provided tooling
+runs locally, and the RAG/memory layers keep corpora and reviewed records on your
+machine. Around that retrieval spine, eleven shipped plugins add
 orchestration, steering, read-only verification and change-impact analysis,
 controlled runtime evidence, cross-session handoff, and authoring quality.
 
@@ -55,9 +56,9 @@ controlled runtime evidence, cross-session handoff, and authoring quality.
 
     ---
 
-    `local-rag` chunks and embeds a corpus with **ollama** and indexes it with
-    **turbovec**. No cloud calls, no API keys — your notes and code never leave
-    the machine.
+    `local-rag` chunks and embeds a corpus with **ollama**, indexes it with
+    **turbovec**, and can fuse FTS5/BM25 lexical candidates with vectors using
+    deterministic reciprocal-rank fusion.
 
     [:octicons-arrow-right-24: local-rag](plugins/local-rag.md)
 
@@ -110,6 +111,16 @@ controlled runtime evidence, cross-session handoff, and authoring quality.
 
     [:octicons-arrow-right-24: context-handoff](plugins/context-handoff.md)
 
+-   :material-head-cog-outline:{ .lg .middle } **Recall durable project memory**
+
+    ---
+
+    `memory` preserves reviewed evidence, primary memories, cue anchors,
+    freshness, and supersession. An optional MemPalace adapter adds
+    project-isolated provider recall and opt-in lifecycle capture.
+
+    [:octicons-arrow-right-24: memory](plugins/memory.md)
+
 -   :material-hammer-wrench:{ .lg .middle } **Author more like these**
 
     ---
@@ -158,6 +169,7 @@ and your first search.
 | *when / why* code changed | history | `git log -S'retry' -- src/` |
 | only the *meaning / intent* | semantic (RAG) | `rag query "how do we handle backoff" --name notes` |
 | the corpus is an Obsidian vault | graph | `obsidian backlinks file="Project X"` |
+| a prior decision, constraint, procedure, or episode | durable memory | `/recall-memory "why did we change retries?"` |
 
 The [`retrieval-strategist`](plugins/retrieval-core.md) agent (or the
 `retrieval-strategy` skill) chooses which one fits — and they **compose**.

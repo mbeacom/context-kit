@@ -13,8 +13,8 @@ information in front of an agent and keeping the wrong information out. Its spin
 is organized around **retrieval modalities** — complementary ways an agent finds
 information (lexical, structural, code-intelligence, structured-data, history, semantic/RAG, graph),
 selected by what's known about the query and corpus, and composed together —
-surrounded by plugins for orchestration, steering, verification, controlled
-runtime evidence, cross-session handoff, and authoring.
+surrounded by plugins for durable memory, orchestration, steering, verification,
+controlled runtime evidence, cross-session handoff, and authoring.
 See `docs/ARCHITECTURE.md` for the modality model and `docs/GITHUB_COPILOT.md` for
 Copilot setup notes.
 
@@ -65,9 +65,15 @@ Copilot setup notes.
   user-owned JSON allowlist, without a shell, and writes bounded artifacts.
   Declares `dependencies: ["verify"]`.
 - `context-handoff` — manual-first `/write-handoff` and `/resume-handoff`
-  workflow with a read-only compiler and deterministic validator. v0.1 has no
-  lifecycle hooks or automatic RAG ingestion. Declares
+  workflow with a read-only compiler and deterministic validator. It has no
+  lifecycle hooks or automatic RAG/memory ingestion; explicit historical
+  archival belongs to `memory`. Declares
   `dependencies: ["verify"]`.
+- `memory` — reviewed `context-kit/memory-v1` records (immutable evidence,
+  primary memory, cue anchors, freshness, supersession), capture/recall/review/
+  archive commands, and a stdlib adapter for an optional separately installed
+  MemPalace CLI. Provider storage is project-isolated; Claude lifecycle hooks are
+  inert unless explicitly enabled. Declares `dependencies: ["context-handoff"]`.
 - `plugin-forge` — authoring toolkit for portable plugins: the
   `authoring-portable-plugins` skill, `/scaffold-plugin`, manifest/frontmatter
   validators, and a deterministic aggregate catalog-quality gate with regression
@@ -94,13 +100,15 @@ Copilot setup notes.
   (uv resolves a dev venv; no live ollama needed — the embed client is mocked, turbovec is exercised for real).
 - Run the stdlib plugin tests:
   `python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'` ·
-  `python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'`
+  `python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'` ·
+  `python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'`
 - Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including catalog gates), and the `local-rag` pytest
-suite plus the runtime-evidence and context-handoff standard-library suites.
+suite plus the runtime-evidence, context-handoff, and memory standard-library
+suites.
 
 ## Conventions when modifying this repo
 

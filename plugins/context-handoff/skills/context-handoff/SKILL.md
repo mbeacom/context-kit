@@ -4,7 +4,7 @@ description: "Use when writing or resuming a bounded repository handoff across a
 license: MIT
 metadata:
   author: Mark Beacom
-  version: "0.1.0"
+  version: "0.2.0"
 allowed-tools: Read Grep Glob Bash Write
 ---
 
@@ -17,7 +17,10 @@ verification state.
 
 Treat the handoff as an exchange artifact, not as native session persistence.
 Do not imply that it restores hidden reasoning, tool state, model memory, or the
-original runtime. Do not automatically ingest it into a long-term RAG index.
+original runtime. Do not automatically ingest it into RAG or durable memory.
+When a user separately requests historical retention, validate freshness first,
+then use the `memory` plugin's explicit `/archive-handoff` workflow. The archived
+copy remains historical evidence, not authoritative current task state.
 
 ## Choose the artifact path
 
@@ -90,8 +93,10 @@ usable.
   explicitly where applicable.
 - Include only actionable unresolved items and ordered next steps.
 - Never claim runtime behavior was verified from static inspection alone.
-- Never add `PreCompact`, `SessionEnd`, or `SessionStart` hooks for this v0.1
-  workflow. Manual commands are the source of authority.
+- Never add `PreCompact`, `SessionEnd`, or `SessionStart` hooks to this handoff
+  workflow. Manual commands are the source of authority. Optional lifecycle
+  capture belongs to the separate `memory` plugin and cannot change handoff
+  authority.
 
 ## Resources
 

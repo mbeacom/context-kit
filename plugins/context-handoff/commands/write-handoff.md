@@ -41,5 +41,6 @@ Resolve a relative path from the repository root. Then:
    success while an invalid artifact remains.
 
 Report the repository-relative artifact path, saved HEAD, base ref, and whether
-the saved worktree state was clean or dirty. Do not ingest the artifact into
-RAG or any long-term memory system.
+the saved worktree state was clean or dirty. Do not automatically ingest the
+artifact. If the user separately requests historical retention, finish and
+validate this command first, then use the memory plugin's `/archive-handoff`.

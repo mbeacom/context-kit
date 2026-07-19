@@ -4,10 +4,11 @@
 **APM** (Agent Package Manager), and **Claude Code**. Its
 spine is organized around **retrieval modalities** — complementary ways an agent
 finds information, selected by what it knows about the query and the corpus, and
-composed together — surrounded by plugins for orchestration (`plan-execute`),
-steering (`context-steering`), verification and impact analysis (`verify`),
-controlled runtime observation (`runtime-evidence`), cross-session continuity
-(`context-handoff`), and authoring quality (`plugin-forge`).
+composed together — surrounded by durable recall (`memory`), orchestration
+(`plan-execute`), steering (`context-steering`), verification and impact
+analysis (`verify`), controlled runtime observation (`runtime-evidence`),
+cross-session continuity (`context-handoff`), and authoring quality
+(`plugin-forge`).
 
 All three hosts install the same plugins directly from one marketplace — GitHub
 Copilot CLI via `copilot plugin`, APM via `apm install`, and Claude Code via
@@ -29,10 +30,12 @@ hosts.
 | Non-code docs   | `rga`, `pandoc`, `pdftotext`       | content in PDFs / Office docs / archives    |
 | Semantic (RAG)  | `turbovec` + `ollama`              | only the meaning/intent; large/prose corpus |
 | Graph           | Obsidian wikilinks / backlinks     | human-authored relationships                |
+| Durable memory  | reviewed records + optional MemPalace | prior decisions, constraints, procedures, episodes |
 
 Modalities **compose**: lexical/structured narrows → vectors rerank
-(turbovec `allowlist`); graph backlinks scope a subgraph → RAG within it;
-RAG surfaces regions → `rg` pins exact lines.
+(turbovec `allowlist`); `local-rag --hybrid` fuses vector and FTS5/BM25 ranks;
+graph backlinks scope a subgraph → RAG within it; memory recalls prior context →
+the source and current repository evidence pin the claim.
 
 ## Plugins
 
@@ -40,13 +43,14 @@ RAG surfaces regions → `rg` pins exact lines.
 | ---------------- | -------- | ---------------------------------------------------------- |
 | `retrieval-core` | shipped  | Routing agent + decision-flow skill (the spine)            |
 | `code-search`    | shipped  | Lexical/structural/code-intel/data/history/rewrite/metrics/doc search |
-| `local-rag`      | shipped  | Local semantic RAG: `bin/rag` CLI (turbovec + ollama)      |
+| `local-rag`      | shipped  | Local semantic/hybrid RAG: turbovec + ollama + optional FTS5/BM25 RRF |
 | `obsidian`       | shipped  | Skill-only RAG bridge: vault graph/tags → `rag query --allowlist` |
 | `plan-execute`   | shipped  | Plan-big/execute-small orchestration: planner + cheap `execution-worker` |
 | `context-steering` | shipped | Skill-only: place guidance at the cheapest layer (memory/rules/skills/subagents/mcp/hooks) |
 | `verify`         | shipped  | Read-only claim verdicts + prospective change-impact analysis |
 | `runtime-evidence` | shipped | Exact-ID allowlisted runtime evidence after static verification cannot settle a claim |
 | `context-handoff` | shipped | Manual bounded write/resume handoffs with provenance and freshness validation |
+| `memory`         | shipped  | Reviewed durable records + optional project-isolated MemPalace provider |
 | `plugin-forge`   | shipped  | Portable-plugin scaffold, validators, and deterministic catalog-quality gate |
 
 `code-search` and `verify` declare `dependencies: ["retrieval-core"]`.
@@ -54,7 +58,10 @@ RAG surfaces regions → `rg` pins exact lines.
 transitively pulls the retrieval spine. Runtime evidence does not replace static
 retrieval: it is an explicit escalation only after verification remains
 `unable-to-check`. Context handoffs carry bounded verified state between sessions;
-they are not chat persistence or automatic RAG ingestion.
+they are not chat persistence or automatic RAG ingestion. `memory` depends on
+`context-handoff`; it can preserve a validated handoff only as an explicit
+historical archive. Its recall results never override current handoff or
+repository evidence.
 `local-rag` and `obsidian` pair: the obsidian bridge produces candidate note paths
 that feed `local-rag`'s hybrid `--allowlist` search. Obsidian *authoring*
 (Markdown, Bases, Canvas) is intentionally out of scope — use
@@ -71,6 +78,12 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
 - **Scope then search** — graph backlinks/tags bound a subgraph → RAG within it.
 - **Find then pin** — RAG surfaces `path > heading` regions → `rg` pins exact lines.
 - **Resolve then pin** — code-intelligence (LSP/`global`) returns the true symbol defs/refs → `rg` pins the exact lines.
+- **Recall then pin** — durable memory finds a prior decision/episode → open its
+  evidence and pin what is true in the current repository.
+- **Recall then verify** — stale, conflicting, or consequential memory returns
+  to `verify` before it drives behavior.
+- **Retrieve then expand** — follow bounded cue, neighbor, or source links only
+  when the compact result is insufficient.
 - **Verify then observe** — repository evidence produces a verdict; only an
   unresolved runtime claim can escalate through `runtime-evidence`'s exact-ID
   allowlisted runner, and its bounded artifacts return to `verify`.
@@ -78,7 +91,8 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
   repository provenance; resume rejects identity mismatches and reverifies stale
   claims before acting.
 
-`local-rag` keeps everything local: ollama for embeddings, turbovec for the index
+`local-rag` keeps everything local: ollama for embeddings, turbovec for the index,
+and SQLite FTS5/BM25 for opt-in hybrid rank fusion
 (persisted under `${CONTEXT_KIT_DATA}` or, in Claude Code,
 `${CLAUDE_PLUGIN_DATA}`), nothing leaves the machine. The markdown loader is the
 first-class path, but the indexer is built behind a pluggable loader interface so
@@ -106,5 +120,7 @@ with `CLAUDE_PLUGIN_*` documented as the Claude plugin fallback. See
 - `plugins/local-rag/` also ships `bin/rag` (CLI), `src/local_rag/` (Python
   package), `scripts/bootstrap.sh` + `hooks/hooks.json` (uv venv bootstrap), and
   `tests/`.
+- `plugins/memory/` ships a provider-neutral skill/commands, a standard-library
+   validator/adapter, and Claude hooks that remain inert until explicitly enabled.
 - `.github/copilot-instructions.md` — contributor guidance for keeping the
   repository's skills portable to GitHub Copilot.

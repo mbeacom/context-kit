@@ -64,10 +64,12 @@ state, and repository provenance.
 - A different worktree path is informational when identity anchors match.
 - Malformed structure is invalid and must be repaired or regenerated.
 
-!!! note "v0.1 scope"
-    Manual `/write-handoff` and `/resume-handoff` are authoritative. v0.1 ships
-    no lifecycle hooks, does not serialize chats or hidden model state, and does
-    not automatically ingest artifacts into RAG or long-term memory.
+!!! note "Authority and archival"
+    Manual `/write-handoff` and `/resume-handoff` remain authoritative. The
+    plugin has no lifecycle hooks, does not serialize hidden model state, and
+    never automatically ingests artifacts. When separately requested, the
+    [`memory`](memory.md) plugin can archive a validated handoff as historical
+    evidence; resume must still freshness-check it.
 
 ## At a glance
 

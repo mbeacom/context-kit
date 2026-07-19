@@ -1,0 +1,93 @@
+---
+name: memory-workflows
+description: "Use when capturing, recalling, reviewing, or consolidating durable project memory across sessions, especially prior decisions, constraints, procedures, and episodes that must retain source provenance and freshness."
+license: MIT
+compatibility: "Python 3 is required for the bundled validator/provider adapter. MemPalace is optional and must be installed separately for provider-backed recall."
+metadata:
+  author: Mark Beacom
+  version: "0.1.0"
+allowed-tools: Read Grep Glob Write Bash(python3:*) Bash(mempalace:*) Bash(git:*)
+---
+
+# Memory Workflows
+
+Use durable memory for **reviewed information that should outlive one task**, not
+as a transcript dump or a replacement for current repository evidence.
+
+## Choose the right continuity layer
+
+| Need | Use |
+| --- | --- |
+| Current task state and next action | `context-handoff` |
+| Meaning-based search across a document corpus | `local-rag` |
+| Prior decisions, constraints, procedures, or bounded episodes | durable memory |
+| Exact current implementation or history | lexical/code-intelligence/Git |
+
+MemPalace is an optional external provider for verbatim storage and recall.
+`context-kit` keeps the memory contract, review policy, and verification gates
+provider-neutral.
+
+## Capture
+
+1. Capture only an atomic fact, decision, procedure, constraint, or bounded
+   episode that is likely to matter later.
+2. Preserve immutable evidence. A concise primary memory and cue anchors are
+   derived retrieval aids, never replacements for the source.
+3. Bind project memories to repository, branch, HEAD, observation time, source,
+   and SHA-256 source hash.
+4. Mark new records `review: proposed`. Promote them to `accepted` only after
+   checking the evidence.
+5. Validate with `scripts/memory-provider.py validate`, then persist with
+   `capture`. Provider archival is optional.
+
+Do not silently harvest whole transcripts, secrets, unverified speculation,
+temporary debugging noise, or information whose retention has not been approved.
+
+## Recall
+
+1. Scope recall to an explicit project. Never query a global personal store by
+   accident.
+2. Search primary memories and cue language. Treat results as candidate leads.
+3. Open the cited source and compare its hash, repository anchors, and current
+   code state.
+4. Apply `verify-before-trust` to stale, consequential, or conflicting claims.
+5. Report which parts are current, stale, superseded, or unable to check.
+
+Use the composition **recall then pin**: memory locates the likely decision or
+episode; repository/filesystem evidence establishes what is true now.
+
+## Review and consolidate
+
+Run review before relying on old records. Consolidation is propose-only:
+
+- exact duplicate evidence may be deduplicated;
+- a changed abstraction becomes a new record with a `supersedes` edge;
+- evidence remains immutable;
+- conflicts stay visible until a reviewer accepts one account;
+- stale and revoked records remain auditable but do not drive actions.
+
+Never destructively rewrite the only evidence for a remembered claim.
+
+## Optional automatic capture
+
+Claude hooks ship inert. They forward lifecycle payloads to MemPalace only when
+all of these are explicitly configured:
+
+```bash
+export CONTEXT_KIT_MEMORY_PROVIDER=mempalace
+export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
+export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
+```
+
+Run `doctor` first. GitHub Copilot and APM do not run Claude hooks; use the
+explicit commands or configure the host's native MemPalace integration.
+
+## Resources
+
+- **`references/memory-contract.md`** — record schema and evidence rules.
+- **`references/provider-mempalace.md`** — provider setup, isolation, and CLI.
+- **`references/retrieval-and-review.md`** — recall, freshness, cues, and
+  consolidation.
+- **`references/automation.md`** — opt-in hook behavior and host boundaries.
+- **`templates/memory.md`** — canonical record template.
+- **`../../scripts/memory-provider.py`** — deterministic validator and adapter.
