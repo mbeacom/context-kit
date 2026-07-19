@@ -1,0 +1,17 @@
+# Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
+# Keep name/version in sync with .claude-plugin/plugin.json; description is a
+# concise APM/CLI listing variant.
+name: context-handoff
+version: 0.1.0
+description: Portable, bounded, verified task-state handoffs across agent sessions and hosts.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
+keywords: [handoff, context, sessions, task-state, verification, provenance, claude-code, copilot]
+
+dependencies:
+  apm:
+    # Mirrors plugin.json "dependencies": ["verify"]. APM does not read that
+    # Claude field, so declare the sibling plugin explicitly.
+    - path: ../verify

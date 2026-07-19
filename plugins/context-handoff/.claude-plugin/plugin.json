@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "context-handoff",
+  "displayName": "Context Handoff",
+  "version": "0.1.0",
+  "description": "Portable, bounded, verified task-state handoffs across agent sessions and hosts. Ships manual write/resume commands, a read-only compiler, and a deterministic artifact validator.",
+  "author": { "name": "Mark Beacom" },
+  "homepage": "https://github.com/mbeacom/context-kit",
+  "repository": "https://github.com/mbeacom/context-kit",
+  "license": "MIT",
+  "keywords": ["handoff", "context", "sessions", "task-state", "verification", "provenance", "claude-code", "copilot"],
+  "dependencies": ["verify"]
+}
