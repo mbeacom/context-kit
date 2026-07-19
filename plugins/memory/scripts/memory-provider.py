@@ -20,6 +20,7 @@ SCHEMA = "context-kit/memory-v1"
 MAX_BYTES = 32 * 1024
 MAX_LINES = 220
 MAX_CUES = 3
+PROJECT_SLUG_PREFIX_LENGTH = 31
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,95}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
 PROJECT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
@@ -95,10 +96,9 @@ class Config:
                 "memory project must start with an alphanumeric character and use "
                 "only letters, numbers, dot, underscore, slash, or hyphen"
             )
-        slug = re.sub(r"[^A-Za-z0-9._-]+", "-", self.project).strip("-").lower()
-        if not slug or len(slug) > 96:
-            raise Refusal("memory project resolves to an invalid or overlong scope")
-        return slug
+        prefix = re.sub(r"[^A-Za-z0-9._-]+", "-", self.project).strip("-").lower()
+        digest = hashlib.sha256(self.project.encode("utf-8")).hexdigest()
+        return f"{prefix[:PROJECT_SLUG_PREFIX_LENGTH]}-{digest}"
 
     @property
     def palace_path(self) -> Path:
@@ -358,10 +358,6 @@ def _assert_handoff_current(metadata: dict[str, str], repo: Path) -> None:
 
 def _write_once(destination: Path, raw: bytes) -> str:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        if destination.read_bytes() == raw:
-            return "unchanged"
-        raise Refusal(f"refusing to overwrite a different artifact: {destination}")
     with tempfile.NamedTemporaryFile(
         dir=destination.parent,
         prefix=f".{destination.name}.",
@@ -370,7 +366,14 @@ def _write_once(destination: Path, raw: bytes) -> str:
         handle.write(raw)
         temporary = Path(handle.name)
     os.chmod(temporary, 0o600)
-    temporary.replace(destination)
+    try:
+        os.link(temporary, destination)
+    except FileExistsError:
+        if destination.read_bytes() == raw:
+            return "unchanged"
+        raise Refusal(f"refusing to overwrite a different artifact: {destination}")
+    finally:
+        temporary.unlink(missing_ok=True)
     return "created"
 
 

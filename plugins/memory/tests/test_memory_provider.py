@@ -8,7 +8,9 @@ import os
 import stat
 import sys
 import tempfile
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
@@ -100,6 +102,14 @@ class MemoryProviderTests(unittest.TestCase):
     def base_args(self) -> list[str]:
         return ["--home", str(self.home), "--project", "mbeacom/context-kit"]
 
+    def project_slug(self, project: str = "mbeacom/context-kit") -> str:
+        return memory_provider.Config(
+            provider="none",
+            home=self.home,
+            project=project,
+            auto_capture=False,
+        ).project_slug
+
     def test_validates_memory_contract(self) -> None:
         result, stdout, _ = self.invoke(["validate", str(self.record)])
 
@@ -132,8 +142,41 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual(0, second)
         self.assertEqual("created", json.loads(first_stdout)["status"])
         self.assertEqual("unchanged", json.loads(second_stdout)["status"])
-        saved = self.home / "records" / "mbeacom-context-kit" / "retry-policy.md"
+        saved = self.home / "records" / self.project_slug() / "retry-policy.md"
         self.assertEqual(self.record.read_bytes(), saved.read_bytes())
+
+    def test_project_slug_separates_distinct_valid_identifiers(self) -> None:
+        identifiers = ("foo/bar-baz", "foo-bar/baz", "Foo/Bar-Baz")
+        slugs = [self.project_slug(project) for project in identifiers]
+
+        self.assertEqual(len(identifiers), len(set(slugs)))
+        self.assertTrue(all("/" not in slug and len(slug) <= 96 for slug in slugs))
+        self.assertEqual(slugs[0], self.project_slug(identifiers[0]))
+
+    def test_write_once_cannot_clobber_a_concurrent_writer(self) -> None:
+        destination = self.root / "concurrent" / "record.md"
+        barrier = threading.Barrier(2)
+        real_link = os.link
+
+        def synchronized_link(source, target):
+            barrier.wait(timeout=5)
+            return real_link(source, target)
+
+        def publish(raw: bytes) -> str:
+            try:
+                return memory_provider._write_once(destination, raw)
+            except memory_provider.Refusal as exc:
+                return str(exc)
+
+        with (
+            patch.object(memory_provider.os, "link", side_effect=synchronized_link),
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
+            results = list(executor.map(publish, (b"first", b"second")))
+
+        self.assertIn("created", results)
+        self.assertTrue(any("refusing to overwrite" in result for result in results))
+        self.assertIn(destination.read_bytes(), {b"first", b"second"})
 
     def test_doctor_reports_disabled_provider(self) -> None:
         result, stdout, _ = self.invoke(
@@ -262,9 +305,9 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertTrue(json.loads(stdout)["provider_archived"])
         call = json.loads(calls.read_text(encoding="utf-8").splitlines()[0])
         self.assertEqual("mine", call["argv"][0])
-        self.assertEqual(["--wing", "mbeacom-context-kit"], call["argv"][-2:])
+        self.assertEqual(["--wing", self.project_slug()], call["argv"][-2:])
         self.assertIn(
-            "providers/mempalace/mbeacom-context-kit/palace",
+            f"providers/mempalace/{self.project_slug()}/palace",
             call["palace"],
         )
 

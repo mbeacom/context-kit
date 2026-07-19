@@ -28,12 +28,14 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
 The adapter assigns each configured project its own palace under:
 
 ```text
-${CONTEXT_KIT_MEMORY_HOME}/providers/mempalace/<project>/palace
+${CONTEXT_KIT_MEMORY_HOME}/providers/mempalace/<project-key>/palace
 ```
 
 This deliberately avoids MemPalace's global default and prevents one project's
 recall from searching another project's store. The adapter sets
-`MEMPALACE_PALACE_PATH` only for the child process.
+`MEMPALACE_PALACE_PATH` only for the child process. `<project-key>` combines a
+readable prefix with the SHA-256 of the exact configured project identifier, so
+distinct identifiers cannot collapse onto the same filesystem path.
 
 ## Commands
 
