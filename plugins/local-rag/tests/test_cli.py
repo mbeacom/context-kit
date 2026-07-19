@@ -1,6 +1,8 @@
 import io
 import json
 
+import pytest
+
 from local_rag import cli
 from tests.test_engine import StubEmbedder
 
@@ -19,6 +21,28 @@ def test_index_and_query_json(tmp_path, monkeypatch, capsys):
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out[0]["path"] == "apple.md"
+    assert out[0]["retrieval_mode"] == "semantic"
+    assert "start" in out[0] and "end" in out[0]
+
+
+def test_hybrid_query_json_and_text_output(tmp_path, monkeypatch, capsys):
+    (tmp_path / "apple.md").write_text("# Apple\n\nunique orchard phrase\n")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(tmp_path), "--name", "t"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["status", "--name", "t"]) == 0
+    status = json.loads(capsys.readouterr().out)
+    if not status["fts5"]:
+        pytest.skip("SQLite was compiled without FTS5")
+    assert cli.main(["query", "orchard", "--name", "t", "--hybrid", "--json"]) == 0
+    hits = json.loads(capsys.readouterr().out)
+    assert hits[0]["retrieval_mode"] == "hybrid"
+    assert hits[0]["lexical_rank"] == 1
+    assert cli.main(["query", "orchard", "--name", "t", "--hybrid"]) == 0
+    assert "hybrid" in capsys.readouterr().out
 
 
 def test_allowlist_from_stdin(tmp_path, monkeypatch, capsys):
@@ -34,6 +58,33 @@ def test_allowlist_from_stdin(tmp_path, monkeypatch, capsys):
     cli.main(["query", "apple", "--name", "t", "--allowlist", "-", "--json"])
     out = json.loads(capsys.readouterr().out)
     assert out and all(h["path"] == "b.md" for h in out)
+
+
+def test_empty_allowlist_file_returns_no_hits(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.md").write_text("# A\n\napple\n")
+    allowlist = tmp_path / "allowlist.txt"
+    allowlist.write_text("", encoding="utf-8")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(tmp_path), "--name", "t"]) == 0
+    capsys.readouterr()
+
+    assert (
+        cli.main(
+            [
+                "query",
+                "apple",
+                "--name",
+                "t",
+                "--allowlist",
+                str(allowlist),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == []
 
 
 def test_context_kit_data_overrides_claude_env(tmp_path, monkeypatch):

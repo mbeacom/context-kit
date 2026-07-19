@@ -9,10 +9,11 @@ Copilot); this file holds the rules shared across all hosts.
 ## What this repo is
 
 A multi-host plugin marketplace for **context engineering** — retrieval
-modalities plus a routing agent, local RAG, an Obsidian bridge,
-plan-big/execute-small orchestration, context steering, read-only verification,
-controlled runtime evidence, cross-session handoff, and portable plugin
-authoring. It is a catalog of plugins/skills, not an application. See
+modalities plus a routing agent, hybrid local RAG, an Obsidian bridge,
+provenance-bound durable memory, plan-big/execute-small orchestration, context
+steering, read-only verification, controlled runtime evidence, cross-session
+handoff, and portable plugin authoring. It is a catalog of plugins/skills, not
+an application. See
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Layout
@@ -53,5 +54,6 @@ bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 pre-commit run --all-files                             # markdownlint + shellcheck + ruff + these checks
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
 cd plugins/local-rag && uv run --group dev pytest -q   # local-rag Python tests
 ```

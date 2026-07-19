@@ -86,6 +86,11 @@ def main(argv=None) -> int:
     pq.add_argument("--model")
     pq.add_argument("--k", type=int, default=10)
     pq.add_argument("--allowlist")
+    pq.add_argument(
+        "--hybrid",
+        action="store_true",
+        help="Fuse semantic and SQLite FTS5/BM25 candidates with reciprocal-rank fusion.",
+    )
     pq.add_argument("--json", action="store_true")
 
     ps = sub.add_parser("status")
@@ -121,7 +126,7 @@ def main(argv=None) -> int:
         name = _name_for(args)
         if not _index_exists(data, name):
             print(
-                "error: no index named " f"'{name}'. Run 'rag index <path> --name {name}' first.",
+                f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first.",
                 file=sys.stderr,
             )
             return 1
@@ -136,7 +141,7 @@ def main(argv=None) -> int:
         name = _name_for(args)
         if not _index_exists(data, name):
             print(
-                "error: no index named " f"'{name}'. Run 'rag index <path> --name {name}' first.",
+                f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first.",
                 file=sys.stderr,
             )
             return 1
@@ -146,6 +151,7 @@ def main(argv=None) -> int:
                 args.text,
                 k=args.k,
                 allowlist_paths=_read_allowlist(args.allowlist),
+                hybrid=args.hybrid,
             )
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
@@ -158,7 +164,10 @@ def main(argv=None) -> int:
             for h in hits:
                 loc = f"{h['path']}" + (f" > {h['heading']}" if h["heading"] else "")
                 snippet = h["snippet"].replace("\n", " ")
-                print(f"[{h['score']:.3f}] {loc}\n    {snippet}")
+                score = f"[{h['score']:.3f}]"
+                if h["retrieval_mode"] == "hybrid":
+                    score = f"[{h['score']:.3f} hybrid]"
+                print(f"{score} {loc}\n    {snippet}")
         return 0
     return 2
 

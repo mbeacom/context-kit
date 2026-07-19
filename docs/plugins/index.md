@@ -1,6 +1,6 @@
 # Plugins
 
-The marketplace ships ten plugins. The **spine** is retrieval — a routing
+The marketplace ships eleven plugins. The **spine** is retrieval — a routing
 agent that picks and composes modalities — surrounded by plugins for
 orchestration, steering, verification and impact analysis, controlled runtime
 evidence, cross-session handoff, and authoring.
@@ -29,8 +29,8 @@ evidence, cross-session handoff, and authoring.
 
     ---
 
-    Fully-local semantic RAG: a `bin/rag` CLI that chunks, embeds via ollama,
-    and indexes with turbovec. Hybrid `--allowlist` retrieval.
+    Fully-local semantic RAG: a `bin/rag` CLI with turbovec vectors, opt-in
+    FTS5/BM25 reciprocal-rank fusion, and hybrid `--allowlist` retrieval.
 
     `retrieval` · shipped
 
@@ -88,6 +88,15 @@ evidence, cross-session handoff, and authoring.
 
     `continuity` · shipped
 
+-   :material-head-cog-outline:{ .lg .middle } **[memory](memory.md)**
+
+    ---
+
+    Reviewed durable memories with provenance, cue anchors, freshness,
+    supersession, and an optional project-isolated MemPalace provider.
+
+    `continuity` · shipped
+
 -   :material-hammer-wrench:{ .lg .middle } **[plugin-forge](plugin-forge.md)**
 
     ---
@@ -110,6 +119,7 @@ graph TD
     VF[verify]
     RE[runtime-evidence]
     CH[context-handoff]
+    MM[memory]
     PE[plan-execute]
     CST[context-steering]
     PF[plugin-forge]
@@ -118,9 +128,11 @@ graph TD
     VF -->|depends on| RC
     RE -->|depends on| VF
     CH -->|depends on| VF
+    MM -->|depends on| CH
     OB -->|feeds --allowlist| LR
     RC -.composes.-> CS
     RC -.composes.-> LR
+    RC -.routes recall to.-> MM
 
     classDef spine fill:#4f46e5,stroke:#4338ca,color:#fff;
     class RC spine;
@@ -129,6 +141,9 @@ graph TD
 - **`code-search`** and **`verify`** depend on `retrieval-core`.
 - **`runtime-evidence`** and **`context-handoff`** depend on `verify`, so
   installing either transitively pulls the spine.
+- **`memory`** depends on `context-handoff`, so it also pulls `verify` and the
+  retrieval spine. Handoffs remain authoritative current task state; archived
+  copies are historical evidence.
 - **`obsidian`** and **`local-rag`** pair: the bridge produces candidate note
   paths that feed `local-rag`'s hybrid `--allowlist` search.
 - **`plan-execute`**, **`context-steering`**, and **`plugin-forge`** are
@@ -142,11 +157,12 @@ graph TD
 | --- | --- | --- | --- |
 | [retrieval-core](retrieval-core.md) | retrieval | agent + skill | — |
 | [code-search](code-search.md) | retrieval | 2 skills + tool checker | `retrieval-core` |
-| [local-rag](local-rag.md) | retrieval | `bin/rag` CLI + skill | ollama + turbovec |
+| [local-rag](local-rag.md) | retrieval | `bin/rag` CLI + skill | ollama + turbovec + SQLite FTS5 for `--hybrid` |
 | [obsidian](obsidian.md) | retrieval | skill only | `local-rag` (runtime) |
 | [plan-execute](plan-execute.md) | orchestration | skill + command + workflow + subagent | — |
 | [context-steering](context-steering.md) | steering | skill + examples | — |
 | [verify](verify.md) | verification | subagent + 2 skills + command | `retrieval-core` |
 | [runtime-evidence](runtime-evidence.md) | verification | skill + command + subagent + stdlib runner | `verify` → `retrieval-core` |
 | [context-handoff](context-handoff.md) | continuity | skill + 2 commands + subagent + stdlib validator | `verify` → `retrieval-core` |
+| [memory](memory.md) | continuity | skill + 4 commands + stdlib adapter + opt-in Claude hooks | `context-handoff` → `verify` → `retrieval-core`; MemPalace optional |
 | [plugin-forge](plugin-forge.md) | authoring | skill + command + validators/tests | — |

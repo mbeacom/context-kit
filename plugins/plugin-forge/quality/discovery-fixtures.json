@@ -61,6 +61,16 @@
         "Follow Obsidian backlinks and tags before searching candidate notes."
       ]
     },
+    "plugins/memory/skills/memory-workflows/SKILL.md": {
+      "positive": [
+        "Recall why this project adopted its retry policy and verify the original evidence.",
+        "Capture this reviewed architectural decision as durable project memory."
+      ],
+      "negative": [
+        "Review this code change using current evidence without capturing durable memory.",
+        "Build a semantic index over this large markdown documentation corpus."
+      ]
+    },
     "plugins/obsidian/skills/obsidian-rag-bridge/SKILL.md": {
       "positive": [
         "Use Obsidian backlinks and tags to narrow notes before semantic search.",

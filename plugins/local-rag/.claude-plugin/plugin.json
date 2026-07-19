@@ -2,13 +2,13 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "local-rag",
   "displayName": "Local RAG",
-  "version": "0.1.6",
-  "description": "Fully-local semantic search: a bin/rag CLI that chunks + embeds a corpus with ollama and indexes it with turbovec. Notes-first, corpus-agnostic via pluggable loaders.",
+  "version": "0.2.0",
+  "description": "Fully-local semantic and opt-in hybrid search: a bin/rag CLI that chunks + embeds a corpus with ollama, indexes it with turbovec, and can fuse FTS5/BM25 candidates. Notes-first, corpus-agnostic via pluggable loaders.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",
   "license": "MIT",
-  "keywords": ["rag", "vector-search", "turbovec", "ollama", "embeddings", "semantic"],
+  "keywords": ["rag", "vector-search", "turbovec", "ollama", "embeddings", "semantic", "bm25", "hybrid"],
   "userConfig": {
     "embed_model": {
       "type": "string",

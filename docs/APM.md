@@ -29,6 +29,7 @@ apm install context-steering@context-kit
 apm install verify@context-kit           # also pulls retrieval-core
 apm install runtime-evidence@context-kit # pulls verify, then retrieval-core
 apm install context-handoff@context-kit  # pulls verify, then retrieval-core
+apm install memory@context-kit           # pulls handoff, verify, retrieval-core
 apm install plugin-forge@context-kit
 ```
 
@@ -41,7 +42,8 @@ dependency in its `apm.yml`.)
 
 `runtime-evidence` and `context-handoff` each declare an APM dependency on
 `verify`. Installing either therefore deploys `verify` and, transitively,
-`retrieval-core`.
+`retrieval-core`. `memory` declares a dependency on `context-handoff`, so its
+full continuity/verification chain is installed too.
 
 Prefer `apm install` over a runtime's native install when a team or CI uses the
 plugins: it is the only path that writes a project-scoped `apm.lock.yaml`, pins
@@ -110,6 +112,11 @@ APM plugins have no Claude-style `userConfig`, so configure `local-rag` and
 | `CONTEXT_KIT_RUNTIME_EVIDENCE_CONFIG` | user-owned exact-ID JSON command allowlist | — |
 | `CONTEXT_KIT_RUNTIME_EVIDENCE_ROOT` | installed runtime-evidence root | `CLAUDE_PLUGIN_ROOT` |
 | `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
+| `CONTEXT_KIT_MEMORY_PROVIDER` | `none` or optional `mempalace` provider | `CLAUDE_PLUGIN_OPTION_PROVIDER` |
+| `CONTEXT_KIT_MEMORY_HOME` | reviewed records and project-isolated provider data | `CLAUDE_PLUGIN_OPTION_MEMORY_HOME` |
+| `CONTEXT_KIT_MEMORY_PROJECT` | explicit durable-memory project scope | `CLAUDE_PLUGIN_OPTION_PROJECT` |
+| `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | opt-in Claude lifecycle forwarding | `CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE` |
+| `CONTEXT_KIT_MEMORY_ROOT` | installed memory plugin root | `CLAUDE_PLUGIN_ROOT` |
 
 The pre-rename `PRODUCTIVITY_SKILLS_*` names still work as a deprecated alias
 (`CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback).
@@ -124,6 +131,9 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
 Python 3 is required for the stdlib `runtime-evidence` runner and
 `context-handoff` validator. The runtime runner requires POSIX and refuses
 Windows before execution; the handoff validator is cross-platform.
+The `memory` adapter also uses Python 3; MemPalace is a separately installed
+optional provider. APM does not execute Claude hooks, so memory capture remains
+explicit unless the target host is configured separately.
 
 ## For maintainers
 
@@ -145,7 +155,8 @@ Windows before execution; the handoff validator is cross-platform.
   plugin-native layout remains the source of truth.
 - **Inter-plugin dependencies use local sibling paths.** `code-search` and
   `verify` pull `retrieval-core`; `runtime-evidence` and `context-handoff` pull
-  `verify`, which transitively pulls the spine. For example, `code-search` uses
+  `verify`, which transitively pulls the spine; `memory` pulls
+  `context-handoff`. For example, `code-search` uses
   `- path: ../retrieval-core`. `apm install code-search@context-kit`
   resolves it and deploys the spine. If you then install *another* plugin in the
   same project, APM re-reads code-search's manifest and logs a benign

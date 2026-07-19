@@ -1,0 +1,38 @@
+{
+  "description": "Opt-in MemPalace capture; inert unless CONTEXT_KIT_MEMORY_AUTO_CAPTURE is enabled.",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/memory-provider.py\" hook stop",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/memory-provider.py\" hook precompact",
+            "timeout": 90
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/memory-provider.py\" hook session-end --detach",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.2.0 — 2026-07-19
+
+- Add opt-in `rag query --hybrid`, which fuses turbovec semantic and SQLite
+  FTS5/BM25 lexical candidates with deterministic, equal-weight reciprocal-rank
+  fusion (RRF constant 60 and `3 × k` candidate depth).
+- Keep FTS5 synchronized for incremental indexing, changed files, and deletions;
+  automatically migrate/backfill existing indexes. Status now reports FTS5
+  capability, and hybrid requests clearly fail when it is unavailable.
+- Add source offsets and semantic, lexical, and fused retrieval metadata to JSON
+  results while preserving semantic-only as the default.
+
 ## 0.1.6 — 2026-07-18
 
 - Lead host guidance with GitHub Copilot, APM, then Claude Code in the plugin

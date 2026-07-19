@@ -1,11 +1,11 @@
 ---
 name: local-rag
-description: "Use for semantic search over a markdown corpus when keywords aren't enough (you know the meaning/intent, not the exact words), or to build context from a notes vault. Index once, then query; supports hybrid retrieval via an allowlist of candidate files."
+description: "Use for semantic search over a markdown corpus when keywords aren't enough (you know the meaning/intent, not the exact words), or opt-in hybrid semantic plus lexical search when both meaning and exact terms matter. Index once, then query."
 license: MIT
 compatibility: "Requires the bin/rag CLI (auto-bootstrapped via uv) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
 metadata:
   author: Mark Beacom
-  version: "0.1.0"
+  version: "0.2.0"
 allowed-tools: Bash(rag:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
 ---
 
@@ -33,22 +33,29 @@ plugin variables remain supported as fallbacks.
 ```bash
 rag index /path/to/vault --name notes      # build/update the index (incremental)
 rag query "how did we handle retry backoff" --name notes --k 8
-rag status --name notes                     # counts, model, dim
+rag query "retry backoff" --name notes --k 8 --hybrid
+rag status --name notes                     # counts, model, dim, FTS5 capability
 rag list                                    # known indexes
 ```
 
 Re-running `index` re-embeds only changed files (content hash). Results report
-`path > heading` + a snippet; follow up with `rg` to pin exact lines.
+`path > heading` + a snippet; JSON adds source offsets and retrieval-signal
+metadata. Follow up with `rg` to pin exact lines.
 
-## Hybrid retrieval (compose with other modalities)
+## Hybrid retrieval (compose semantic + lexical modalities)
 
-Pipe a candidate file set into `--allowlist -` to rerank only those files
-semantically (turbovec allowlist):
+Semantic-only is the default. Add `--hybrid` to fuse turbovec and SQLite FTS5/BM25
+candidates with deterministic RRF: `1.0 / (60 + semantic_rank) + 1.0 / (60 +
+lexical_rank)`. Each source retrieves `3 × k` candidates before final fusion.
+`rag status` reports the `fts5` capability; if unavailable, `--hybrid` fails
+clearly while semantic queries keep working.
+
+Pipe a candidate file set into `--allowlist -` to limit both sources:
 
 ```bash
 # From the obsidian bridge (graph/tags), or any tool that emits file paths:
-obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
-rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
+obsidian backlinks file="Project X" | rag query "open risks" --name notes --hybrid --allowlist -
+rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --hybrid --allowlist -
 ```
 
 `rag` is not rtk-wrapped, so `rtk rag …` is a no-op (passes through). When `rtk`

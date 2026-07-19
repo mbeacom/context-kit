@@ -4,16 +4,19 @@ A context-engineering plugin pack for **GitHub Copilot CLI**, Microsoft's
 [APM](https://github.com/microsoft/apm) (Agent Package Manager), and
 [Claude Code](https://code.claude.com) — getting the right information in front of
 an agent and keeping the wrong information out. It bundles complementary
-**retrieval modalities** — lexical, structural, code-intelligence, structured-data, history, semantic
-(RAG), and graph — plus a routing agent that picks and composes them. The
-provided tooling runs locally, and the RAG layer keeps your corpus on your
-machine. Around that
+**retrieval modalities** — lexical, structural, code-intelligence,
+structured-data, history, semantic (RAG), graph, and durable memory — plus a
+routing agent that picks and composes them. The provided tooling runs locally,
+and the RAG/memory layers keep your corpus and reviewed records on your machine.
+Around that
 spine it adds **plan-execute** (a strong model plans; cheaper subagents execute),
 **context-steering** (put each rule at the cheapest layer that still fires),
 **verify** (read-only claims and change-impact analysis), **runtime-evidence**
 (controlled escalation when static checks cannot settle a runtime claim),
-**context-handoff** (bounded cross-session task state), and **plugin-forge**
-(author and quality-check portable plugins). The marketplace ships ten plugins.
+**context-handoff** (bounded cross-session task state), **memory**
+(provenance-bound durable recall with an optional MemPalace provider), and
+**plugin-forge** (author and quality-check portable plugins). The marketplace
+ships eleven plugins.
 
 📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
 guides, architecture, and a page for every plugin.
@@ -38,6 +41,7 @@ copilot plugin install context-steering@context-kit
 copilot plugin install verify@context-kit          # auto-installs retrieval-core
 copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
 copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
+copilot plugin install memory@context-kit           # pulls handoff, verify, retrieval-core
 copilot plugin install plugin-forge@context-kit
 ```
 
@@ -62,13 +66,14 @@ apm install context-steering@context-kit
 apm install verify@context-kit           # also pulls retrieval-core
 apm install runtime-evidence@context-kit # pulls verify, then retrieval-core
 apm install context-handoff@context-kit  # pulls verify, then retrieval-core
+apm install memory@context-kit           # pulls handoff, verify, retrieval-core
 apm install plugin-forge@context-kit
 ```
 
 APM reads the repo's `.claude-plugin/marketplace.json` and each plugin's native
 layout directly; each per-plugin `apm.yml` carries APM metadata and dependencies.
 `runtime-evidence` and `context-handoff` depend on `verify`, which transitively
-pulls `retrieval-core`. See
+pulls `retrieval-core`; `memory` depends on `context-handoff`. See
 [docs/APM.md](docs/APM.md) for
 targets, the `local-rag` bootstrap (APM does not run Claude's `SessionStart` hook),
 and maintainer notes.
@@ -90,6 +95,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 /plugin install verify@context-kit            # claims + change impact (pulls retrieval-core)
 /plugin install runtime-evidence@context-kit  # controlled runtime evidence (pulls verify)
 /plugin install context-handoff@context-kit   # manual cross-session handoffs (pulls verify)
+/plugin install memory@context-kit            # durable memory + optional MemPalace provider
 /plugin install plugin-forge@context-kit      # author portable plugins
 ```
 
@@ -99,13 +105,14 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 | --- | --- |
 | **retrieval-core** | The spine: a `retrieval-strategist` agent + `retrieval-strategy` skill that choose and compose modalities. Other plugins depend on it. |
 | **code-search** | Lexical (`rg`/`fd`), structural (`ast-grep`/`semgrep`), code-intelligence (LSP/`global`/`ctags`), structured-data (`jq`/`yq`/`gron`), history (`git` pickaxe/`difftastic`), structured rewrite (`comby`), metrics (`tokei`/`scc`), and non-code docs (`rga`/`pandoc`/`pdftotext`). Two skills: `code-search` (code) and `data-and-docs-search` (data/docs). |
-| **local-rag** | Fully-local semantic search: a `bin/rag` CLI that chunks a corpus, embeds it with **ollama**, and indexes it with **turbovec**. Notes-first, corpus-agnostic, with incremental indexing and hybrid `--allowlist` retrieval. |
+| **local-rag** | Fully-local semantic search: a `bin/rag` CLI that chunks a corpus, embeds it with **ollama**, and indexes it with **turbovec**. Adds opt-in FTS5/BM25 + vector reciprocal-rank fusion with `--hybrid`, incremental indexing, source offsets, and hybrid `--allowlist` scoping. |
 | **obsidian** | A skill-only **RAG bridge**: turn an Obsidian vault's graph/tags (official `obsidian` CLI, or `rg` fallback) into a candidate set fed to `local-rag`. For authoring/Bases/Canvas, use [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills). |
 | **plan-execute** | Plan-big/execute-small **orchestration**: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a strategy skill (`CLAUDE_CODE_SUBAGENT_MODEL` + delegation prompt, and how `/advisor` differs), a `/plan-big-execute-small` command, a bundled Workflow, and an `execution-worker` subagent. |
 | **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |
 | **verify** | **Verification and impact**: a read-only `verifier`, `verify-before-trust`, and prospective `change-impact` skill plus `/analyze-impact`. Checks claims and maps blast radius without editing or executing. Composes with `retrieval-core`; `plan-execute` is optional for broad read-only coverage, not a dependency. |
 | **runtime-evidence** | **Controlled observation**: escalates only runtime claims left `unable-to-check` by static verification. A POSIX-only Python 3 stdlib runner executes exact argv from a user-owned exact-ID JSON allowlist without shell parsing, requires an absolute cwd, caps time and each output stream, and writes report/stdout/stderr artifacts. Windows is refused before execution. Allowlisting constrains selection; it does not prove an executable has no side effects. |
-| **context-handoff** | **Session continuity**: manual-first `/write-handoff` and `/resume-handoff`, a read-only compiler, and a deterministic Python 3 validator for bounded task state. Defaults to `.context-kit/handoff.md` or `CONTEXT_KIT_HANDOFF_PATH`; detects invalid, mismatched, and stale state. v0.1 has no lifecycle hooks or automatic RAG ingestion. |
+| **context-handoff** | **Session continuity**: manual-first `/write-handoff` and `/resume-handoff`, a read-only compiler, and a deterministic Python 3 validator for bounded task state. Defaults to `.context-kit/handoff.md` or `CONTEXT_KIT_HANDOFF_PATH`; detects invalid, mismatched, and stale state. It has no lifecycle hooks or automatic RAG/memory ingestion. |
+| **memory** | **Durable recall**: reviewed `context-kit/memory-v1` records with immutable evidence, primary memories, cue anchors, freshness, and supersession. Ships capture/recall/review/archive commands, a stdlib adapter for optional MemPalace, project-isolated storage, and opt-in Claude capture hooks. |
 | **plugin-forge** | **Authoring quality**: portable-plugin conventions, `/scaffold-plugin`, manifest and discovery checks, a 4096-character aggregate discovery budget, overlap/fixture/agent-contract checks, regression tests, and a mocked no-network workflow smoke test. Static fixtures check catalog hygiene, not model routing. |
 
 ## Requirements
@@ -129,6 +136,9 @@ The skills degrade gracefully and tell you what's missing.
   standard-library runner and deterministic validator. The runtime runner
   requires POSIX and refuses Windows before execution; the handoff validator is
   cross-platform.
+- **memory** — needs Python 3 for local reviewed records. Provider-backed recall
+  optionally uses a separately installed `mempalace` CLI (`uv tool install
+  mempalace`); automatic capture is disabled by default.
 
 ## Usage
 
@@ -148,6 +158,7 @@ the skills automatically based on your task. The **`retrieval-strategist`** agen
 | *when/why* code changed | history | `git log -S'retry' -- src/` |
 | only the *meaning/intent* | semantic (RAG) | `rag query "how do we handle backoff" --name notes` |
 | the corpus is an Obsidian vault | graph | `obsidian backlinks file="Project X"` |
+| a prior decision, constraint, or episode | durable memory | `/recall-memory "why did we change retries?"` |
 
 **Semantic search (local-rag):**
 
@@ -155,6 +166,7 @@ the skills automatically based on your task. The **`retrieval-strategist`** agen
 ollama pull nomic-embed-text                 # once
 rag index /path/to/vault --name notes        # build/update (incremental)
 rag query "open questions about billing" --name notes --k 8
+rag query "open questions about billing" --name notes --k 8 --hybrid
 rag status --name notes                       # counts, model, dim
 ```
 
@@ -169,7 +181,10 @@ VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
 rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
 ```
 
-`rag` returns `path > heading` + a snippet; follow up with `rg` to pin exact lines.
+`--hybrid` fuses vector and SQLite FTS5/BM25 candidates with deterministic
+reciprocal-rank fusion. `rag` returns `path > heading` plus a snippet; JSON also
+includes source offsets and signal ranks/scores. Follow up with `rg` or Read to
+pin exact evidence.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the modality model and how the
 plugins fit together.
@@ -189,6 +204,7 @@ bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
 
 # Run the local-rag Python tests
 cd plugins/local-rag && uv run --group dev pytest -q

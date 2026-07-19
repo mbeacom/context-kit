@@ -1,0 +1,14 @@
+# Agent Package Manager manifest. Keep name/version synchronized with plugin.json.
+# APM does not run Claude hooks; explicit commands remain portable.
+name: memory
+version: 0.1.0
+description: Provenance-bound durable memory with reviewed records, recall-then-verify, and an optional MemPalace provider.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
+keywords: [memory, mempalace, rag, retrieval, provenance, continuity]
+
+dependencies:
+  apm:
+    - path: ../context-handoff

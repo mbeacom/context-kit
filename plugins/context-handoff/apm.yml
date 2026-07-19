@@ -2,8 +2,8 @@
 # Keep name/version in sync with .claude-plugin/plugin.json; description is a
 # concise APM/CLI listing variant.
 name: context-handoff
-version: 0.1.0
-description: Portable, bounded, verified task-state handoffs across agent sessions and hosts.
+version: 0.2.0
+description: Portable verified task-state handoffs with explicit freshness and optional historical-memory boundaries.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit

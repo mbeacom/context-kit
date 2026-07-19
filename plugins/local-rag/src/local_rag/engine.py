@@ -9,10 +9,47 @@ from .index import VecIndex
 from .loaders.markdown import iter_corpus, load_markdown
 from .store import MetaStore
 
+RRF_K = 60
+SEMANTIC_RRF_WEIGHT = 1.0
+LEXICAL_RRF_WEIGHT = 1.0
+HYBRID_CANDIDATE_MULTIPLIER = 3
+
 
 def slug(path) -> str:
     s = re.sub(r"[^a-zA-Z0-9]+", "-", str(Path(path).resolve())).strip("-").lower()
     return s[-80:] or "default"
+
+
+def reciprocal_rank_fusion(
+    semantic_hits: list[tuple[int, float]],
+    lexical_hits: list[tuple[int, float]],
+) -> list[dict]:
+    """Fuse ranked sources with ``weight / (RRF_K + rank)``.
+
+    The returned order breaks equal RRF scores by best source rank, then chunk id,
+    making fusion reproducible even when a source assigns equal scores.
+    """
+    candidates: dict[int, dict] = {}
+    for rank, (chunk_id, score) in enumerate(semantic_hits, start=1):
+        hit = candidates.setdefault(chunk_id, {"id": chunk_id})
+        hit["semantic_rank"] = rank
+        hit["semantic_score"] = score
+    for rank, (chunk_id, score) in enumerate(lexical_hits, start=1):
+        hit = candidates.setdefault(chunk_id, {"id": chunk_id})
+        hit["lexical_rank"] = rank
+        hit["lexical_score"] = score
+    for hit in candidates.values():
+        hit["fused_score"] = (
+            SEMANTIC_RRF_WEIGHT / (RRF_K + hit["semantic_rank"]) if "semantic_rank" in hit else 0.0
+        ) + (LEXICAL_RRF_WEIGHT / (RRF_K + hit["lexical_rank"]) if "lexical_rank" in hit else 0.0)
+    return sorted(
+        candidates.values(),
+        key=lambda hit: (
+            -hit["fused_score"],
+            min(hit.get("semantic_rank", float("inf")), hit.get("lexical_rank", float("inf"))),
+            hit["id"],
+        ),
+    )
 
 
 class Engine:
@@ -121,26 +158,86 @@ class Engine:
         seen: set[str] = set()
         return [x for x in out if not (x in seen or seen.add(x))]
 
-    def query(self, text: str, k: int = 10, allowlist_paths=None) -> list[dict]:
+    @staticmethod
+    def _result(
+        ch: dict,
+        *,
+        score: float,
+        retrieval_mode: str,
+        semantic_rank: int | None = None,
+        semantic_score: float | None = None,
+        lexical_rank: int | None = None,
+        lexical_score: float | None = None,
+        fused_rank: int | None = None,
+        fused_score: float | None = None,
+    ) -> dict:
+        return {
+            "path": ch["path"],
+            "heading": ch["heading"],
+            "score": score,
+            "snippet": ch["text"][:240],
+            "start": ch["start"],
+            "end": ch["end"],
+            "retrieval_mode": retrieval_mode,
+            "semantic_rank": semantic_rank,
+            "semantic_score": semantic_score,
+            "lexical_rank": lexical_rank,
+            "lexical_score": lexical_score,
+            "fused_rank": fused_rank,
+            "fused_score": fused_score,
+        }
+
+    def query(
+        self, text: str, k: int = 10, allowlist_paths=None, hybrid: bool = False
+    ) -> list[dict]:
+        if k <= 0:
+            return []
+        if hybrid and not self.store.fts5_available:
+            raise RuntimeError("SQLite FTS5 is unavailable; --hybrid cannot be used.")
         dim = int(self.store.get_meta("dim") or self.embedder.dim())
         idx = self._load_index(dim)
         qv = self.embedder.embed([text])[0]
         allow = None
-        if allowlist_paths:
+        if allowlist_paths is not None:
             allow = self.store.chunk_ids_for_paths(self._normalize_allowlist(allowlist_paths))
-        hits = idx.search(qv, k=k, allowlist=allow)
+        candidate_depth = k * HYBRID_CANDIDATE_MULTIPLIER if hybrid else k
+        semantic_hits = idx.search(qv, k=candidate_depth, allowlist=allow)
+        if hybrid:
+            lexical_hits = self.store.lexical_search(text, k=candidate_depth, allowlist=allow)
+            fused_hits = reciprocal_rank_fusion(semantic_hits, lexical_hits)[:k]
+            out = []
+            for fused_rank, hit in enumerate(fused_hits, start=1):
+                try:
+                    ch = self.store.get_chunk(hit["id"])
+                except KeyError:
+                    continue
+                out.append(
+                    self._result(
+                        ch,
+                        score=hit["fused_score"],
+                        retrieval_mode="hybrid",
+                        semantic_rank=hit.get("semantic_rank"),
+                        semantic_score=hit.get("semantic_score"),
+                        lexical_rank=hit.get("lexical_rank"),
+                        lexical_score=hit.get("lexical_score"),
+                        fused_rank=fused_rank,
+                        fused_score=hit["fused_score"],
+                    )
+                )
+            return out
         out = []
-        for cid, score in hits:
+        for semantic_rank, (cid, score) in enumerate(semantic_hits, start=1):
             try:
                 ch = self.store.get_chunk(cid)
             except KeyError:
                 continue
             out.append(
-                {
-                    "path": ch["path"],
-                    "heading": ch["heading"],
-                    "score": score,
-                    "snippet": ch["text"][:240],
-                }
+                self._result(
+                    ch,
+                    score=score,
+                    retrieval_mode="semantic",
+                    semantic_rank=semantic_rank,
+                    semantic_score=score,
+                )
             )
         return out

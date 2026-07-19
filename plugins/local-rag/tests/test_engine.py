@@ -1,4 +1,6 @@
-from local_rag.engine import Engine
+import pytest
+
+from local_rag.engine import RRF_K, Engine, reciprocal_rank_fusion
 
 
 class StubEmbedder:
@@ -39,6 +41,9 @@ def test_index_then_query(tmp_path):
     hits = eng.query("apple orchard apples", k=2)
     assert hits and hits[0]["path"] == "apple.md"
     assert "heading" in hits[0] and "score" in hits[0]
+    assert hits[0]["retrieval_mode"] == "semantic"
+    assert hits[0]["semantic_rank"] == 1
+    assert hits[0]["start"] >= 0 and hits[0]["end"] > hits[0]["start"]
 
 
 def test_incremental_skip(tmp_path):
@@ -57,6 +62,16 @@ def test_allowlist_paths(tmp_path):
     eng.index(vault)
     hits = eng.query("engine wheels", k=5, allowlist_paths=["car.md"])
     assert hits and all(h["path"] == "car.md" for h in hits)
+
+
+def test_explicit_empty_allowlist_returns_no_hits(tmp_path):
+    vault = _vault(tmp_path)
+    eng = Engine(name="t", data_dir=tmp_path / "data", embedder=StubEmbedder())
+    eng.index(vault)
+
+    assert eng.query("engine wheels", k=5, allowlist_paths=[]) == []
+    if eng.store.fts5_available:
+        assert eng.query("engine wheels", k=5, allowlist_paths=[], hybrid=True) == []
 
 
 def test_allowlist_normalizes_absolute_and_prefixed_paths(tmp_path):
@@ -94,8 +109,6 @@ def test_reindex_changed_file_updates_results(tmp_path):
 
 
 def test_dim_mismatch_refused(tmp_path):
-    import pytest
-
     vault = _vault(tmp_path)
     data = tmp_path / "data"
     Engine(name="t", data_dir=data, embedder=StubEmbedder()).index(vault)
@@ -105,3 +118,61 @@ def test_dim_mismatch_refused(tmp_path):
 
     with pytest.raises(ValueError):
         Engine(name="t", data_dir=data, embedder=Big()).index(vault)
+
+
+def test_reciprocal_rank_fusion_is_weighted_and_deterministic():
+    hits = reciprocal_rank_fusion(
+        semantic_hits=[(10, 0.9), (20, 0.8)],
+        lexical_hits=[(20, -3.0), (30, -2.0)],
+    )
+    assert [hit["id"] for hit in hits] == [20, 10, 30]
+    assert hits[0]["semantic_rank"] == 2
+    assert hits[0]["lexical_rank"] == 1
+    assert hits[0]["fused_score"] == pytest.approx(1 / (RRF_K + 2) + 1 / (RRF_K + 1))
+
+
+def test_hybrid_results_include_source_signals(tmp_path):
+    vault = _vault(tmp_path)
+    eng = Engine(name="t", data_dir=tmp_path / "data", embedder=StubEmbedder())
+    eng.index(vault)
+    if not eng.store.fts5_available:
+        pytest.skip("SQLite was compiled without FTS5")
+    hits = eng.query("apples", k=2, hybrid=True)
+    assert hits and hits[0]["retrieval_mode"] == "hybrid"
+    assert hits[0]["fused_rank"] == 1
+    assert hits[0]["fused_score"] == hits[0]["score"]
+    assert hits[0]["lexical_rank"] is not None
+
+
+def test_hybrid_syncs_changed_and_deleted_files(tmp_path):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    note = vault / "note.md"
+    note.write_text("# Note\n\nlegacyword\n")
+    eng = Engine(name="t", data_dir=tmp_path / "data", embedder=StubEmbedder())
+    eng.index(vault)
+    if not eng.store.fts5_available:
+        pytest.skip("SQLite was compiled without FTS5")
+    assert eng.store.lexical_search("legacyword", 3)
+    added = vault / "added.md"
+    added.write_text("# Added\n\nincrementalword\n")
+    eng.index(vault)
+    assert eng.store.lexical_search("incrementalword", 3)
+    note.write_text("# Note\n\nreplacementword\n")
+    eng.index(vault)
+    assert eng.store.lexical_search("legacyword", 3) == []
+    assert eng.store.lexical_search("replacementword", 3)
+    note.unlink()
+    eng.index(vault)
+    assert eng.store.lexical_search("replacementword", 3) == []
+
+
+def test_hybrid_fails_clearly_without_fts5(tmp_path):
+    vault = _vault(tmp_path)
+    eng = Engine(name="t", data_dir=tmp_path / "data", embedder=StubEmbedder())
+    eng.index(vault)
+    eng.store.fts5_available = False
+    semantic_hits = eng.query("apple")
+    assert semantic_hits and semantic_hits[0]["retrieval_mode"] == "semantic"
+    with pytest.raises(RuntimeError, match="FTS5"):
+        eng.query("apple", hybrid=True)

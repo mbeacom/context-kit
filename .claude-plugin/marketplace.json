@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Ten context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, local RAG, orchestration, steering, verification, controlled runtime evidence, cross-session handoff, and portable plugin authoring."
+    "description": "Eleven context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, orchestration, steering, verification, runtime evidence, handoff, and portable plugin authoring."
   },
   "plugins": [
     {
@@ -69,6 +69,13 @@
       "description": "Portable, bounded, verified task-state handoffs with manual write/resume commands, a read-only compiler, and deterministic validation.",
       "category": "continuity",
       "tags": ["handoff", "context", "sessions", "task-state", "verification", "provenance"]
+    },
+    {
+      "name": "memory",
+      "source": "./plugins/memory",
+      "description": "Provenance-bound durable memory with reviewed records, recall-then-verify workflows, an optional MemPalace provider, and opt-in capture.",
+      "category": "continuity",
+      "tags": ["memory", "mempalace", "rag", "retrieval", "provenance", "continuity"]
     },
     {
       "name": "plugin-forge",

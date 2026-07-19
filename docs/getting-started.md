@@ -13,7 +13,8 @@ copying of skill folders.
 Installing `code-search` or `verify` automatically pulls in the
 [`retrieval-core`](plugins/retrieval-core.md) spine. `runtime-evidence` and
 `context-handoff` depend on `verify`, so either pulls `verify` and then
-`retrieval-core` transitively.
+`retrieval-core` transitively. `memory` depends on `context-handoff`, so it pulls
+the complete continuity and verification chain.
 
 ## Install the plugins
 
@@ -33,6 +34,7 @@ brings the retrieval spine with it.
     copilot plugin install verify@context-kit           # auto-installs retrieval-core
     copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
     copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
+    copilot plugin install memory@context-kit           # pulls handoff, verify, retrieval-core
     copilot plugin install plugin-forge@context-kit
     ```
 
@@ -53,6 +55,7 @@ brings the retrieval spine with it.
     apm install verify@context-kit           # also pulls retrieval-core
     apm install runtime-evidence@context-kit # pulls verify, then retrieval-core
     apm install context-handoff@context-kit  # pulls verify, then retrieval-core
+    apm install memory@context-kit           # pulls handoff, verify, retrieval-core
     apm install plugin-forge@context-kit
     ```
 
@@ -73,6 +76,7 @@ brings the retrieval spine with it.
     /plugin install verify@context-kit             # claims + prospective change impact
     /plugin install runtime-evidence@context-kit   # controlled runtime observation
     /plugin install context-handoff@context-kit    # manual cross-session handoffs
+    /plugin install memory@context-kit             # durable memory + optional MemPalace
     /plugin install plugin-forge@context-kit       # author portable plugins
     ```
 
@@ -119,6 +123,14 @@ other external state; allowlisting does not prove it has no side effects.
     also requires a user-owned exact-ID JSON allowlist; handoffs default to
     `.context-kit/handoff.md`.
 
+-   :material-head-cog-outline:{ .lg .middle } **memory**
+
+    ---
+
+    Needs Python 3 for local reviewed records. Optional provider recall uses a
+    separately installed MemPalace CLI (`uv tool install mempalace`). Automatic
+    capture is disabled by default and requires an explicit project scope.
+
 </div>
 
 !!! tip "Check your toolbox"
@@ -156,6 +168,11 @@ supported as fallbacks):
 | `CONTEXT_KIT_RUNTIME_EVIDENCE_CONFIG` | user-owned runtime command allowlist | — |
 | `CONTEXT_KIT_RUNTIME_EVIDENCE_ROOT` | installed `runtime-evidence` plugin root | `CLAUDE_PLUGIN_ROOT` |
 | `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
+| `CONTEXT_KIT_MEMORY_PROVIDER` | `none` or optional `mempalace` provider | `CLAUDE_PLUGIN_OPTION_PROVIDER` |
+| `CONTEXT_KIT_MEMORY_HOME` | reviewed records and isolated provider data | `CLAUDE_PLUGIN_OPTION_MEMORY_HOME` |
+| `CONTEXT_KIT_MEMORY_PROJECT` | required durable-memory project scope | `CLAUDE_PLUGIN_OPTION_PROJECT` |
+| `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | opt-in Claude lifecycle forwarding | `CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE` |
+| `CONTEXT_KIT_MEMORY_ROOT` | installed memory plugin root for portable commands | `CLAUDE_PLUGIN_ROOT` |
 
 ## Your first search
 
@@ -169,6 +186,7 @@ right skill for the task:
 - "Analyze the change impact of renaming this event field."
 - "Collect runtime evidence for this unable-to-check health endpoint claim."
 - "Write a handoff before I continue this task in another session."
+- "Recall why this project changed its retry policy, then verify the source."
 
 ### Semantic search with local-rag
 
@@ -176,6 +194,7 @@ right skill for the task:
 ollama pull nomic-embed-text                 # once
 rag index /path/to/vault --name notes        # build/update (incremental)
 rag query "open questions about billing" --name notes --k 8
+rag query "open questions about billing" --name notes --k 8 --hybrid
 rag status --name notes                       # counts, model, dim
 ```
 
@@ -192,7 +211,9 @@ VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-.}"
 rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
 ```
 
-`rag` returns `path > heading` + a snippet; follow up with `rg` to pin exact lines.
+`--hybrid` fuses semantic and FTS5/BM25 candidates with deterministic
+reciprocal-rank fusion. JSON results include source offsets and individual
+retrieval signals; follow up with `rg` or Read to pin exact evidence.
 
 ## Next steps
 

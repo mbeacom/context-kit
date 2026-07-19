@@ -1,3 +1,7 @@
+import sqlite3
+
+import pytest
+
 from local_rag.loaders.markdown import Chunk
 from local_rag.store import MetaStore
 
@@ -64,3 +68,43 @@ def test_meta_kv(tmp_path):
     s.set_meta("dim", "768")
     assert s.get_meta("model") == "nomic-embed-text"
     assert s.get_meta("dim") == "768"
+
+
+def test_fts_backfill_and_chunk_lifecycle_sync(tmp_path):
+    db_path = tmp_path / "meta.sqlite"
+    # Simulate an index created before the FTS schema existed.
+    db = sqlite3.connect(db_path)
+    db.executescript(
+        """
+        CREATE TABLE files (path TEXT PRIMARY KEY, file_hash TEXT NOT NULL);
+        CREATE TABLE chunks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, heading TEXT,
+            start INTEGER, "end" INTEGER, text TEXT, tags TEXT, links TEXT
+        );
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+        INSERT INTO files VALUES ('a.md', 'old');
+        INSERT INTO chunks(path, heading, start, "end", text, tags, links)
+        VALUES ('a.md', 'A', 0, 12, 'legacy token', '[]', '[]');
+        """
+    )
+    db.commit()
+    db.close()
+
+    s = MetaStore(db_path)
+    s.init_schema()
+    if not s.fts5_available:
+        pytest.skip("SQLite was compiled without FTS5")
+    assert s.lexical_search("legacy", 3)
+    s.upsert_file("a.md", "new", [_chunk("a.md", "replacement token")])
+    assert s.lexical_search("legacy", 3) == []
+    assert s.lexical_search("replacement", 3)
+    s.delete_file("a.md")
+    assert s.lexical_search("replacement", 3) == []
+
+
+def test_lexical_search_explains_missing_fts5(tmp_path):
+    s = MetaStore(tmp_path / "meta.sqlite")
+    s.init_schema()
+    s.fts5_available = False
+    with pytest.raises(RuntimeError, match="FTS5"):
+        s.lexical_search("anything", 1)

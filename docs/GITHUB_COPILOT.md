@@ -22,11 +22,12 @@ copilot plugin install context-steering@context-kit
 copilot plugin install verify@context-kit           # auto-installs retrieval-core
 copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
 copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
+copilot plugin install memory@context-kit           # pulls handoff, verify, retrieval-core
 copilot plugin install plugin-forge@context-kit
 ```
 
 `runtime-evidence` and `context-handoff` depend on `verify`; `verify`
-transitively pulls `retrieval-core`.
+transitively pulls `retrieval-core`. `memory` depends on `context-handoff`.
 
 Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
 `copilot plugin uninstall <name>`.
@@ -38,6 +39,7 @@ Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
 | `plugins/*/skills/<name>/SKILL.md` (+ `references/`) | Installed via `copilot plugin install` | Installed via `/plugin install` |
 | `plugins/retrieval-core/agents/retrieval-strategist.md` | Installed with the plugin | Installed as a subagent |
 | `plugins/local-rag/bin/rag` | Bootstrap manually — see below | Auto-bootstrapped by a Claude `SessionStart` hook |
+| `plugins/memory/scripts/memory-provider.py` | Run explicitly; Copilot does not run Claude hooks | Explicit commands plus opt-in Claude hooks |
 | `.claude-plugin/*` manifests | Used to resolve the marketplace | Marketplace packaging |
 
 Copilot's discovery-critical skill frontmatter is `name` and `description`, which
@@ -54,6 +56,7 @@ Once installed, ask Copilot naturally, for example:
 - "Analyze the prospective impact of changing this schema."
 - "Collect bounded runtime evidence for this unable-to-check claim."
 - "Write a context handoff for the next session."
+- "Recall why this project changed its retry policy, then verify current evidence."
 
 ## Running local-rag outside Claude Code
 
@@ -68,6 +71,7 @@ export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ollama pull nomic-embed-text
 rag index /path/to/vault --name notes
 rag query "open questions about billing" --name notes --k 8
+rag query "open questions about billing" --name notes --k 8 --hybrid
 ```
 
 Supported neutral environment variables:
@@ -81,6 +85,11 @@ Supported neutral environment variables:
 | `CONTEXT_KIT_RUNTIME_EVIDENCE_CONFIG` | user-owned exact-ID JSON command allowlist | — |
 | `CONTEXT_KIT_RUNTIME_EVIDENCE_ROOT` | installed runtime-evidence root | `CLAUDE_PLUGIN_ROOT` |
 | `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
+| `CONTEXT_KIT_MEMORY_PROVIDER` | `none` or optional `mempalace` provider | `CLAUDE_PLUGIN_OPTION_PROVIDER` |
+| `CONTEXT_KIT_MEMORY_HOME` | reviewed records and project-isolated provider data | `CLAUDE_PLUGIN_OPTION_MEMORY_HOME` |
+| `CONTEXT_KIT_MEMORY_PROJECT` | explicit durable-memory project scope | `CLAUDE_PLUGIN_OPTION_PROJECT` |
+| `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | opt-in Claude lifecycle forwarding | `CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE` |
+| `CONTEXT_KIT_MEMORY_ROOT` | installed memory plugin root | `CLAUDE_PLUGIN_ROOT` |
 
 The Claude-specific variables remain supported so existing plugin installs keep
 working. The `CONTEXT_KIT_*` names are preferred for portable docs and
@@ -99,7 +108,8 @@ skills expect:
   `duckdb`, `sqlite-utils`, `rga`, `pandoc`, `pdftotext`, `difftastic`, `tokei`,
   `scc`, and `rtk`.
 - Required for `local-rag`: `uv`, `ollama`, and an embedding model such as
-  `nomic-embed-text`.
+  `nomic-embed-text`. SQLite FTS5 is required only for opt-in `--hybrid`; the
+  default semantic mode remains available without it.
 - Required for `runtime-evidence` and `context-handoff`: Python 3. Their runner
   and validator use only the standard library. The runtime runner requires POSIX
   and refuses Windows before execution; the handoff validator is cross-platform.
@@ -107,6 +117,10 @@ skills expect:
   collection remains bound to the plugin's reviewed exact-ID allowlist.
 - Optional for `obsidian-rag-bridge`: the official `obsidian` CLI with Obsidian
   running; otherwise use the `rg`/`fd` fallback over vault files.
+- Required for local `memory` records: Python 3. Optional provider recall uses a
+  separately installed `mempalace` CLI. Copilot does not run the plugin's Claude
+  lifecycle hooks, so capture remains explicit unless a native host integration
+  is configured separately.
 
 Run `plugins/code-search/scripts/check-tools.sh` from a clone of this repository to
 see what is already installed and what `brew install ...` command would fill the gaps.
