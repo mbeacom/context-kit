@@ -1,9 +1,10 @@
 # local-rag
 
-!!! abstract "Fully-local semantic and hybrid search"
+!!! abstract "Local-first semantic and hybrid search"
     A `bin/rag` CLI that chunks and embeds a corpus with **ollama** and indexes it
     with **turbovec** (a quantized vector index). Optional `--hybrid` retrieval
-    fuses vectors with SQLite FTS5/BM25. No cloud calls or API keys.
+    fuses vectors with SQLite FTS5/BM25. The default Ollama endpoint is localhost
+    and needs no API key; a configured remote endpoint receives submitted text.
 
 `local-rag` is notes-first but corpus-agnostic: loaders are pluggable, so the same
 engine can index Markdown notes, code, or any text corpus. Named indexes persist
@@ -48,7 +49,7 @@ hook) into `${CLAUDE_PLUGIN_DATA}/venv`. **GitHub Copilot and APM don't run Clau
 hooks**, so bootstrap it once yourself from a clone:
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ```

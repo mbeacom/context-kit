@@ -5,6 +5,11 @@ agent that picks and composes modalities — surrounded by plugins for
 orchestration, steering, verification and impact analysis, controlled runtime
 evidence, cross-session handoff, and authoring.
 
+!!! tip "Start from the task"
+    Use the [cookbook](../cookbook.md) for multi-plugin journeys, the
+    [security guide](../security.md) before enabling execution or retention, and
+    [troubleshooting](../troubleshooting.md) for first-run and lifecycle work.
+
 <div class="grid cards" markdown>
 
 -   :material-map-search-outline:{ .lg .middle } **[retrieval-core](retrieval-core.md)**
@@ -29,8 +34,9 @@ evidence, cross-session handoff, and authoring.
 
     ---
 
-    Fully-local semantic RAG: a `bin/rag` CLI with turbovec vectors, opt-in
-    FTS5/BM25 reciprocal-rank fusion, and hybrid `--allowlist` retrieval.
+    Local-first semantic RAG: a `bin/rag` CLI with a configurable Ollama
+    endpoint, turbovec vectors, opt-in FTS5/BM25 reciprocal-rank fusion, and
+    hybrid `--allowlist` retrieval.
 
     `retrieval` · shipped
 

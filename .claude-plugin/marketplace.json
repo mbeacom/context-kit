@@ -24,7 +24,7 @@
     {
       "name": "local-rag",
       "source": "./plugins/local-rag",
-      "description": "Fully-local semantic RAG: chunk, embed via ollama, index with turbovec; a bin/rag CLI with hybrid retrieval.",
+      "description": "Local-first semantic RAG: embed through a configurable Ollama endpoint, index with turbovec, and optionally fuse FTS5/BM25.",
       "category": "retrieval",
       "tags": ["rag", "semantic", "turbovec", "ollama", "embeddings"]
     },

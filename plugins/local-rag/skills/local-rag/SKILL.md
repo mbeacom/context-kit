@@ -5,14 +5,15 @@ license: MIT
 compatibility: "Requires the bin/rag CLI (auto-bootstrapped via uv) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
 metadata:
   author: Mark Beacom
-  version: "0.3.0"
+  version: "0.3.1"
 allowed-tools: Bash(rag:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
 ---
 
 # Local RAG
 
-Fully-local semantic search: `rag` chunks + embeds a corpus (ollama) and indexes
-it with turbovec. Nothing leaves the machine.
+Local-first semantic search: `rag` chunks a corpus, embeds it through the
+configured Ollama endpoint (default localhost), and indexes it with turbovec. A
+remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
 
 ## Prerequisites
 

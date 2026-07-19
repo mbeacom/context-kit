@@ -117,6 +117,10 @@ plugins:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Use context-kit:
+      - Cookbook: cookbook.md
+      - Security and trust: security.md
+      - Troubleshooting and lifecycle: troubleshooting.md
   - Architecture: ARCHITECTURE.md
   - Plugins:
       - plugins/index.md
@@ -131,7 +135,7 @@ nav:
       - context-handoff: plugins/context-handoff.md
       - memory: plugins/memory.md
       - plugin-forge: plugins/plugin-forge.md
-  - Guides:
+  - Host guides:
       - GitHub Copilot: GITHUB_COPILOT.md
       - APM (Agent Package Manager): APM.md
   - Contributing: contributing.md

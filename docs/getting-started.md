@@ -18,73 +18,65 @@ the complete continuity and verification chain.
 
 ## Install the plugins
 
-Pick the host you use. Installing `code-search` first is a good default — it
-brings the retrieval spine with it.
+Pick the host you use. Install one entry plugin for the journey you need rather
+than the entire catalog. `code-search` is a good first choice and brings the
+retrieval spine with it.
 
 === "GitHub Copilot"
 
     ```bash
     copilot plugin marketplace add mbeacom/context-kit
-
-    copilot plugin install code-search@context-kit      # auto-installs retrieval-core
-    copilot plugin install local-rag@context-kit
-    copilot plugin install obsidian@context-kit
-    copilot plugin install plan-execute@context-kit
-    copilot plugin install context-steering@context-kit
-    copilot plugin install verify@context-kit           # auto-installs retrieval-core
-    copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
-    copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
-    copilot plugin install memory@context-kit           # pulls handoff, verify, retrieval-core
-    copilot plugin install plugin-forge@context-kit
+    copilot plugin install code-search@context-kit
     ```
 
-    Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
-    `copilot plugin uninstall <name>`. See the
-    [GitHub Copilot guide](GITHUB_COPILOT.md) for details.
+    See the [GitHub Copilot guide](GITHUB_COPILOT.md) for host configuration and
+    the [lifecycle guide](troubleshooting.md) for verification, updates, and
+    uninstall.
 
 === "APM"
 
     ```bash
     apm marketplace add mbeacom/context-kit
-
-    apm install code-search@context-kit      # also pulls retrieval-core (the spine)
-    apm install local-rag@context-kit
-    apm install obsidian@context-kit
-    apm install plan-execute@context-kit
-    apm install context-steering@context-kit
-    apm install verify@context-kit           # also pulls retrieval-core
-    apm install runtime-evidence@context-kit # pulls verify, then retrieval-core
-    apm install context-handoff@context-kit  # pulls verify, then retrieval-core
-    apm install memory@context-kit           # pulls handoff, verify, retrieval-core
-    apm install plugin-forge@context-kit
+    apm install code-search@context-kit
     ```
 
-    APM adds a committed lockfile, a pre-install security scan, transitive
-    dependency resolution, and cross-harness deploy. See the
-    [APM guide](APM.md).
+    APM adds a project lockfile, dependency resolution, target deployment, and
+    audit/policy checks. See the [APM guide](APM.md).
 
 === "Claude Code"
 
     ```bash
     /plugin marketplace add mbeacom/context-kit
-
-    /plugin install code-search@context-kit      # lexical/structural/data/history search
-    /plugin install local-rag@context-kit         # local semantic search (turbovec + ollama)
-    /plugin install obsidian@context-kit           # Obsidian vault → RAG bridge
-    /plugin install plan-execute@context-kit       # plan-big / execute-small orchestration
-    /plugin install context-steering@context-kit   # place guidance at the cheapest layer
-    /plugin install verify@context-kit             # claims + prospective change impact
-    /plugin install runtime-evidence@context-kit   # controlled runtime observation
-    /plugin install context-handoff@context-kit    # manual cross-session handoffs
-    /plugin install memory@context-kit             # durable memory + optional MemPalace
-    /plugin install plugin-forge@context-kit       # author portable plugins
+    /plugin install code-search@context-kit
     ```
+
+    Run `/reload-plugins`, then inspect `/plugin` → **Installed** or
+    `claude plugin list --json`.
+
+Choose an entry plugin:
+
+| Journey | Install | Also needed at runtime |
+| --- | --- | --- |
+| Search code, data, or docs | `code-search` | `rg`; optional search CLIs |
+| Search a corpus semantically | `local-rag` | uv, Ollama, embedding model |
+| Narrow an Obsidian vault, then rerank | `obsidian` + `local-rag` | Obsidian CLI or `rg`/`fd` |
+| Verify repository claims | `verify` | — |
+| Verify, then observe runtime behavior | `runtime-evidence` | Python 3, POSIX, reviewed allowlist |
+| Verify, then hand off | `context-handoff` | Python 3 |
+| Recall durable project memory | `memory` | Python 3; MemPalace optional |
+| Plan, then delegate execution | `plan-execute` | A host with the required workflow/subagent support |
+| Choose where context belongs | `context-steering` | — |
+| Author portable plugins | `plugin-forge` | validation toolchain for maintainers |
+
+See [Plugins](plugins/index.md) for every component and dependency, or start
+from a complete [cookbook journey](cookbook.md).
 
 ## Requirements
 
-The skills degrade gracefully and tell you what's missing. The provided tooling
-runs locally. A user-allowlisted runtime command may still access a network or
-other external state; allowlisting does not prove it has no side effects.
+The skills degrade gracefully and tell you what's missing. Default storage is
+local, but a configured model endpoint, provider, or user-allowlisted command
+may access a network or other external state. Allowlisting does not prove a
+command has no side effects.
 
 <div class="grid cards" markdown>
 
@@ -142,39 +134,30 @@ other external state; allowlisting does not prove it has no side effects.
     bash plugins/code-search/scripts/check-tools.sh
     ```
 
-## Bootstrap local-rag outside Claude Code
+## Complete first-run setup
 
-`local-rag`'s `rag` CLI runs on a uv-managed virtualenv. Claude Code bootstraps
-it automatically via a `SessionStart` hook; **GitHub Copilot and APM do not run
-Claude hooks**, so bootstrap it once yourself from a clone of this repo:
+Verify installation with the host-specific checks in
+[Troubleshooting and lifecycle](troubleshooting.md#verify-installation-by-host).
+GitHub Copilot and APM do not run Claude hooks, so `local-rag` needs one manual
+bootstrap from a clone:
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
-
 ollama pull nomic-embed-text
+rag list
 ```
 
-Portable environment variables (Claude Code's `CLAUDE_PLUGIN_*` names remain
-supported as fallbacks):
+Use `CONTEXT_KIT_*` variables in portable profiles. The
+[GitHub Copilot guide](GITHUB_COPILOT.md#running-local-rag-outside-claude-code)
+contains the canonical cross-host variable table, and each plugin page documents
+its own defaults and Claude fallback.
 
-| Variable | Purpose | Claude fallback |
-| --- | --- | --- |
-| `CONTEXT_KIT_DATA` | venv and index storage for `local-rag` | `CLAUDE_PLUGIN_DATA` |
-| `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
-| `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
-| `CONTEXT_KIT_OBSIDIAN_VAULT` | vault path for `obsidian` examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
-| `CONTEXT_KIT_RUNTIME_EVIDENCE_CONFIG` | user-owned runtime command allowlist | — |
-| `CONTEXT_KIT_RUNTIME_EVIDENCE_ROOT` | installed `runtime-evidence` plugin root | `CLAUDE_PLUGIN_ROOT` |
-| `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
-| `CONTEXT_KIT_MEMORY_PROVIDER` | `none` or optional `mempalace` provider | `CLAUDE_PLUGIN_OPTION_PROVIDER` |
-| `CONTEXT_KIT_MEMORY_HOME` | reviewed records and isolated provider data | `CLAUDE_PLUGIN_OPTION_MEMORY_HOME` |
-| `CONTEXT_KIT_MEMORY_PROJECT` | required durable-memory project scope | `CLAUDE_PLUGIN_OPTION_PROJECT` |
-| `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | opt-in Claude lifecycle forwarding | `CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE` |
-| `CONTEXT_KIT_MEMORY_ROOT` | installed memory plugin root for portable commands | `CLAUDE_PLUGIN_ROOT` |
+Before configuring a remote Ollama host, runtime allowlist, memory provider, or
+Claude lifecycle hooks, read [Security and trust boundaries](security.md).
 
-## Your first search
+## Run a first journey
 
 Once a plugin is installed, ask your agent naturally — the routing agent loads the
 right skill for the task:
@@ -188,32 +171,10 @@ right skill for the task:
 - "Write a handoff before I continue this task in another session."
 - "Recall why this project changed its retry policy, then verify the source."
 
-### Semantic search with local-rag
-
-```bash
-ollama pull nomic-embed-text                 # once
-rag index /path/to/vault --name notes        # build/update (incremental)
-rag query "open questions about billing" --name notes --k 8
-rag query "open questions about billing" --name notes --k 8 --hybrid
-rag status --name notes                       # counts, model, dim
-```
-
-### Hybrid retrieval — the payoff
-
-Narrow with the graph or lexical signals, then rerank with vectors:
-
-```bash
-# Obsidian graph → semantic rerank (official CLI)
-obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
-
-# rg fallback when Obsidian isn't running
-VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-.}"
-rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
-```
-
-`--hybrid` fuses semantic and FTS5/BM25 candidates with deterministic
-reciprocal-rank fusion. JSON results include source offsets and individual
-retrieval signals; follow up with `rg` or Read to pin exact evidence.
+The key habit is **retrieve, then pin**: use search to find candidates, open the
+primary file, and cite exact lines before relying on the answer. The
+[cookbook](cookbook.md) walks through that flow plus graph/rerank,
+verify/observe, verify/handoff, recall/verify, and plan/execute.
 
 ## Next steps
 
@@ -221,6 +182,12 @@ retrieval signals; follow up with `rg` or Read to pin exact evidence.
 
 - :material-sitemap-outline: **[Architecture](ARCHITECTURE.md)** — the modality
   model and how the plugins compose.
+- :material-chef-hat: **[Cookbook](cookbook.md)** — task-oriented multi-plugin
+  journeys.
+- :material-shield-lock-outline: **[Security](security.md)** — trust boundaries,
+  retained data, hooks, providers, and command execution.
+- :material-lifebuoy: **[Troubleshooting](troubleshooting.md)** — first-run
+  checks, refusal modes, updates, uninstall, and data locations.
 - :material-view-grid-outline: **[Plugins](plugins/index.md)** — a page for each
   plugin in the catalog.
 - :material-github: **[Contributing](contributing.md)** — validate, lint, and

@@ -3,7 +3,7 @@
 [APM](https://github.com/microsoft/apm) is Microsoft's open-source dependency
 manager for AI coding agents — the `package.json`/`Cargo.toml` of agent context.
 It installs the **same plugins** this repo publishes for GitHub Copilot and
-Claude Code, adds a committed lockfile, a pre-install security scan, transitive
+Claude Code, adds a committed lockfile, audit/policy checks, transitive
 dependency resolution, and cross-harness deployment, and works across Claude
 Code, Copilot, Cursor, Codex, Gemini, Windsurf, Kiro, and OpenCode from one
 registration.
@@ -91,7 +91,7 @@ clone of this repo, exactly as in
 [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md):
 
 ```bash
-export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit/local-rag"
+export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/local-rag/scripts/bootstrap.sh
 export PATH="$PWD/plugins/local-rag/bin:$PATH"
 ollama pull nomic-embed-text

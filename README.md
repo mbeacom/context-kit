@@ -6,10 +6,10 @@ A context-engineering plugin pack for **GitHub Copilot CLI**, Microsoft's
 an agent and keeping the wrong information out. It bundles complementary
 **retrieval modalities** — lexical, structural, code-intelligence,
 structured-data, history, semantic (RAG), graph, and durable memory — plus a
-routing agent that picks and composes them. The provided tooling runs locally,
-and the RAG/memory layers keep your corpus and reviewed records on your machine.
-Around that
-spine it adds **plan-execute** (a strong model plans; cheaper subagents execute),
+routing agent that picks and composes them. Default workflows keep indexes and
+reviewed records on your machine. Configured model endpoints, providers, and
+allowlisted commands can still reach external systems. Around that spine it adds
+**plan-execute** (a strong model plans; cheaper subagents execute),
 **context-steering** (put each rule at the cheapest layer that still fires),
 **verify** (read-only claims and change-impact analysis), **runtime-evidence**
 (controlled escalation when static checks cannot settle a runtime claim),
@@ -20,6 +20,11 @@ ships eleven plugins.
 
 📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
 guides, architecture, and a page for every plugin.
+
+Start with the task-oriented [cookbook](docs/cookbook.md), review
+[security and trust boundaries](docs/security.md), or diagnose first-run and
+lifecycle problems in [troubleshooting](docs/troubleshooting.md). Vulnerability
+reports follow the root [security policy](SECURITY.md).
 
 All three hosts install the same plugins directly from one marketplace — GitHub
 Copilot CLI via `copilot plugin`, APM via `apm install`, and Claude Code via
@@ -52,7 +57,7 @@ See [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) for details, including the
 ## APM (Agent Package Manager) install
 
 [APM](https://github.com/microsoft/apm) installs the same plugins from the same
-marketplace, adding a committed lockfile, a pre-install security scan, transitive
+marketplace, adding a committed lockfile, audit/policy checks, transitive
 dependency resolution, and cross-harness deploy. Register the marketplace, then
 install:
 
@@ -105,7 +110,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 | --- | --- |
 | **retrieval-core** | The spine: a `retrieval-strategist` agent + `retrieval-strategy` skill that choose and compose modalities. Other plugins depend on it. |
 | **code-search** | Lexical (`rg`/`fd`), structural (`ast-grep`/`semgrep`), code-intelligence (LSP/`global`/`ctags`), structured-data (`jq`/`yq`/`gron`), history (`git` pickaxe/`difftastic`), structured rewrite (`comby`), metrics (`tokei`/`scc`), and non-code docs (`rga`/`pandoc`/`pdftotext`). Two skills: `code-search` (code) and `data-and-docs-search` (data/docs). |
-| **local-rag** | Fully-local semantic search: a `bin/rag` CLI that chunks a corpus, embeds it with **ollama**, and indexes it with **turbovec**. Adds opt-in FTS5/BM25 + vector reciprocal-rank fusion with `--hybrid`, incremental indexing, source offsets, and hybrid `--allowlist` scoping. |
+| **local-rag** | Local-first semantic search: a `bin/rag` CLI that chunks a corpus, embeds it through a configurable **ollama** endpoint, and indexes it with **turbovec**. Adds opt-in FTS5/BM25 + vector reciprocal-rank fusion with `--hybrid`, incremental indexing, source offsets, and hybrid `--allowlist` scoping. |
 | **obsidian** | A skill-only **RAG bridge**: turn an Obsidian vault's graph/tags (official `obsidian` CLI, or `rg` fallback) into a candidate set fed to `local-rag`. For authoring/Bases/Canvas, use [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills). |
 | **plan-execute** | Plan-big/execute-small **orchestration**: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a strategy skill (`CLAUDE_CODE_SUBAGENT_MODEL` + delegation prompt, and how `/advisor` differs), a `/plan-big-execute-small` command, a bundled Workflow, and an `execution-worker` subagent. |
 | **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |

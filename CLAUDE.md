@@ -40,7 +40,7 @@ Copilot setup notes.
 - `code-search` — lexical/structural/structured-data/history/rewrite/metrics/doc
   search (two skills: `code-search` and `data-and-docs-search`). Declares
   `dependencies: ["retrieval-core"]`, so installing it pulls the spine.
-- `local-rag` — fully-local semantic RAG. A `bin/rag` CLI (Python package under
+- `local-rag` — local-first semantic RAG. A `bin/rag` CLI (Python package under
   `src/local_rag/`, run via a uv venv bootstrapped into `${CLAUDE_PLUGIN_DATA}`
   by a Claude `SessionStart` hook, or `${CONTEXT_KIT_DATA}` for
   Copilot/manual usage) that chunks → embeds via `ollama` → indexes with
