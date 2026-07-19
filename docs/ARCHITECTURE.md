@@ -5,8 +5,9 @@
 spine is organized around **retrieval modalities** — complementary ways an agent
 finds information, selected by what it knows about the query and the corpus, and
 composed together — surrounded by plugins for orchestration (`plan-execute`),
-steering (`context-steering`), verification (`verify`), and authoring
-(`plugin-forge`).
+steering (`context-steering`), verification and impact analysis (`verify`),
+controlled runtime observation (`runtime-evidence`), cross-session continuity
+(`context-handoff`), and authoring quality (`plugin-forge`).
 
 All three hosts install the same plugins directly from one marketplace — GitHub
 Copilot CLI via `copilot plugin`, APM via `apm install`, and Claude Code via
@@ -43,10 +44,17 @@ RAG surfaces regions → `rg` pins exact lines.
 | `obsidian`       | shipped  | Skill-only RAG bridge: vault graph/tags → `rag query --allowlist` |
 | `plan-execute`   | shipped  | Plan-big/execute-small orchestration: planner + cheap `execution-worker` |
 | `context-steering` | shipped | Skill-only: place guidance at the cheapest layer (memory/rules/skills/subagents/mcp/hooks) |
-| `verify`         | shipped  | Read-only `verifier` subagent + `verify-before-trust` skill; per-claim verdicts |
-| `plugin-forge`   | shipped  | Author portable plugins: skill + `/scaffold-plugin` + manifest & skill-frontmatter validators |
+| `verify`         | shipped  | Read-only claim verdicts + prospective change-impact analysis |
+| `runtime-evidence` | shipped | Exact-ID allowlisted runtime evidence after static verification cannot settle a claim |
+| `context-handoff` | shipped | Manual bounded write/resume handoffs with provenance and freshness validation |
+| `plugin-forge`   | shipped  | Portable-plugin scaffold, validators, and deterministic catalog-quality gate |
 
 `code-search` and `verify` declare `dependencies: ["retrieval-core"]`.
+`runtime-evidence` and `context-handoff` depend on `verify`, so installing either
+transitively pulls the retrieval spine. Runtime evidence does not replace static
+retrieval: it is an explicit escalation only after verification remains
+`unable-to-check`. Context handoffs carry bounded verified state between sessions;
+they are not chat persistence or automatic RAG ingestion.
 `local-rag` and `obsidian` pair: the obsidian bridge produces candidate note paths
 that feed `local-rag`'s hybrid `--allowlist` search. Obsidian *authoring*
 (Markdown, Bases, Canvas) is intentionally out of scope — use
@@ -63,6 +71,12 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
 - **Scope then search** — graph backlinks/tags bound a subgraph → RAG within it.
 - **Find then pin** — RAG surfaces `path > heading` regions → `rg` pins exact lines.
 - **Resolve then pin** — code-intelligence (LSP/`global`) returns the true symbol defs/refs → `rg` pins the exact lines.
+- **Verify then observe** — repository evidence produces a verdict; only an
+  unresolved runtime claim can escalate through `runtime-evidence`'s exact-ID
+  allowlisted runner, and its bounded artifacts return to `verify`.
+- **Verify then hand off** — `context-handoff` compiles bounded task state with
+  repository provenance; resume rejects identity mismatches and reverifies stale
+  claims before acting.
 
 `local-rag` keeps everything local: ollama for embeddings, turbovec for the index
 (persisted under `${CONTEXT_KIT_DATA}` or, in Claude Code,

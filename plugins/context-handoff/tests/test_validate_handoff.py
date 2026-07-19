@@ -53,7 +53,9 @@ class ValidateDocumentTests(unittest.TestCase):
         _metadata, errors = validate_handoff.validate_document(artifact)
 
         self.assertTrue(any("level-two sections" in error for error in errors))
-        self.assertTrue(any("missing required section: Decisions" in error for error in errors))
+        self.assertTrue(
+            any("missing required section: Decisions" in error for error in errors)
+        )
 
     def test_rejects_unresolved_template_placeholder(self) -> None:
         artifact = valid_artifact().replace(b"- None.", b"- {{TODO}}", 1)

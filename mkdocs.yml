@@ -4,8 +4,9 @@ site_author: Mark Beacom
 site_description: >-
   Context-engineering plugins for GitHub Copilot, APM, and Claude Code:
   retrieval modalities with a routing agent, local RAG, an Obsidian bridge,
-  plan-big/execute-small delegation, context steering, read-only verification,
-  and portable plugin authoring.
+  plan-big/execute-small delegation, context steering, read-only verification
+  and impact analysis, controlled runtime evidence, cross-session handoff, and
+  portable plugin authoring.
 
 repo_name: mbeacom/context-kit
 repo_url: https://github.com/mbeacom/context-kit
@@ -126,6 +127,8 @@ nav:
       - plan-execute: plugins/plan-execute.md
       - context-steering: plugins/context-steering.md
       - verify: plugins/verify.md
+      - runtime-evidence: plugins/runtime-evidence.md
+      - context-handoff: plugins/context-handoff.md
       - plugin-forge: plugins/plugin-forge.md
   - Guides:
       - GitHub Copilot: GITHUB_COPILOT.md

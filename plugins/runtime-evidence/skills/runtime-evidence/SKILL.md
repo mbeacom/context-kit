@@ -1,6 +1,6 @@
 ---
 name: runtime-evidence
-description: "Use when static verification cannot settle a claim about actual runtime behavior and controlled dynamic evidence is needed from a user-supplied, pre-reviewed command ID."
+description: "Use when a runtime claim remains unable-to-check after static verification and a reviewed command ID can collect bounded dynamic evidence."
 license: MIT
 metadata:
   author: Mark Beacom

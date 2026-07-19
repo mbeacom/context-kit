@@ -1,6 +1,6 @@
 ---
 name: handoff-compiler
-description: "Use to compile gathered task state and repository provenance into a bounded context-kit handoff artifact. The agent reads repository evidence, applies verify-before-trust, and returns structured Markdown for the caller to persist; it never writes files."
+description: "Use to compile verified task state and repository provenance into a bounded Markdown handoff for another session without writing files."
 model: sonnet
 tools: Read, Grep, Glob
 skills: verify-before-trust

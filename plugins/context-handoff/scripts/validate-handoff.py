@@ -67,7 +67,8 @@ def parse_document(text: str) -> tuple[dict[str, str], list[str], list[str]]:
 
     try:
         closing = next(
-            index for index, line in enumerate(lines[1:], start=1)
+            index
+            for index, line in enumerate(lines[1:], start=1)
             if line.strip() == "---"
         )
     except StopIteration:
@@ -96,7 +97,9 @@ def parse_document(text: str) -> tuple[dict[str, str], list[str], list[str]]:
     return metadata, lines[closing + 1 :], errors
 
 
-def _section_bodies(body_lines: Sequence[str]) -> tuple[dict[str, list[str]], list[str]]:
+def _section_bodies(
+    body_lines: Sequence[str],
+) -> tuple[dict[str, list[str]], list[str]]:
     sections: dict[str, list[str]] = {}
     order: list[str] = []
     active: str | None = None

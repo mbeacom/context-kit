@@ -1,6 +1,6 @@
 ---
 name: context-handoff
-description: "Use when writing a task handoff, resuming work from a prior agent session, transferring bounded repository context between hosts, or checking whether saved task state is still fresh enough to trust."
+description: "Use when writing or resuming a bounded repository handoff across agent sessions or hosts, including checking saved task state for staleness."
 license: MIT
 metadata:
   author: Mark Beacom

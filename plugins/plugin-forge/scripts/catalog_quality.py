@@ -267,7 +267,9 @@ def _validate_fixtures(
             if not isinstance(examples, list) or not all(
                 isinstance(example, str) for example in examples
             ):
-                errors.append(f"fixtures: `{path}`.{polarity} must be an array of strings")
+                errors.append(
+                    f"fixtures: `{path}`.{polarity} must be an array of strings"
+                )
                 continue
             if len(examples) < minimum:
                 errors.append(
@@ -308,7 +310,11 @@ def _validate_contracts(
         errors.append("policy: `agent_output_contracts` must be an object")
         return 0
 
-    agents = {component.path: component for component in components if component.kind == "agent"}
+    agents = {
+        component.path: component
+        for component in components
+        if component.kind == "agent"
+    }
     detected = {
         path
         for path, component in agents.items()
@@ -318,7 +324,9 @@ def _validate_contracts(
     for path in sorted(detected - configured_paths):
         errors.append(f"policy: output contract marker for `{path}` is not configured")
     for path in sorted(configured_paths - detected):
-        errors.append(f"policy: configured output contract for `{path}` was not detected")
+        errors.append(
+            f"policy: configured output contract for `{path}` was not detected"
+        )
 
     valid = 0
     for path in sorted(configured_paths & set(agents)):

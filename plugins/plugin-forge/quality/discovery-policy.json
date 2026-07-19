@@ -24,6 +24,26 @@
         "refuted",
         "unable-to-check"
       ]
+    },
+    "plugins/context-handoff/agents/handoff-compiler.md": {
+      "marker": "## Output contract",
+      "required_terms": [
+        "Context Handoff",
+        "Verified Facts",
+        "Unresolved Items",
+        "Validation State",
+        "Provenance and Freshness"
+      ]
+    },
+    "plugins/runtime-evidence/agents/runtime-investigator.md": {
+      "marker": "## Output contract",
+      "required_terms": [
+        "Claim",
+        "Reproduction command ID",
+        "Observations",
+        "Verdict-ready evidence",
+        "Cleanup status"
+      ]
     }
   }
 }

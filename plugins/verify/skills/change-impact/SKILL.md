@@ -1,6 +1,6 @@
 ---
 name: change-impact
-description: "Use when asked to analyze the blast radius, downstream effects, compatibility risks, or affected tests and operations of a proposed code, config, API, data, or schema change before implementation."
+description: "Use when analyzing a proposed code, config, API, data, or schema change for blast radius, downstream dependencies, compatibility risks, tests, or operations."
 license: MIT
 metadata:
   author: Mark Beacom

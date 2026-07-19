@@ -23,6 +23,7 @@ MAX_TIMEOUT_SECONDS = 300.0
 MAX_OUTPUT_BYTES = 1_048_576
 MAX_ARGV_ITEMS = 128
 MAX_ARG_LENGTH = 4096
+TERMINATION_GRACE_SECONDS = 0.5
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,63}$")
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 
@@ -160,12 +161,14 @@ def _artifact_paths(directory: Path, run_id: str) -> dict[str, Path]:
 
 
 def _stop_process_group(process: subprocess.Popen[bytes]) -> str:
-    if process.poll() is not None:
-        return "process-already-exited"
     try:
         if os.name == "posix":
+            # The direct child may have exited while descendants still hold its
+            # stdout/stderr pipes. The session/process group can still exist.
             os.killpg(process.pid, signal.SIGKILL)
             return "process-group-killed"
+        if process.poll() is not None:
+            return "process-already-exited"
         process.kill()
         return "process-killed"
     except ProcessLookupError:
@@ -191,18 +194,37 @@ def _capture(
     termination_reason = "completed"
     cleanup_status = "not-needed"
     wrapper_exit: int | None = None
+    termination_deadline: float | None = None
 
-    while selector.get_map():
-        elapsed = time.monotonic() - started
+    # Keep enforcing the deadline even after the child closes both output pipes.
+    # Stream EOF does not imply process exit.
+    while selector.get_map() or process.poll() is None:
+        now = time.monotonic()
+        elapsed = now - started
         if wrapper_exit is None and elapsed >= timeout:
             termination_reason = "timeout"
             wrapper_exit = 124
             cleanup_status = _stop_process_group(process)
+            termination_deadline = now + TERMINATION_GRACE_SECONDS
+
+        if termination_deadline is not None and now >= termination_deadline:
+            # Descendants outside the process group can retain inherited pipes.
+            # Stop draining after a bounded grace period rather than hanging.
+            for key in list(selector.get_map().values()):
+                stream = key.fileobj
+                selector.unregister(stream)
+                stream.close()
+            break
 
         wait = 0.05
         if wrapper_exit is None:
             wait = min(wait, max(0.0, timeout - elapsed))
-        for key, _mask in selector.select(wait):
+        elif termination_deadline is not None:
+            wait = min(wait, max(0.0, termination_deadline - now))
+        events = selector.select(wait) if selector.get_map() else ()
+        if not events and not selector.get_map() and process.poll() is None:
+            time.sleep(wait)
+        for key, _mask in events:
             stream = key.fileobj
             name = key.data
             try:
@@ -223,8 +245,17 @@ def _capture(
                     termination_reason = "output-limit"
                     wrapper_exit = 125
                     cleanup_status = _stop_process_group(process)
+                    termination_deadline = time.monotonic() + TERMINATION_GRACE_SECONDS
 
-    child_exit = process.wait()
+    try:
+        child_exit = process.wait(timeout=TERMINATION_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        cleanup_status = _stop_process_group(process)
+        try:
+            child_exit = process.wait(timeout=TERMINATION_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            child_exit = process.returncode if process.returncode is not None else -9
+            cleanup_status = f"{cleanup_status}; process-exit-unconfirmed"
     if wrapper_exit is None:
         wrapper_exit = child_exit if child_exit >= 0 else 128 + abs(child_exit)
         if wrapper_exit != 0:

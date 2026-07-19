@@ -5,12 +5,15 @@ A context-engineering plugin pack for **GitHub Copilot CLI**, Microsoft's
 [Claude Code](https://code.claude.com) — getting the right information in front of
 an agent and keeping the wrong information out. It bundles complementary
 **retrieval modalities** — lexical, structural, code-intelligence, structured-data, history, semantic
-(RAG), and graph — plus a routing agent that picks and composes them. Everything
-runs **locally**; the RAG layer keeps your corpus on your machine. Around that
+(RAG), and graph — plus a routing agent that picks and composes them. The
+provided tooling runs locally, and the RAG layer keeps your corpus on your
+machine. Around that
 spine it adds **plan-execute** (a strong model plans; cheaper subagents execute),
 **context-steering** (put each rule at the cheapest layer that still fires),
-**verify** (a read-only checker for claims), and **plugin-forge** (author more
-portable plugins like these).
+**verify** (read-only claims and change-impact analysis), **runtime-evidence**
+(controlled escalation when static checks cannot settle a runtime claim),
+**context-handoff** (bounded cross-session task state), and **plugin-forge**
+(author and quality-check portable plugins). The marketplace ships ten plugins.
 
 📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
 guides, architecture, and a page for every plugin.
@@ -33,6 +36,8 @@ copilot plugin install obsidian@context-kit
 copilot plugin install plan-execute@context-kit   # plan-big/execute-small orchestration
 copilot plugin install context-steering@context-kit
 copilot plugin install verify@context-kit          # auto-installs retrieval-core
+copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
+copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
 copilot plugin install plugin-forge@context-kit
 ```
 
@@ -55,12 +60,15 @@ apm install obsidian@context-kit
 apm install plan-execute@context-kit
 apm install context-steering@context-kit
 apm install verify@context-kit           # also pulls retrieval-core
+apm install runtime-evidence@context-kit # pulls verify, then retrieval-core
+apm install context-handoff@context-kit  # pulls verify, then retrieval-core
 apm install plugin-forge@context-kit
 ```
 
 APM reads the repo's `.claude-plugin/marketplace.json` and each plugin's native
-layout directly; the per-plugin `apm.yml` carries APM metadata and (for
-`code-search` and `verify`) the `retrieval-core` dependency. See
+layout directly; each per-plugin `apm.yml` carries APM metadata and dependencies.
+`runtime-evidence` and `context-handoff` depend on `verify`, which transitively
+pulls `retrieval-core`. See
 [docs/APM.md](docs/APM.md) for
 targets, the `local-rag` bootstrap (APM does not run Claude's `SessionStart` hook),
 and maintainer notes.
@@ -79,7 +87,9 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 /plugin install obsidian@context-kit          # Obsidian vault → RAG bridge
 /plugin install plan-execute@context-kit      # plan-big/execute-small orchestration
 /plugin install context-steering@context-kit  # place guidance at the cheapest layer
-/plugin install verify@context-kit            # read-only claim verification (pulls retrieval-core)
+/plugin install verify@context-kit            # claims + change impact (pulls retrieval-core)
+/plugin install runtime-evidence@context-kit  # controlled runtime evidence (pulls verify)
+/plugin install context-handoff@context-kit   # manual cross-session handoffs (pulls verify)
 /plugin install plugin-forge@context-kit      # author portable plugins
 ```
 
@@ -93,8 +103,10 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 | **obsidian** | A skill-only **RAG bridge**: turn an Obsidian vault's graph/tags (official `obsidian` CLI, or `rg` fallback) into a candidate set fed to `local-rag`. For authoring/Bases/Canvas, use [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills). |
 | **plan-execute** | Plan-big/execute-small **orchestration**: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a strategy skill (`CLAUDE_CODE_SUBAGENT_MODEL` + delegation prompt, and how `/advisor` differs), a `/plan-big-execute-small` command, a bundled Workflow, and an `execution-worker` subagent. |
 | **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |
-| **verify** | **Verification**: a read-only `verifier` subagent (tools limited to Read/Grep/Glob) and a `verify-before-trust` skill that check claims — from an AI answer, plan, PR description, or docs — against the actual codebase, emitting per-claim verdicts (confirmed/dubious/refuted/unable-to-check) with `file:line` evidence. Composes with `retrieval-core`. |
-| **plugin-forge** | **Authoring**: a skill for the conventions of portable Claude Code / Copilot / APM plugins, a `/scaffold-plugin` command, and a `check-manifests.sh` validator that fails on `plugin.json` ⇆ `apm.yml` drift. Used to build the plugins in this very repo. |
+| **verify** | **Verification and impact**: a read-only `verifier`, `verify-before-trust`, and prospective `change-impact` skill plus `/analyze-impact`. Checks claims and maps blast radius without editing or executing. Composes with `retrieval-core`; `plan-execute` is optional for broad read-only coverage, not a dependency. |
+| **runtime-evidence** | **Controlled observation**: escalates only runtime claims left `unable-to-check` by static verification. A Python 3 stdlib runner executes exact argv from a user-owned exact-ID JSON allowlist without shell parsing, requires an absolute cwd, caps time and each output stream, and writes report/stdout/stderr artifacts. Allowlisting constrains selection; it does not prove an executable has no side effects. |
+| **context-handoff** | **Session continuity**: manual-first `/write-handoff` and `/resume-handoff`, a read-only compiler, and a deterministic Python 3 validator for bounded task state. Defaults to `.context-kit/handoff.md` or `CONTEXT_KIT_HANDOFF_PATH`; detects invalid, mismatched, and stale state. v0.1 has no lifecycle hooks or automatic RAG ingestion. |
+| **plugin-forge** | **Authoring quality**: portable-plugin conventions, `/scaffold-plugin`, manifest and discovery checks, a 4096-character aggregate discovery budget, overlap/fixture/agent-contract checks, regression tests, and a mocked no-network workflow smoke test. Static fixtures check catalog hygiene, not model routing. |
 
 ## Requirements
 
@@ -113,6 +125,8 @@ The skills degrade gracefully and tell you what's missing.
   for graph-accurate queries; otherwise falls back to `rg`/`fd`. Set your vault
   path via `CONTEXT_KIT_OBSIDIAN_VAULT` (GitHub Copilot, APM, or manual usage) or
   the Claude plugin config (`vault_path`).
+- **runtime-evidence** and **context-handoff** — need Python 3 for their
+  standard-library runner and deterministic validator.
 
 ## Usage
 
@@ -167,6 +181,12 @@ for p in plugins/*/; do claude plugin validate "$p" --strict; done
 
 # Lint (markdownlint + shellcheck + ruff + hygiene)
 pre-commit run --all-files
+
+# Run catalog gates and focused unit tests
+bash plugins/plugin-forge/scripts/check-catalog-quality.sh
+bash plugins/plugin-forge/scripts/test-catalog-quality.sh
+python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 
 # Run the local-rag Python tests
 cd plugins/local-rag && uv run --group dev pytest -q

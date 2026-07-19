@@ -25,6 +25,11 @@ apm install code-search@context-kit      # also pulls retrieval-core (the spine)
 apm install local-rag@context-kit
 apm install obsidian@context-kit
 apm install plan-execute@context-kit
+apm install context-steering@context-kit
+apm install verify@context-kit           # also pulls retrieval-core
+apm install runtime-evidence@context-kit # pulls verify, then retrieval-core
+apm install context-handoff@context-kit  # pulls verify, then retrieval-core
+apm install plugin-forge@context-kit
 ```
 
 Installing `code-search` deploys the retrieval spine automatically: its
@@ -33,6 +38,10 @@ Installing `code-search` deploys the retrieval spine automatically: its
 the plugin.json `"dependencies": ["retrieval-core"]` that Claude Code and
 Copilot honor — APM does not read that Claude field, so the plugin declares the
 dependency in its `apm.yml`.)
+
+`runtime-evidence` and `context-handoff` each declare an APM dependency on
+`verify`. Installing either therefore deploys `verify` and, transitively,
+`retrieval-core`.
 
 Prefer `apm install` over a runtime's native install when a team or CI uses the
 plugins: it is the only path that writes a project-scoped `apm.lock.yaml`, pins
@@ -98,6 +107,9 @@ APM plugins have no Claude-style `userConfig`, so configure `local-rag` and
 | `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
 | `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
 | `CONTEXT_KIT_OBSIDIAN_VAULT` | vault path for `obsidian` examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
+| `CONTEXT_KIT_RUNTIME_EVIDENCE_CONFIG` | user-owned exact-ID JSON command allowlist | — |
+| `CONTEXT_KIT_RUNTIME_EVIDENCE_ROOT` | installed runtime-evidence root | `CLAUDE_PLUGIN_ROOT` |
+| `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
 
 The pre-rename `PRODUCTIVITY_SKILLS_*` names still work as a deprecated alias
 (`CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback).
@@ -109,6 +121,8 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
 `rg` (required for `code-search`); `uv` + `ollama` + an embedding model
 (required for `local-rag`); the rest optional. Run
 `plugins/code-search/scripts/check-tools.sh` from a clone to see the gaps.
+Python 3 is required for the stdlib `runtime-evidence` runner and
+`context-handoff` validator.
 
 ## For maintainers
 
@@ -128,8 +142,10 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
   intentionally a more concise variant tuned for APM/CLI listings (the
   `plugin.json` copy stays fuller). There is no `.apm/` directory, so the
   plugin-native layout remains the source of truth.
-- **`code-search`'s spine dependency is a local sibling path**
-  (`- path: ../retrieval-core`). `apm install code-search@context-kit`
+- **Inter-plugin dependencies use local sibling paths.** `code-search` and
+  `verify` pull `retrieval-core`; `runtime-evidence` and `context-handoff` pull
+  `verify`, which transitively pulls the spine. For example, `code-search` uses
+  `- path: ../retrieval-core`. `apm install code-search@context-kit`
   resolves it and deploys the spine. If you then install *another* plugin in the
   same project, APM re-reads code-search's manifest and logs a benign
   `Invalid transitive apm.yml … Invalid APM dependency 'retrieval-core'`

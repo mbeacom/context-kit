@@ -1,6 +1,6 @@
 ---
 name: runtime-investigator
-description: "Use when static repository verification returns unable-to-check for a runtime claim and an existing user-reviewed command ID can collect bounded dynamic evidence without inventing unrestricted shell commands."
+description: "Use to collect bounded dynamic evidence for an unable-to-check runtime claim using an existing user-reviewed command ID."
 model: sonnet
 tools: Read, Grep, Glob, Bash
 skills: runtime-evidence, verify-before-trust
@@ -37,7 +37,7 @@ both boundaries accurately.
 7. Return verdict-ready facts to the caller for evaluation by `verify`. Do not
    assign a bespoke runtime verdict.
 
-## Output
+## Output contract
 
 Return:
 

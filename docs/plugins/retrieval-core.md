@@ -33,7 +33,10 @@ together when one isn't enough.
     ```
 
 You usually get it for free: installing [`code-search`](code-search.md) or
-[`verify`](verify.md) pulls `retrieval-core` in as a dependency.
+[`verify`](verify.md) pulls `retrieval-core` in directly. Installing
+[`runtime-evidence`](runtime-evidence.md) or
+[`context-handoff`](context-handoff.md) pulls `verify`, which transitively pulls
+the spine.
 
 ## Components
 
@@ -73,5 +76,5 @@ See [Architecture](../ARCHITECTURE.md) for the full modality model.
 | **Category** | retrieval |
 | **Provides** | 1 agent, 1 skill |
 | **Dependencies** | none |
-| **Depended on by** | `code-search`, `verify` |
+| **Depended on by** | `code-search`, `verify`; transitively `runtime-evidence`, `context-handoff` |
 | **License** | MIT |

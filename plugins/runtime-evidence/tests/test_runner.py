@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -113,6 +115,63 @@ class RunnerTests(unittest.TestCase):
         self.assertIn(
             report["cleanup_status"], {"process-group-killed", "process-killed"}
         )
+
+    def test_timeout_still_applies_after_child_closes_output_streams(self) -> None:
+        self.write_config(
+            {
+                "closes-streams": {
+                    "argv": [
+                        sys.executable,
+                        "-c",
+                        "import os, time; os.close(1); os.close(2); time.sleep(2)",
+                    ],
+                    "timeout_seconds": 0.05,
+                    "max_output_bytes": 1024,
+                }
+            }
+        )
+
+        started = time.monotonic()
+        result = self.run_command("closes-streams")
+        elapsed = time.monotonic() - started
+        report = self.report()
+
+        self.assertLess(elapsed, 1.0)
+        self.assertEqual(result.returncode, 124)
+        self.assertEqual(report["observations"]["termination_reason"], "timeout")
+        self.assertIn(
+            report["cleanup_status"], {"process-group-killed", "process-killed"}
+        )
+
+    @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
+    def test_timeout_kills_descendant_group_after_direct_child_exits(self) -> None:
+        self.write_config(
+            {
+                "spawns-descendant": {
+                    "argv": [
+                        sys.executable,
+                        "-c",
+                        (
+                            "import subprocess, sys; "
+                            "subprocess.Popen([sys.executable, '-c', "
+                            "'import time; time.sleep(2)'])"
+                        ),
+                    ],
+                    "timeout_seconds": 0.05,
+                    "max_output_bytes": 1024,
+                }
+            }
+        )
+
+        started = time.monotonic()
+        result = self.run_command("spawns-descendant")
+        elapsed = time.monotonic() - started
+        report = self.report()
+
+        self.assertLess(elapsed, 1.0)
+        self.assertEqual(result.returncode, 124)
+        self.assertEqual(report["observations"]["termination_reason"], "timeout")
+        self.assertEqual(report["cleanup_status"], "process-group-killed")
 
     def test_output_limit_caps_artifact_and_terminates(self) -> None:
         self.write_config(

@@ -29,12 +29,21 @@ for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin 
 # Lint everything (markdownlint + shellcheck + ruff + hygiene)
 pre-commit run --all-files
 
+# Run the aggregate catalog gate and its regression/smoke tests
+bash plugins/plugin-forge/scripts/check-catalog-quality.sh
+bash plugins/plugin-forge/scripts/test-catalog-quality.sh
+
+# Run the two standard-library plugin suites
+python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
+
 # Run the local-rag Python tests
 cd plugins/local-rag && uv run --group dev pytest -q
 ```
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
-every plugin, `pre-commit`, and the `local-rag` pytest suite.
+every plugin, `pre-commit` (including the catalog-quality checks), and the
+`local-rag` pytest suite plus both focused standard-library suites above.
 
 ## Build the docs locally
 
@@ -58,7 +67,9 @@ The `main` branch deploys to GitHub Pages automatically via
   `skills/`/`agents/`, add a sibling `apm.yml`, and a `LICENSE` + `CHANGELOG.md`.
   Add the `marketplace.json` catalog entry **only when the plugin is ready** —
   stubs stay unlisted so they can't be installed half-built. Add a page here under
-  `docs/plugins/` and wire it into `mkdocs.yml`.
+  `docs/plugins/` and wire it into `mkdocs.yml`. Add central positive/negative
+  discovery fixtures and keep the aggregate description budget within 4096
+  characters.
 - **Versioning** — bump `version` in `plugin.json` to ship updates (Claude Code
   uses it as the cache key). Bump the matching `apm.yml` `version` in lockstep;
   `plugin-forge`'s `check-manifests.sh` enforces this.
