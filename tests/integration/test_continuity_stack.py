@@ -19,18 +19,10 @@ RUNTIME_RUNNER = (
     / "run-evidence-command.py"
 )
 HANDOFF_VALIDATOR = (
-    REPOSITORY_ROOT
-    / "plugins"
-    / "context-handoff"
-    / "scripts"
-    / "validate-handoff.py"
+    REPOSITORY_ROOT / "plugins" / "context-handoff" / "scripts" / "validate-handoff.py"
 )
 MEMORY_PROVIDER = (
-    REPOSITORY_ROOT
-    / "plugins"
-    / "memory"
-    / "scripts"
-    / "memory-provider.py"
+    REPOSITORY_ROOT / "plugins" / "memory" / "scripts" / "memory-provider.py"
 )
 PROJECT = "mbeacom/context-kit"
 
@@ -46,7 +38,8 @@ class ContinuityStackIntegrationTests(unittest.TestCase):
         self.state.mkdir()
         self.memory_home = self.state / "memory"
 
-        self.git("init", "--initial-branch=main")
+        self.git("init")
+        self.git("symbolic-ref", "HEAD", "refs/heads/main")
         self.git("config", "user.name", "Continuity Integration")
         self.git("config", "user.email", "continuity@example.invalid")
         self.git("config", "commit.gpgsign", "false")
@@ -265,11 +258,29 @@ class ContinuityStackIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(0, runtime.returncode, runtime.stderr)
         report = json.loads(runtime.stdout)
+        pointers = report["artifact_output_pointers"]
+        report_path = Path(pointers["report"])
+        stdout_path = Path(pointers["stdout"])
+        stderr_path = Path(pointers["stderr"])
+        resolved_artifacts = artifacts.resolve()
+        self.assertEqual(resolved_artifacts / "continuity.json", report_path)
+        self.assertEqual(resolved_artifacts / "continuity.stdout", stdout_path)
+        self.assertEqual(resolved_artifacts / "continuity.stderr", stderr_path)
+        self.assertTrue(report_path.is_file())
+        self.assertTrue(stdout_path.is_file())
+        self.assertTrue(stderr_path.is_file())
+        self.assertEqual(
+            report,
+            json.loads(report_path.read_text(encoding="utf-8")),
+        )
         self.assertEqual(
             f"{original_head}\n",
             report["observations"]["stdout_excerpt"],
         )
-        self.assertLessEqual((artifacts / "continuity.stdout").stat().st_size, 128)
+        self.assertEqual(f"{original_head}\n", stdout_path.read_text(encoding="utf-8"))
+        self.assertEqual("", stderr_path.read_text(encoding="utf-8"))
+        self.assertLessEqual(stdout_path.stat().st_size, 128)
+        self.assertLessEqual(stderr_path.stat().st_size, 128)
         self.assertEqual("current-head", report["reproduction_command_id"])
 
         handoff = self.write_handoff(report, original_head)
