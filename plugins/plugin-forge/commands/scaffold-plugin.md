@@ -65,6 +65,7 @@ Validate the result before reporting completion:
 
 ```bash
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-release-readiness.sh
 claude plugin validate ./plugins/<new-plugin-name> --strict
 ```
 

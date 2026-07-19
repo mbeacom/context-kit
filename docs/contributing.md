@@ -30,6 +30,8 @@ for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin 
 pre-commit run --all-files
 
 # Run the aggregate catalog gate and its regression/smoke tests
+bash plugins/plugin-forge/scripts/check-release-readiness.sh
+bash plugins/plugin-forge/scripts/test-release-readiness.sh
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 
@@ -43,8 +45,9 @@ cd plugins/local-rag && uv run --group dev pytest -q
 ```
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
-every plugin, `pre-commit` (including the catalog-quality checks), and the
-`local-rag` pytest suite plus all focused standard-library suites above.
+every plugin, `pre-commit` (including release-readiness and catalog-quality
+checks), and the `local-rag` pytest suite plus all focused standard-library
+suites above.
 
 ## Build the docs locally
 
@@ -73,7 +76,9 @@ The `main` branch deploys to GitHub Pages automatically via
   characters.
 - **Versioning** — bump `version` in `plugin.json` to ship updates (Claude Code
   uses it as the cache key). Bump the matching `apm.yml` `version` in lockstep;
-  `plugin-forge`'s `check-manifests.sh` enforces this.
+  `plugin-forge`'s `check-manifests.sh` enforces this. Add the same version as the
+  top release in that plugin's `CHANGELOG.md`; the release-readiness gate enforces
+  the changelog and dependency graph invariants.
 - **Portability** — keep skill bodies host-neutral. Prefer `CONTEXT_KIT_*`
   environment variables in examples, with `CLAUDE_PLUGIN_*` documented as the
   Claude fallback. Keep marketplace mechanics in `.claude-plugin/` and Claude-only
@@ -86,3 +91,6 @@ The `main` branch deploys to GitHub Pages automatically via
 See [`CLAUDE.md`](https://github.com/mbeacom/context-kit/blob/main/CLAUDE.md) and
 [`.github/copilot-instructions.md`](https://github.com/mbeacom/context-kit/blob/main/.github/copilot-instructions.md)
 for the full contributor guide.
+
+See [Releasing plugins](releasing.md) for the maintainer release, tag, and
+recovery procedure.

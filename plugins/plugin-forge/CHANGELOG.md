@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 — 2026-07-19
+
+- Add a deterministic release-readiness gate with hermetic regression tests. It
+  validates shipped catalog sources and release assets, manifest metadata,
+  manifest-to-changelog version alignment, and matching direct/transitive
+  dependency graphs across `plugin.json` and `apm.yml`.
+- Wire the gate and tests through pre-commit/CI, and document the forward-only
+  per-plugin tag and GitHub release process with fix-forward recovery guidance.
+
 ## 0.3.0 — 2026-07-18
 
 - Add a deterministic, Python-stdlib catalog quality gate that enforces the

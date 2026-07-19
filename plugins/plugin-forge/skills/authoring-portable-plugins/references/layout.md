@@ -56,9 +56,11 @@ Run the smallest checks that cover the plugin being changed:
 ```bash
 claude plugin validate ./plugins/<name> --strict
 bash plugins/plugin-forge/scripts/check-manifests.sh
+bash plugins/plugin-forge/scripts/check-release-readiness.sh
 bash plugins/plugin-forge/scripts/check-skills.sh
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
+bash plugins/plugin-forge/scripts/test-release-readiness.sh
 pre-commit run --all-files
 ```
 
@@ -72,4 +74,5 @@ bash /path/to/plugin-forge/scripts/check-manifests.sh /path/to/context-kit/plugi
 
 Use `pre-commit run --all-files` before a full PR because it covers markdownlint,
 shellcheck, repo hygiene, manifest + skill-frontmatter checks, aggregate catalog
-quality, and the hermetic workflow smoke test.
+quality, release readiness, regression tests, and the hermetic workflow smoke
+test.
