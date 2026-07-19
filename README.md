@@ -21,6 +21,11 @@ ships eleven plugins.
 📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
 guides, architecture, and a page for every plugin.
 
+Start with the task-oriented [cookbook](docs/cookbook.md), review
+[security and trust boundaries](docs/security.md), or diagnose first-run and
+lifecycle problems in [troubleshooting](docs/troubleshooting.md). Vulnerability
+reports follow the root [security policy](SECURITY.md).
+
 All three hosts install the same plugins directly from one marketplace — GitHub
 Copilot CLI via `copilot plugin`, APM via `apm install`, and Claude Code via
 `/plugin` — no manual copying of skill folders. The catalog ships in Claude Code's
