@@ -49,7 +49,10 @@ Keep `plugin.json` and `apm.yml` aligned every time a plugin ships:
   `microsoft/apm#2189` is treated as unreleased for this repo.
 
 Run `${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh` from any working directory
-to catch `name` or `version` drift across all plugins.
+to catch `name` or `version` drift across all plugins, and
+`${CLAUDE_PLUGIN_ROOT}/scripts/check-skills.sh` to catch skill/agent discovery
+frontmatter problems (a missing/oversized `description`, or a `name` that does
+not match its directory or file). Both run in pre-commit and CI.
 
 ## Component layout
 
@@ -66,6 +69,11 @@ Use kebab-case for plugin names, skill directories, command files, agent files,
 and scripts. Prefer a few well-scoped skills with reference files over many tiny
 skills; always-on skill metadata has a context cost.
 
+Give every `SKILL.md` and `agents/*.md` a `name` that matches its directory or
+file and a `description` that starts with a trigger ("Use when …", "Use to …").
+GitHub Copilot and Claude Code both decide when to load a component from those
+two fields, so `check-skills.sh` enforces them.
+
 ## Portability rules
 
 Write reusable bodies for GitHub Copilot, APM, and Claude Code rather than for a
@@ -74,6 +82,9 @@ single host. Use these conventions:
 - Prefer portable environment variables named `CONTEXT_KIT_*`; document
   `CLAUDE_PLUGIN_*` as the Claude fallback when needed. For example,
   `CONTEXT_KIT_DATA` can fall back to `CLAUDE_PLUGIN_DATA`.
+- Put shared, host-neutral project memory in a root `AGENTS.md` — the cross-tool
+  project-memory convention — and let `CLAUDE.md` and
+  `.github/copilot-instructions.md` point to it and add only host-specific notes.
 - Use `${CLAUDE_PLUGIN_ROOT}` for paths to scripts or bundled resources inside a
   plugin. Do not hardcode install locations or rely on the current working
   directory.
@@ -115,4 +126,5 @@ to wire the catalog entry.
 - Use `/scaffold-plugin <new-plugin-name> "short description"` to create a
   standard starter under `plugins/<name>/` without adding it to the catalog.
 - Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh` to validate manifest
-  drift across the repository.
+  drift, and `bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-skills.sh` to validate
+  skill/agent discovery frontmatter, across the repository.

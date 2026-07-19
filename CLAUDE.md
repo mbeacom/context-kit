@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Shared, host-neutral rules live in [`AGENTS.md`](AGENTS.md); this file adds Claude-specific detail (hooks, `${CLAUDE_PLUGIN_*}`, RTK) on top of them.
+
 ## What this repo is
 
 `context-kit` is a **Claude Code plugin marketplace** and a
@@ -9,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 catalog of plugins/skills for **context engineering** — getting the right
 information in front of an agent and keeping the wrong information out. Its spine
 is organized around **retrieval modalities** — complementary ways an agent finds
-information (lexical, structural, structured-data, history, semantic/RAG, graph),
+information (lexical, structural, code-intelligence, structured-data, history, semantic/RAG, graph),
 selected by what's known about the query and corpus, and composed together —
 surrounded by plugins for orchestration, steering, verification, and authoring.
 See `docs/ARCHITECTURE.md` for the modality model and `docs/GITHUB_COPILOT.md` for
@@ -57,16 +59,19 @@ Copilot setup notes.
   per-claim verdicts with `file:line` evidence. Declares
   `dependencies: ["retrieval-core"]`.
 - `plugin-forge` — authoring toolkit for portable plugins: the
-  `authoring-portable-plugins` skill, a `/scaffold-plugin` command, and
-  `scripts/check-manifests.sh` (fails on `plugin.json` ⇆ `apm.yml` name/version
-  drift; run it in CI-style checks).
+  `authoring-portable-plugins` skill, a `/scaffold-plugin` command, and two
+  validators — `scripts/check-manifests.sh` (fails on `plugin.json` ⇆ `apm.yml`
+  name/version drift) and `scripts/check-skills.sh` (fails on malformed
+  skill/agent discovery frontmatter). Both run in pre-commit and CI.
 
 ## Commands
 
 - Validate one plugin: `claude plugin validate ./plugins/<name> --strict`
 - Validate all plugins:
   `for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin validate "$p" --strict; done`
-- Lint everything (markdownlint + shellcheck + hygiene): `pre-commit run --all-files`
+- Lint everything (markdownlint + shellcheck + hygiene + manifest/skill checks): `pre-commit run --all-files`
+- Check manifest sync and skill discovery frontmatter directly:
+  `bash plugins/plugin-forge/scripts/check-manifests.sh` · `bash plugins/plugin-forge/scripts/check-skills.sh`
 - Smoke-test the APM path (needs the `apm` CLI): from a clone,
   `apm marketplace add ./ --name ps` then, in a scratch dir,
   `apm install code-search@ps --target claude` — verify it deploys both

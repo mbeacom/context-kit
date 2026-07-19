@@ -20,6 +20,7 @@ hosts.
 | --------------- | ---------------------------------- | ------------------------------------------- |
 | Lexical         | `rg`, `fd`                         | the exact token / regex / filename          |
 | Structural      | `ast-grep`, `semgrep`              | the code *shape*, not the literal text      |
+| Code-intel.     | LSP, `global`, `ctags`             | the *symbol* — its defs / refs / callers    |
 | Structured-data | `jq`, `yq`, `gron`                 | the *schema* (JSON / YAML / config)         |
 | History         | `git log -S/-G/-L`, `difftastic`   | *when / why* something changed              |
 | Data files      | `duckdb`, `sqlite-utils`           | tabular corpora (CSV / Parquet / JSON)      |
@@ -37,13 +38,13 @@ RAG surfaces regions → `rg` pins exact lines.
 | Plugin           | Status   | Purpose                                                    |
 | ---------------- | -------- | ---------------------------------------------------------- |
 | `retrieval-core` | shipped  | Routing agent + decision-flow skill (the spine)            |
-| `code-search`    | shipped  | Lexical/structural/data/history/rewrite/metrics/doc search |
+| `code-search`    | shipped  | Lexical/structural/code-intel/data/history/rewrite/metrics/doc search |
 | `local-rag`      | shipped  | Local semantic RAG: `bin/rag` CLI (turbovec + ollama)      |
 | `obsidian`       | shipped  | Skill-only RAG bridge: vault graph/tags → `rag query --allowlist` |
 | `plan-execute`   | shipped  | Plan-big/execute-small orchestration: planner + cheap `execution-worker` |
-| `context-steering` | shipped | Skill-only: place guidance at the cheapest layer (memory/rules/skills/subagents/hooks) |
+| `context-steering` | shipped | Skill-only: place guidance at the cheapest layer (memory/rules/skills/subagents/mcp/hooks) |
 | `verify`         | shipped  | Read-only `verifier` subagent + `verify-before-trust` skill; per-claim verdicts |
-| `plugin-forge`   | shipped  | Author portable plugins: skill + `/scaffold-plugin` + manifest-drift validator |
+| `plugin-forge`   | shipped  | Author portable plugins: skill + `/scaffold-plugin` + manifest & skill-frontmatter validators |
 
 `code-search` and `verify` declare `dependencies: ["retrieval-core"]`.
 `local-rag` and `obsidian` pair: the obsidian bridge produces candidate note paths
@@ -61,6 +62,7 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
   (turbovec's native allowlist).
 - **Scope then search** — graph backlinks/tags bound a subgraph → RAG within it.
 - **Find then pin** — RAG surfaces `path > heading` regions → `rg` pins exact lines.
+- **Resolve then pin** — code-intelligence (LSP/`global`) returns the true symbol defs/refs → `rg` pins the exact lines.
 
 `local-rag` keeps everything local: ollama for embeddings, turbovec for the index
 (persisted under `${CONTEXT_KIT_DATA}` or, in Claude Code,

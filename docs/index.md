@@ -31,7 +31,7 @@ right information in front of your agent, and keep the wrong information out.
 `context-kit` is a context-engineering plugin pack for **GitHub Copilot CLI**,
 **APM** (Agent Package Manager), and [Claude Code](https://code.claude.com). Its
 spine is a set of complementary **retrieval modalities** — lexical, structural,
-structured-data, history, semantic (RAG), and graph — plus a routing agent that
+code-intelligence, structured-data, history, semantic (RAG), and graph — plus a routing agent that
 picks and composes them. Everything runs **locally**; the RAG layer keeps your
 corpus on your machine.
 
@@ -132,6 +132,7 @@ and your first search.
 | --- | --- | --- |
 | an exact token / regex / filename | lexical | `rg -t py 'def login'` · `fd -e ts` |
 | the code *shape*, not the text | structural | `sg -p 'logger.debug($$$)' --lang js` |
+| the *symbol* — its defs / refs / callers | code-intelligence | `global -xr parseConfig` · `ctags -R` |
 | a JSON/YAML schema path | structured-data | `jq '.scripts' package.json` |
 | *when / why* code changed | history | `git log -S'retry' -- src/` |
 | only the *meaning / intent* | semantic (RAG) | `rag query "how do we handle backoff" --name notes` |
