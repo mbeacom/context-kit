@@ -68,6 +68,12 @@ use `CLAUDE_PLUGIN_ROOT` as the plugin-root fallback.
     credentials or networks, or start descendants. Host-level command policy is a
     separate layer; this plugin does not claim universal host-level enforcement.
 
+## Integration boundary
+
+The [continuity integration test](../ARCHITECTURE.md#tested-verification-to-continuity-boundary)
+runs this real entry point, then explicitly compiles selected report provenance
+into a handoff. Runtime reports are never ingested automatically.
+
 ## At a glance
 
 | | |

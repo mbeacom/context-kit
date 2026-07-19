@@ -68,6 +68,31 @@ that feed `local-rag`'s hybrid `--allowlist` search. Obsidian *authoring*
 [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills) and the
 official `obsidian` CLI for that.
 
+## Tested verification-to-continuity boundary
+
+`tests/integration/test_continuity_stack.py` exercises the real standard-library
+entry points in a temporary local Git repository, with no network and memory's
+provider set to `none`. It proves this boundary:
+
+1. `runtime-evidence` runs one exact allowlist ID and emits bounded report,
+   stdout, and stderr artifacts with the allowlist digest.
+2. A human or agent explicitly compiles relevant report provenance into a
+   `context-kit/handoff-v1` artifact. There is no automatic runtime-report
+   ingestion or hidden artifact coupling.
+3. `context-handoff` accepts matching identity/freshness anchors, rejects a
+   repository mismatch, and reports stale HEAD/base anchors after the repository
+   advances.
+4. `memory` archives the still-current handoff verbatim, captures an accepted
+   record sourced from that archive in local mode, and recalls it with review,
+   freshness, source, and source-integrity labels.
+5. After repository state advances, the handoff validator remains authoritative.
+   Recalled memory stays historical and neither rewrites the handoff nor replaces
+   current repository evidence.
+
+The suite tests composition of the implemented CLI contracts. It does not add an
+automatic pipeline between plugins: verification verdicts, evidence selection,
+handoff compilation, and archival remain explicit workflow steps.
+
 ## Composition in practice
 
 The modalities are layers, not rivals — `retrieval-core` sequences them:

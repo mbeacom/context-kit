@@ -207,6 +207,7 @@ bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
+python3 -m unittest discover -s tests/integration -p 'test_*.py'
 
 # Run the local-rag Python tests
 cd plugins/local-rag && uv run --group dev pytest -q

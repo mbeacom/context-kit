@@ -30,9 +30,9 @@ repos:
     rev: v0.6.9
     hooks:
       - id: ruff
-        files: '^plugins/(local-rag|memory|runtime-evidence|context-handoff|plugin-forge)/.*\.py$'
+        files: '^(plugins/(local-rag|memory|runtime-evidence|context-handoff|plugin-forge)|tests/integration)/.*\.py$'
       - id: ruff-format
-        files: '^plugins/(local-rag|memory|runtime-evidence|context-handoff|plugin-forge)/.*\.py$'
+        files: '^(plugins/(local-rag|memory|runtime-evidence|context-handoff|plugin-forge)|tests/integration)/.*\.py$'
 
   - repo: local
     hooks:

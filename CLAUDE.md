@@ -101,14 +101,15 @@ Copilot setup notes.
 - Run the stdlib plugin tests:
   `python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'` ·
-  `python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'`
+  `python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'` ·
+  `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
 - Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including catalog gates), and the `local-rag` pytest
-suite plus the runtime-evidence, context-handoff, and memory standard-library
-suites.
+suite plus the runtime-evidence, context-handoff, memory, and cross-plugin
+standard-library suites.
 
 ## Conventions when modifying this repo
 
