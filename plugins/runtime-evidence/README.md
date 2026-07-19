@@ -29,7 +29,8 @@ Claude Code:
 ```
 
 The plugin depends on `verify`; `verify` already pulls the `retrieval-core`
-spine.
+spine. The runner requires Python 3 on a POSIX platform. Windows receives a
+structured refusal before the allowlist is read or a command is spawned.
 
 ## Components
 

@@ -122,7 +122,8 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
 (required for `local-rag`); the rest optional. Run
 `plugins/code-search/scripts/check-tools.sh` from a clone to see the gaps.
 Python 3 is required for the stdlib `runtime-evidence` runner and
-`context-handoff` validator.
+`context-handoff` validator. The runtime runner requires POSIX and refuses
+Windows before execution; the handoff validator is cross-platform.
 
 ## For maintainers
 

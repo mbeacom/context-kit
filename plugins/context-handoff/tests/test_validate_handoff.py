@@ -114,14 +114,38 @@ class FreshnessTests(unittest.TestCase):
         self.assertIn("head stale", stale[0])
 
     def test_path_uses_environment_override(self) -> None:
-        with patch.dict(
-            os.environ,
-            {"CONTEXT_KIT_HANDOFF_PATH": "state/custom.md"},
-            clear=False,
-        ):
-            path = validate_handoff.resolve_path(None)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".git").mkdir()
+            nested = root / "packages" / "app"
+            nested.mkdir(parents=True)
+            with patch.dict(
+                os.environ,
+                {"CONTEXT_KIT_HANDOFF_PATH": "state/custom.md"},
+                clear=False,
+            ):
+                path = validate_handoff.resolve_path(None, start=nested)
 
-        self.assertEqual(Path("state/custom.md"), path)
+        self.assertEqual((root / "state" / "custom.md").resolve(), path)
+
+    def test_explicit_relative_path_uses_repository_root(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".git").write_text("gitdir: elsewhere\n", encoding="utf-8")
+            nested = root / "packages" / "app"
+            nested.mkdir(parents=True)
+
+            path = validate_handoff.resolve_path("handoffs/task.md", start=nested)
+
+        self.assertEqual((root / "handoffs" / "task.md").resolve(), path)
+
+    def test_relative_path_falls_back_to_start_without_repository(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            start = Path(directory)
+
+            path = validate_handoff.resolve_path("handoff.md", start=start)
+
+        self.assertEqual((start / "handoff.md").resolve(), path)
 
 
 class MainTests(unittest.TestCase):

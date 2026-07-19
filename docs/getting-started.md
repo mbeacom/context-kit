@@ -114,8 +114,10 @@ other external state; allowlisting does not prove it has no side effects.
     ---
 
     `runtime-evidence` and `context-handoff` require Python 3. Both use only the
-    standard library. Runtime evidence also requires a user-owned exact-ID JSON
-    allowlist; handoffs default to `.context-kit/handoff.md`.
+    standard library. The runtime runner requires POSIX and refuses Windows
+    before execution; the handoff validator is cross-platform. Runtime evidence
+    also requires a user-owned exact-ID JSON allowlist; handoffs default to
+    `.context-kit/handoff.md`.
 
 </div>
 

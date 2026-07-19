@@ -101,9 +101,10 @@ skills expect:
 - Required for `local-rag`: `uv`, `ollama`, and an embedding model such as
   `nomic-embed-text`.
 - Required for `runtime-evidence` and `context-handoff`: Python 3. Their runner
-  and validator use only the standard library. Copilot does not provide universal
-  host-level command enforcement; runtime collection remains bound to the
-  plugin's reviewed exact-ID allowlist.
+  and validator use only the standard library. The runtime runner requires POSIX
+  and refuses Windows before execution; the handoff validator is cross-platform.
+  Copilot does not provide universal host-level command enforcement; runtime
+  collection remains bound to the plugin's reviewed exact-ID allowlist.
 - Optional for `obsidian-rag-bridge`: the official `obsidian` CLI with Obsidian
   running; otherwise use the `rg`/`fd` fallback over vault files.
 

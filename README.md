@@ -104,7 +104,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 | **plan-execute** | Plan-big/execute-small **orchestration**: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a strategy skill (`CLAUDE_CODE_SUBAGENT_MODEL` + delegation prompt, and how `/advisor` differs), a `/plan-big-execute-small` command, a bundled Workflow, and an `execution-worker` subagent. |
 | **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |
 | **verify** | **Verification and impact**: a read-only `verifier`, `verify-before-trust`, and prospective `change-impact` skill plus `/analyze-impact`. Checks claims and maps blast radius without editing or executing. Composes with `retrieval-core`; `plan-execute` is optional for broad read-only coverage, not a dependency. |
-| **runtime-evidence** | **Controlled observation**: escalates only runtime claims left `unable-to-check` by static verification. A Python 3 stdlib runner executes exact argv from a user-owned exact-ID JSON allowlist without shell parsing, requires an absolute cwd, caps time and each output stream, and writes report/stdout/stderr artifacts. Allowlisting constrains selection; it does not prove an executable has no side effects. |
+| **runtime-evidence** | **Controlled observation**: escalates only runtime claims left `unable-to-check` by static verification. A POSIX-only Python 3 stdlib runner executes exact argv from a user-owned exact-ID JSON allowlist without shell parsing, requires an absolute cwd, caps time and each output stream, and writes report/stdout/stderr artifacts. Windows is refused before execution. Allowlisting constrains selection; it does not prove an executable has no side effects. |
 | **context-handoff** | **Session continuity**: manual-first `/write-handoff` and `/resume-handoff`, a read-only compiler, and a deterministic Python 3 validator for bounded task state. Defaults to `.context-kit/handoff.md` or `CONTEXT_KIT_HANDOFF_PATH`; detects invalid, mismatched, and stale state. v0.1 has no lifecycle hooks or automatic RAG ingestion. |
 | **plugin-forge** | **Authoring quality**: portable-plugin conventions, `/scaffold-plugin`, manifest and discovery checks, a 4096-character aggregate discovery budget, overlap/fixture/agent-contract checks, regression tests, and a mocked no-network workflow smoke test. Static fixtures check catalog hygiene, not model routing. |
 
@@ -126,7 +126,9 @@ The skills degrade gracefully and tell you what's missing.
   path via `CONTEXT_KIT_OBSIDIAN_VAULT` (GitHub Copilot, APM, or manual usage) or
   the Claude plugin config (`vault_path`).
 - **runtime-evidence** and **context-handoff** — need Python 3 for their
-  standard-library runner and deterministic validator.
+  standard-library runner and deterministic validator. The runtime runner
+  requires POSIX and refuses Windows before execution; the handoff validator is
+  cross-platform.
 
 ## Usage
 

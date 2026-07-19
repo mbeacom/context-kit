@@ -2,6 +2,7 @@
 name: runtime-evidence
 description: "Use when a runtime claim remains unable-to-check after static verification and a reviewed command ID can collect bounded dynamic evidence."
 license: MIT
+compatibility: "Requires Python 3 on a POSIX platform. Windows is refused before execution because bounded non-blocking pipe capture is unavailable."
 metadata:
   author: Mark Beacom
   version: "0.1.0"
@@ -14,6 +15,9 @@ Collect dynamic evidence only after static verification reaches
 `unable-to-check` for a runtime claim. Keep verdict assignment in `verify`;
 produce a controlled observation package that lets the verifier confirm, refute,
 qualify, or retain that verdict.
+
+Run the deterministic wrapper only on POSIX platforms. On Windows it returns a
+structured refusal before reading the allowlist or spawning a command.
 
 Treat execution as an escalation, not a default search technique. Prefer code,
 config, tests, and other static primary evidence when those sources settle the

@@ -48,9 +48,27 @@ PLACEHOLDER_RE = re.compile(r"\{\{[^{}\n]+\}\}")
 LIST_ITEM_RE = re.compile(r"^(?:[-*+] |\d+[.)] )")
 
 
-def resolve_path(argument: str | None, environ: Mapping[str, str] = os.environ) -> Path:
+def _find_repository_root(start: Path) -> Path | None:
+    current = start.resolve()
+    for candidate in (current, *current.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
+def resolve_path(
+    argument: str | None,
+    environ: Mapping[str, str] = os.environ,
+    start: Path | None = None,
+) -> Path:
     value = argument or environ.get("CONTEXT_KIT_HANDOFF_PATH") or DEFAULT_PATH
-    return Path(value)
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path.resolve()
+
+    current = (start or Path.cwd()).resolve()
+    base = _find_repository_root(current) or current
+    return (base / path).resolve()
 
 
 def _unquote(value: str) -> str:
@@ -225,7 +243,7 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="?",
         help=(
             "Artifact path. Defaults to CONTEXT_KIT_HANDOFF_PATH, then "
-            f"{DEFAULT_PATH}."
+            f"{DEFAULT_PATH}. Relative paths resolve from the nearest repository root."
         ),
     )
     for field in (*IDENTITY_FIELDS, *FRESHNESS_FIELDS):

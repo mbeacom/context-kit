@@ -1,5 +1,11 @@
 # Runner Contract
 
+## Platform support
+
+Run the wrapper with Python 3 on a POSIX platform. It refuses Windows before
+reading the allowlist or spawning a process because Python's selector-backed
+non-blocking pipe capture is not portable to Windows.
+
 ## Configuration
 
 Store the JSON config in a user-controlled location, not inside the installed

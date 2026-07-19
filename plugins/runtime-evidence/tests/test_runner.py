@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
@@ -8,9 +9,14 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 RUNNER = PLUGIN_ROOT / "scripts" / "run-evidence-command.py"
+SPEC = importlib.util.spec_from_file_location("run_evidence_command", RUNNER)
+assert SPEC is not None and SPEC.loader is not None
+run_evidence_command = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(run_evidence_command)
 
 
 class RunnerTests(unittest.TestCase):
@@ -74,6 +80,42 @@ class RunnerTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("not allowlisted", result.stderr)
+        self.assertFalse(self.artifacts.exists())
+
+    def test_refuses_non_posix_platform(self) -> None:
+        with self.assertRaisesRegex(
+            run_evidence_command.Refusal,
+            "requires a POSIX platform",
+        ):
+            run_evidence_command._validate_platform("nt")
+
+    def test_main_returns_structured_refusal_for_unsupported_platform(self) -> None:
+        refusal = run_evidence_command.Refusal("unsupported platform")
+        with (
+            patch.object(
+                run_evidence_command,
+                "_validate_platform",
+                side_effect=refusal,
+            ),
+            patch("builtins.print") as print_mock,
+        ):
+            result = run_evidence_command.main(
+                [
+                    "--command-id",
+                    "approved",
+                    "--claim",
+                    "claim",
+                    "--environment-label",
+                    "test",
+                    "--cwd",
+                    str(self.root),
+                    "--run-id",
+                    "unsupported-platform",
+                ]
+            )
+
+        self.assertEqual(2, result)
+        self.assertIn('"status": "refused"', print_mock.call_args.args[0])
         self.assertFalse(self.artifacts.exists())
 
     def test_propagates_nonzero_child_exit(self) -> None:

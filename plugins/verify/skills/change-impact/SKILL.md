@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: Mark Beacom
   version: "0.1.0"
-allowed-tools: Read Grep Glob Bash
+allowed-tools: Read Grep Glob
 ---
 
 # Change Impact

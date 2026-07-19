@@ -41,6 +41,14 @@ def _refuse(message: str) -> int:
     return 2
 
 
+def _validate_platform(platform_name: str) -> None:
+    if platform_name != "posix":
+        raise Refusal(
+            "runtime-evidence requires a POSIX platform because its bounded "
+            "non-blocking pipe capture is not supported on Windows"
+        )
+
+
 def _resolve_required_path(
     explicit: str | None,
     env_name: str,
@@ -365,6 +373,7 @@ def _parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
+        _validate_platform(os.name)
         config_path = _resolve_required_path(
             args.config, "CONTEXT_KIT_RUNTIME_EVIDENCE_CONFIG"
         )
