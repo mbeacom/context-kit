@@ -38,7 +38,7 @@ Claude Code:
 | **`scripts/check-manifests.sh`** | Validates every shipped plugin's `plugin.json` and sibling `apm.yml` have matching `name` and `version` fields. |
 | **`scripts/check-release-readiness.sh`** | Validates shipped catalog sources, release metadata/assets, latest changelog versions, and direct/transitive dependency graph parity. |
 | **`scripts/check-skills.sh`** | Validates each skill/agent's discovery frontmatter, name, trigger phrasing, and per-description length. |
-| **`scripts/check-catalog-quality.sh`** | Enforces the aggregate discovery budget, description distinctness, centralized fixture coverage, and explicit agent output contracts. |
+| **`scripts/check-catalog-quality.sh`** | Enforces the aggregate discovery budget, description distinctness, centralized fixture coverage, retrieval route/composition contracts, and explicit agent output contracts. |
 | **`scripts/test-catalog-quality.sh`** | Runs stdlib validator tests plus a mocked, no-network smoke test for the plan-big/execute-small workflow. |
 | **`scripts/test-release-readiness.sh`** | Runs hermetic release-readiness regression tests. |
 
@@ -60,9 +60,12 @@ bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-release-readiness.sh
 ```
 
-The policy and centralized positive/negative query fixtures live under
-`quality/`. Read
+The policy, centralized positive/negative discovery fixtures, and structured
+retrieval contract corpus live under `quality/`.
+`quality/retrieval-scenarios.json` covers every documented retrieval modality,
+non-retrieval route, and named composition with explicit corpus cues, expected
+plugins/tools/steps, and near misses. Read
 [`skills/authoring-portable-plugins/references/catalog-quality.md`](skills/authoring-portable-plugins/references/catalog-quality.md)
 before adding or substantially changing a skill or agent description. These
-static checks catch catalog hygiene regressions; they do not claim to prove how
-any particular model will route a prompt.
+static checks catch catalog and routing-contract regressions; they do not run or
+score a model and do not claim live routing accuracy.

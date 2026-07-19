@@ -91,6 +91,21 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
   repository provenance; resume rejects identity mismatches and reverifies stale
   claims before acting.
 
+## Deterministic retrieval contracts
+
+Plugin Forge validates the routing model above against
+`plugins/plugin-forge/quality/retrieval-scenarios.json`. The schema-v1 corpus
+declares route ownership and tools, named composition step variants, and stable
+scenarios with query/corpus cues, expected primary routes, participating
+plugins/tools, rationales, and near misses.
+
+The blocking gate requires all 11 modalities, the handoff/verification/runtime
+evidence non-retrieval routes, and all nine compositions to remain represented.
+It rejects stale cross-plugin/tool references and composition-step drift. This is
+contract and coverage validation only: no model runs in CI, and passing does not
+measure routing accuracy. Future scheduled live-model evaluation can consume the
+same stable corpus and store probabilistic trend results separately.
+
 `local-rag` keeps everything local: ollama for embeddings, turbovec for the index,
 and SQLite FTS5/BM25 for opt-in hybrid rank fusion
 (persisted under `${CONTEXT_KIT_DATA}` or, in Claude Code,

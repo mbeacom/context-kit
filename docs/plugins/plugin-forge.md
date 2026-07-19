@@ -37,9 +37,10 @@
 | **`scripts/check-manifests.sh`** | Validates every shipped plugin's `plugin.json` and sibling `apm.yml` have matching `name` and `version` fields. |
 | **`scripts/check-release-readiness.sh`** | Validates shipped catalog sources, release metadata/assets, latest changelog versions, and direct/transitive dependency graph parity. |
 | **`scripts/check-skills.sh`** | Checks skill/agent discovery frontmatter, names, trigger phrasing, and per-description limits. |
-| **`scripts/check-catalog-quality.sh`** | Enforces the 4096-character aggregate discovery budget, description-overlap policy, centralized fixture coverage, and agent output contracts. |
+| **`scripts/check-catalog-quality.sh`** | Enforces the 4096-character aggregate discovery budget, description-overlap policy, centralized fixture coverage, retrieval route/composition contracts, and agent output contracts. |
 | **`scripts/test-catalog-quality.sh`** | Runs stdlib regression tests and a mocked, no-network plan-execute workflow smoke test. |
 | **`scripts/test-release-readiness.sh`** | Runs hermetic release-readiness regression tests. |
+| **`quality/retrieval-scenarios.json`** | Schema-v1 contract corpus for documented retrieval modalities, non-retrieval routes, composition steps, plugin/tool references, and near misses. |
 
 ## Use it in this repo
 
@@ -82,11 +83,29 @@ shipped source and dependency path, checks required metadata and assets, require
 the manifest version to be the latest changelog release, and compares both direct
 and transitive dependency graphs.
 
+The retrieval corpus is a separate contract from component discovery fixtures.
+Each stable scenario declares a query and corpus cues, its expected primary
+route, participating plugins and tools, exact named composition steps when
+needed, a rationale, and at least one realistic near miss. The gate requires
+coverage of all 14 routes (11 modalities plus handoff, verification, and
+runtime-evidence escalation) and all nine named compositions.
+
 !!! warning "Static fixtures are not routing proof"
-    Fixture validation proves coverage and basic hygiene, not that a model will
-    route a prompt correctly. The workflow smoke test injects mocked agents and
-    blocks network access; it checks orchestration shape, not live-model behavior.
-    Scheduled, non-blocking live-model routing evaluations remain future work.
+    Discovery fixture and retrieval contract validation proves coverage,
+    reference integrity, and basic hygiene, not that a model will route a prompt
+    correctly. The workflow smoke test injects mocked agents and blocks network
+    access; it checks orchestration shape, not live-model behavior.
+
+To add a retrieval scenario, choose the route or composition boundary, add a
+unique kebab-case ID with concrete corpus cues, copy a declared composition step
+variant exactly when applicable, list only participating plugins and declared
+tools, and add a near miss that crosses the boundary. Run the two catalog-quality
+commands above.
+
+Future scheduled live-model evaluation can consume the stable IDs, queries,
+cues, expected selections, and near misses while recording provider/model
+observations separately. Keep that probabilistic job credentialed, rate-limited,
+and non-blocking; deterministic contracts remain the pull-request gate.
 
 ## At a glance
 

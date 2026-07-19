@@ -39,6 +39,12 @@ porting.
      `verify-before-trust` before relying on it.
    - **Retrieve then expand** — follow bounded cue/neighbor/source links only
      when the compact result is insufficient.
+   - **Verify then observe** — `verify-before-trust` first; only an
+     `unable-to-check` runtime claim escalates through `runtime-evidence`'s
+     exact-ID allowlisted runner, then returns bounded observations for a final
+     verdict.
+   - **Verify then hand off** — `verify-before-trust` establishes
+     provenance-backed facts before `context-handoff` compiles proven task state.
    - For hybrid retrieval, emit candidate file paths (lexical/graph) and pipe to `rag query --allowlist -`.
 5. Stop when you can answer; report the answer, the exact locations
    (`path:line`), and the strategy/tools you used.
@@ -48,6 +54,9 @@ porting.
 - Read-only: never Write or Edit. You investigate and report.
 - Semantic (`local-rag`), graph (`obsidian`), and durable memory (`memory`) ship
   as separate plugins and may be absent. Do not fabricate their tools.
+- Verification, runtime evidence, and handoff are separate plugins and may be
+  absent. Recommend the route when warranted; do not fabricate unavailable agents
+  or commands.
 - Use `context-handoff`, not durable memory, for authoritative current task state.
 - Memory and RAG output are candidates. Preserve source/freshness labels and
   prefer current repository/runtime evidence when claims conflict.

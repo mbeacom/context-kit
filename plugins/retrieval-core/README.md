@@ -12,6 +12,19 @@ Durable memory is for prior decisions, constraints, procedures, preferences, and
 bounded episodes. Current task state still belongs in `context-handoff`, and
 memory/RAG results must be pinned to current evidence before they drive work.
 
+## Deterministic routing contracts
+
+The repository keeps the documented decision surface executable as static data
+in `plugins/plugin-forge/quality/retrieval-scenarios.json`. The corpus covers all
+11 retrieval modalities, the handoff/verification/runtime-evidence
+non-retrieval routes, and all nine named compositions with explicit query and
+corpus cues, expected plugins/tools/steps, and near misses.
+
+Plugin Forge validates schema, coverage, and cross-plugin references in
+pre-commit and CI. It does not invoke a model or claim that a provider will route
+the scenarios correctly. The same stable scenario IDs can seed future scheduled,
+non-blocking live-model trend evaluation.
+
 Get it automatically by installing `code-search` — or install it standalone.
 
 GitHub Copilot CLI:

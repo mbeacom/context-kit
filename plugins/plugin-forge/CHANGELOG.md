@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 — 2026-07-19
+
+- Add a schema-v1 retrieval contract corpus covering all documented modalities,
+  non-retrieval routes, named compositions, cross-plugin/tool references, and
+  realistic near misses.
+- Extend the existing deterministic catalog-quality validator and regression
+  suite with route/composition coverage, referential integrity, exact step
+  contract and per-variant coverage, and scenario-hygiene checks.
+- Document contributor workflow and the boundary between blocking static
+  contracts and future scheduled, non-blocking live-model routing evaluation.
+
 ## 0.4.0 — 2026-07-19
 
 - Add a deterministic release-readiness gate with hermetic regression tests. It

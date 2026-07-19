@@ -4,7 +4,7 @@ description: "Use when creating a new plugin (or editing one) for a multi-host G
 license: MIT
 metadata:
   author: Mark Beacom
-  version: "0.1.0"
+  version: "0.5.0"
 allowed-tools: Read Bash
 ---
 
@@ -56,7 +56,10 @@ not match its directory or file). Run
 `${CLAUDE_PLUGIN_ROOT}/scripts/check-catalog-quality.sh` for cross-catalog checks:
 the aggregate always-on description budget, dangerously similar trigger
 descriptions, centralized positive/negative fixture coverage, and explicit agent
-output-contract markers. All run in pre-commit and CI.
+output-contract markers. The same gate validates the schema-versioned retrieval
+scenario corpus: complete documented route/composition coverage, known plugin
+and tool references, exact composition steps, and realistic near misses. All run
+in pre-commit and CI.
 Run `${CLAUDE_PLUGIN_ROOT}/scripts/check-release-readiness.sh` to ensure every
 shipped catalog source is complete, its manifest version is the latest changelog
 release, and its `plugin.json` and `apm.yml` dependency closures agree.
@@ -133,7 +136,8 @@ shipped update before asking the parent repo to wire the catalog entry.
 - Read `references/layout.md` for the canonical tree, marketplace entry shape,
   and validation commands.
 - Read `references/catalog-quality.md` for the deterministic description-budget,
-  similarity, fixture, output-contract, and workflow-smoke-test policies.
+  similarity, fixture, retrieval-contract, output-contract, and
+  workflow-smoke-test policies.
 - Use `/scaffold-plugin <new-plugin-name> "short description"` to create a
   standard starter under `plugins/<name>/` without adding it to the catalog.
 - Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh` to validate manifest
