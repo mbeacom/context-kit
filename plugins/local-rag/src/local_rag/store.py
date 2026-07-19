@@ -206,3 +206,6 @@ class MetaStore:
     def get_meta(self, key: str) -> str | None:
         r = self.db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
         return r["value"] if r else None
+
+    def close(self) -> None:
+        self.db.close()

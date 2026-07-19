@@ -230,3 +230,100 @@ def test_legacy_productivity_skills_embed_env_still_supported(
         "model": "legacy-model",
         "host": "http://legacy-host:11434",
     }
+
+
+def test_remove_requires_confirmation_and_preserves_index(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nkeep me\n")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(vault), "--name", "notes"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["remove", "--name", "notes"]) == 2
+    captured = capsys.readouterr()
+    assert "refusing" in captured.err
+    assert "--yes" in captured.err
+    assert (data / "indexes" / "notes" / "meta.sqlite").exists()
+    assert cli.main(["status", "--name", "notes"]) == 0
+
+
+def test_remove_deletes_named_index_and_updates_list_and_status(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nremove me\n")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(vault), "--name", "notes"]) == 0
+    assert cli.main(["index", str(vault), "--name", "keep"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["remove", "--name", "notes", "--yes"]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.startswith("removed=notes artifacts=")
+    assert not (data / "indexes" / "notes").exists()
+    assert (data / "indexes" / "keep" / "meta.sqlite").exists()
+
+    assert cli.main(["list"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["keep"]
+    assert cli.main(["status", "--name", "notes"]) == 1
+    assert "no index named 'notes'" in capsys.readouterr().err
+    assert cli.main(["status", "--name", "keep"]) == 0
+
+
+def test_remove_missing_index_fails_clearly(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(tmp_path / "data"))
+
+    assert cli.main(["remove", "--name", "missing", "--yes"]) == 1
+    assert "no index named 'missing'" in capsys.readouterr().err
+
+
+def test_remove_supports_corrupt_index_directory(tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    corrupt = data / "indexes" / "corrupt"
+    corrupt.mkdir(parents=True)
+    (corrupt / "index.tvim").write_text("broken")
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+
+    assert cli.main(["remove", "--name", "corrupt", "--yes"]) == 0
+    assert not corrupt.exists()
+    assert "removed=corrupt artifacts=1" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["remove", "--name", "../victim", "--yes"],
+        ["query", "text", "--name", "../victim"],
+        ["status", "--name", "../victim"],
+    ],
+)
+def test_commands_reject_path_traversal_names(argv, tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    victim = data / "victim"
+    victim.mkdir(parents=True)
+    sentinel = victim / "sentinel"
+    sentinel.write_text("preserve")
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+
+    with pytest.raises(SystemExit) as raised:
+        cli.main(argv)
+
+    assert raised.value.code == 2
+    assert "index name must" in capsys.readouterr().err
+    assert sentinel.read_text() == "preserve"
+
+
+def test_index_rejects_path_traversal_name(tmp_path, capsys):
+    with pytest.raises(SystemExit) as raised:
+        cli.main(["index", str(tmp_path), "--name", "../victim"])
+
+    assert raised.value.code == 2
+    assert "index name must" in capsys.readouterr().err

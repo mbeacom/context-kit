@@ -41,11 +41,27 @@ Index a corpus, then query it:
 rag index <path> --name X
 rag query "your question" --name X
 rag query "exact terms and intent" --name X --hybrid
+rag status --name X
+rag list
+rag remove --name X --yes
 ```
 
 Each named index is persisted under
 `${CONTEXT_KIT_DATA}/indexes/<name>/` (or `${CLAUDE_PLUGIN_DATA}` inside
 Claude Code), so queries are fast and survive across sessions.
+
+### Index lifecycle
+
+Index names are limited to 1–80 characters, must start with a letter or digit,
+may contain only letters, digits, `.`, `_`, or `-`, and cannot contain `..`.
+These rules apply consistently to `index`, `query`, `status`, and `remove`.
+
+`rag remove --name X --yes` permanently removes one named index. The command is
+non-interactive and refuses to run without `--yes`; missing indexes fail clearly.
+Removal first moves only the selected index out of the active namespace, then
+unlinks its flat artifact files without recursive directory deletion. Other
+indexes are untouched, and incomplete cleanup is reported with the quarantined
+artifact location rather than silently ignored.
 
 Portable environment variables:
 

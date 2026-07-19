@@ -60,11 +60,25 @@ rag index <path> --name notes        # build/update (incremental)
 rag query "your question" --name notes --k 8
 rag query "your question" --name notes --k 8 --hybrid
 rag status --name notes               # counts, model, dim
+rag list                              # known indexes
+rag remove --name notes --yes         # permanent, non-interactive removal
 ```
 
 Each named index is persisted under `${CONTEXT_KIT_DATA}/indexes/<name>/` (or
 `${CLAUDE_PLUGIN_DATA}` inside Claude Code), so queries are fast and survive across
 sessions.
+
+### Index lifecycle
+
+Index names are limited to 1–80 characters, start with a letter or digit, use
+only letters, digits, `.`, `_`, or `-`, and cannot contain `..`. The same
+validation protects `index`, `query`, `status`, and `remove`.
+
+`rag remove --name NAME --yes` permanently removes exactly one named index and
+never prompts. It refuses to run without `--yes`, fails clearly for missing
+indexes, and moves the selected index out of the active namespace before
+non-recursively unlinking its flat artifact files. Other indexes remain
+untouched; any incomplete cleanup reports the quarantined artifact location.
 
 ## Hybrid retrieval and scoping
 

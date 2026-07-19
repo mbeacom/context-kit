@@ -168,6 +168,8 @@ rag index /path/to/vault --name notes        # build/update (incremental)
 rag query "open questions about billing" --name notes --k 8
 rag query "open questions about billing" --name notes --k 8 --hybrid
 rag status --name notes                       # counts, model, dim
+rag list                                      # known indexes
+rag remove --name notes --yes                 # permanent; --yes is required
 ```
 
 **Hybrid retrieval (the payoff) — narrow with the graph/lexical, rerank with vectors:**

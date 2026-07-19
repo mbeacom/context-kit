@@ -7,6 +7,7 @@ from pathlib import Path
 from .embed import OllamaEmbedder
 from .index import VecIndex
 from .loaders.markdown import iter_corpus, load_markdown
+from .storage import ensure_index_dir
 from .store import MetaStore
 
 RRF_K = 60
@@ -55,12 +56,17 @@ def reciprocal_rank_fusion(
 class Engine:
     def __init__(self, name: str, data_dir, embedder=None):
         self.name = name
-        self.dir = Path(data_dir) / "indexes" / name
-        self.dir.mkdir(parents=True, exist_ok=True)
+        self.dir = ensure_index_dir(data_dir, name)
         self.embedder = embedder or OllamaEmbedder()
         self.store = MetaStore(self.dir / "meta.sqlite")
         self.store.init_schema()
         self.index_path = self.dir / "index.tvim"
+
+    def close(self) -> None:
+        try:
+            self.store.close()
+        finally:
+            self.embedder.close()
 
     def _dim(self) -> int:
         d = self.embedder.dim()

@@ -9,7 +9,7 @@
 # must be bootstrapped manually (same as GitHub Copilot). Config uses the
 # CONTEXT_KIT_* env vars, not Claude userConfig. See docs/APM.md.
 name: local-rag
-version: 0.2.0
+version: 0.3.0
 description: Fully-local semantic/hybrid RAG with ollama, turbovec, SQLite FTS5/BM25, and deterministic rank fusion.
 author: Mark Beacom
 license: MIT

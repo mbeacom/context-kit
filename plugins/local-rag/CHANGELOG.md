@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — 2026-07-19
+
+- Add automation-safe `rag remove --name NAME --yes` for permanent deletion of
+  obsolete or corrupt named indexes. Removal atomically leaves the active
+  namespace, unlinks only flat per-index artifacts without recursive deletion,
+  preserves sibling indexes, and reports partial cleanup locations.
+- Apply one safe 1–80 character index-name contract across `index`, `query`,
+  `status`, and `remove`; reject traversal and unsafe storage entries.
+- Close SQLite and embedder resources explicitly after CLI operations, and keep
+  removal quarantine entries out of `rag list`.
+
 ## 0.2.0 — 2026-07-19
 
 - Add opt-in `rag query --hybrid`, which fuses turbovec semantic and SQLite

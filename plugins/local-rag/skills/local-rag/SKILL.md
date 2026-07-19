@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Requires the bin/rag CLI (auto-bootstrapped via uv) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
 metadata:
   author: Mark Beacom
-  version: "0.2.0"
+  version: "0.3.0"
 allowed-tools: Bash(rag:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
 ---
 
@@ -36,11 +36,17 @@ rag query "how did we handle retry backoff" --name notes --k 8
 rag query "retry backoff" --name notes --k 8 --hybrid
 rag status --name notes                     # counts, model, dim, FTS5 capability
 rag list                                    # known indexes
+rag remove --name notes --yes               # permanently remove one named index
 ```
 
 Re-running `index` re-embeds only changed files (content hash). Results report
 `path > heading` + a snippet; JSON adds source offsets and retrieval-signal
 metadata. Follow up with `rg` to pin exact lines.
+
+`remove` is non-interactive and refuses to run without `--yes`. It accepts the
+same safe index names as `index`, `query`, and `status`, removes only that named
+index's flat artifact directory, and fails clearly when the index is missing or
+cleanup is incomplete.
 
 ## Hybrid retrieval (compose semantic + lexical modalities)
 
