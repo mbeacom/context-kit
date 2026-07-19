@@ -3,11 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sqlite3
 import sys
 from pathlib import Path
 
 from .embed import OllamaEmbedder
 from .engine import Engine, slug
+from .storage import list_indexes, remove_index, validate_index_name
 
 
 def _first_env(*names: str) -> str | None:
@@ -51,8 +53,15 @@ def _make_embedder(args):
 
 def _name_for(args, corpus=None) -> str:
     if getattr(args, "name", None):
-        return args.name
-    return slug(corpus) if corpus else "default"
+        return validate_index_name(args.name)
+    return validate_index_name(slug(corpus) if corpus else "default")
+
+
+def _index_name(value: str) -> str:
+    try:
+        return validate_index_name(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(str(error)) from error
 
 
 def _read_allowlist(value) -> list[str] | None:
@@ -64,8 +73,8 @@ def _read_allowlist(value) -> list[str] | None:
     return [ln.strip() for ln in lines if ln.strip()]
 
 
-def _index_exists(data: Path, name: str) -> bool:
-    return (data / "indexes" / name / "meta.sqlite").exists()
+def _missing_index(name: str) -> str:
+    return f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first."
 
 
 def main(argv=None) -> int:
@@ -75,14 +84,14 @@ def main(argv=None) -> int:
 
     pi = sub.add_parser("index")
     pi.add_argument("path")
-    pi.add_argument("--name")
+    pi.add_argument("--name", type=_index_name)
     pi.add_argument("--model")
     pi.add_argument("--include", action="append")
     pi.add_argument("--exclude", action="append")
 
     pq = sub.add_parser("query")
     pq.add_argument("text")
-    pq.add_argument("--name")
+    pq.add_argument("--name", type=_index_name)
     pq.add_argument("--model")
     pq.add_argument("--k", type=int, default=10)
     pq.add_argument("--allowlist")
@@ -94,28 +103,52 @@ def main(argv=None) -> int:
     pq.add_argument("--json", action="store_true")
 
     ps = sub.add_parser("status")
-    ps.add_argument("--name")
+    ps.add_argument("--name", type=_index_name)
     ps.add_argument("--model")
     sub.add_parser("list")
+
+    pr = sub.add_parser("remove")
+    pr.add_argument("--name", required=True, type=_index_name)
+    pr.add_argument(
+        "--yes",
+        action="store_true",
+        help="Confirm non-interactive, permanent removal of the named index.",
+    )
 
     args = p.parse_args(argv)
     data = _data_dir()
 
     if args.cmd == "list":
-        base = data / "indexes"
-        for d in sorted(base.glob("*")) if base.exists() else []:
-            print(d.name)
+        for name in list_indexes(data):
+            print(name)
+        return 0
+
+    if args.cmd == "remove":
+        if not args.yes:
+            print(
+                f"error: refusing to remove index '{args.name}' without --yes",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            removed = remove_index(data, args.name)
+        except (OSError, RuntimeError) as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 1
+        print(f"removed={args.name} artifacts={removed}")
         return 0
 
     if args.cmd == "index":
-        eng = Engine(_name_for(args, args.path), data, _make_embedder(args))
+        eng = None
         try:
+            eng = Engine(_name_for(args, args.path), data, _make_embedder(args))
             res = eng.index(args.path, args.include, args.exclude)
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
         finally:
-            eng.embedder.close()
+            if eng is not None:
+                eng.close()
         print(
             f"indexed={res['indexed']} skipped={res['skipped']} "
             f"files={res['files']} chunks={res['chunks']}"
@@ -124,40 +157,41 @@ def main(argv=None) -> int:
 
     if args.cmd == "status":
         name = _name_for(args)
-        if not _index_exists(data, name):
-            print(
-                f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first.",
-                file=sys.stderr,
-            )
-            return 1
-        eng = Engine(name, data, _make_embedder(args))
+        eng = None
         try:
+            eng = Engine(name, data, _make_embedder(args), create=False)
             print(json.dumps(eng.store.stats()))
+        except FileNotFoundError:
+            print(_missing_index(name), file=sys.stderr)
+            return 1
+        except (OSError, RuntimeError, sqlite3.Error) as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 1
         finally:
-            eng.embedder.close()
+            if eng is not None:
+                eng.close()
         return 0
 
     if args.cmd == "query":
         name = _name_for(args)
-        if not _index_exists(data, name):
-            print(
-                f"error: no index named '{name}'. Run 'rag index <path> --name {name}' first.",
-                file=sys.stderr,
-            )
-            return 1
-        eng = Engine(name, data, _make_embedder(args))
+        eng = None
         try:
+            eng = Engine(name, data, _make_embedder(args), create=False)
             hits = eng.query(
                 args.text,
                 k=args.k,
                 allowlist_paths=_read_allowlist(args.allowlist),
                 hybrid=args.hybrid,
             )
+        except FileNotFoundError:
+            print(_missing_index(name), file=sys.stderr)
+            return 1
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
         finally:
-            eng.embedder.close()
+            if eng is not None:
+                eng.close()
         if args.json:
             print(json.dumps(hits))
         else:

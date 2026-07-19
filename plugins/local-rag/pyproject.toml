@@ -1,6 +1,6 @@
 [project]
 name = "local-rag"
-version = "0.2.0"
+version = "0.3.0"
 description = "Local semantic and hybrid RAG: ollama, turbovec, and SQLite FTS5/BM25."
 requires-python = ">=3.10"
 dependencies = [

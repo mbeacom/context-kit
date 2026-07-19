@@ -1,6 +1,8 @@
 import pytest
 
-from local_rag.engine import RRF_K, Engine, reciprocal_rank_fusion
+import local_rag.engine as engine_module
+from local_rag.engine import RRF_K, Engine, reciprocal_rank_fusion, slug
+from local_rag.storage import IndexLock
 
 
 class StubEmbedder:
@@ -118,6 +120,52 @@ def test_dim_mismatch_refused(tmp_path):
 
     with pytest.raises(ValueError):
         Engine(name="t", data_dir=data, embedder=Big()).index(vault)
+
+
+def test_generated_slug_never_starts_with_truncation_separator(tmp_path):
+    corpus = tmp_path / ("a" * 100) / ("b" * 79)
+
+    generated = slug(corpus)
+
+    assert generated == "b" * 79
+    assert len(generated) <= 80
+
+
+def test_init_failure_closes_resources_and_releases_lock(tmp_path, monkeypatch):
+    state = {}
+
+    class TrackingEmbedder(StubEmbedder):
+        def __init__(self):
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    class FailingStore:
+        def __init__(self, path):
+            self.closed = False
+            state["store"] = self
+
+        def init_schema(self):
+            raise RuntimeError("schema failed")
+
+        def close(self):
+            self.closed = True
+
+    embedder = TrackingEmbedder()
+    monkeypatch.setattr(engine_module, "MetaStore", FailingStore)
+
+    with pytest.raises(RuntimeError, match="schema failed"):
+        Engine(name="t", data_dir=tmp_path / "data", embedder=embedder)
+
+    assert embedder.closed
+    assert state["store"].closed
+    with IndexLock(tmp_path / "data", "t"):
+        pass
+
+
+def test_close_tolerates_partial_initialization():
+    Engine.__new__(Engine).close()
 
 
 def test_reciprocal_rank_fusion_is_weighted_and_deterministic():
