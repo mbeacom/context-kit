@@ -70,6 +70,13 @@ class CatalogQualityTests(unittest.TestCase):
                 },
             },
         }
+        self.marketplace = {
+            "name": "test-marketplace",
+            "plugins": [
+                {"name": "alpha", "source": "./plugins/alpha"},
+                {"name": "beta", "source": "./plugins/beta"},
+            ],
+        }
         self.retrieval = self._valid_retrieval_scenarios()
         self._write_json()
 
@@ -97,6 +104,12 @@ class CatalogQualityTests(unittest.TestCase):
         self.policy_path.write_text(json.dumps(self.policy), encoding="utf-8")
         self.fixtures_path.write_text(json.dumps(self.fixtures), encoding="utf-8")
         self.retrieval_path.write_text(json.dumps(self.retrieval), encoding="utf-8")
+        marketplace_path = self.repo / ".claude-plugin/marketplace.json"
+        marketplace_path.parent.mkdir(parents=True, exist_ok=True)
+        marketplace_path.write_text(
+            json.dumps(self.marketplace),
+            encoding="utf-8",
+        )
 
     def _valid_retrieval_scenarios(self) -> dict:
         route_ids = list(catalog_quality.REQUIRED_ROUTE_KINDS)
@@ -180,9 +193,7 @@ class CatalogQualityTests(unittest.TestCase):
             )
         return {
             "schema_version": 1,
-            "evaluation_boundary": (
-                "Deterministic contracts only; no live-model accuracy is measured."
-            ),
+            "evaluation_boundary": catalog_quality.RETRIEVAL_EVALUATION_BOUNDARY,
             "routes": routes,
             "compositions": compositions,
             "scenarios": scenarios,
@@ -317,6 +328,41 @@ class CatalogQualityTests(unittest.TestCase):
             result.errors,
         )
 
+    def test_retrieval_evaluation_boundary_is_canonical(self) -> None:
+        self.retrieval["evaluation_boundary"] = (
+            "This suite proves live-model routing accuracy."
+        )
+        result = self._validate()
+        self.assertTrue(
+            any(
+                "`evaluation_boundary` must equal the canonical" in error
+                for error in result.errors
+            ),
+            result.errors,
+        )
+
+    def test_retrieval_invalid_scenario_shape_reports_valid_contract_counts(
+        self,
+    ) -> None:
+        self.retrieval["routes"]["unexpected"] = {
+            "kind": "modality",
+            "plugin": "alpha",
+            "tools": ["unexpected-tool"],
+        }
+        self.retrieval["compositions"]["unexpected"] = {
+            "step_variants": [["lexical", "semantic-rag"]]
+        }
+        self.retrieval["scenarios"] = {}
+        result = self._validate()
+        self.assertEqual(
+            len(catalog_quality.REQUIRED_ROUTE_KINDS),
+            result.retrieval_route_count,
+        )
+        self.assertEqual(
+            len(catalog_quality.REQUIRED_COMPOSITIONS),
+            result.retrieval_composition_count,
+        )
+
     def test_retrieval_route_and_composition_coverage_is_enforced(self) -> None:
         self.retrieval["scenarios"] = [
             scenario
@@ -352,6 +398,38 @@ class CatalogQualityTests(unittest.TestCase):
         self.assertTrue(
             any(
                 "references unknown tool `unknown-search-tool`" in error
+                for error in result.errors
+            ),
+            result.errors,
+        )
+
+    def test_retrieval_plugin_must_be_listed_in_marketplace(self) -> None:
+        manifest = self.repo / "plugins/gamma/.claude-plugin/plugin.json"
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        manifest.write_text(
+            json.dumps({"name": "gamma", "version": "1.0.0"}),
+            encoding="utf-8",
+        )
+        self.retrieval["routes"]["lexical"]["plugin"] = "gamma"
+        self.retrieval["scenarios"][0]["expected"]["plugins"] = ["gamma"]
+        result = self._validate()
+        self.assertTrue(
+            any(
+                "references unknown plugin `gamma`" in error for error in result.errors
+            ),
+            result.errors,
+        )
+
+    def test_retrieval_plugin_manifest_name_must_match_marketplace(self) -> None:
+        manifest = self.repo / "plugins/alpha/.claude-plugin/plugin.json"
+        manifest.write_text(
+            json.dumps({"name": "renamed-alpha", "version": "1.0.0"}),
+            encoding="utf-8",
+        )
+        result = self._validate()
+        self.assertTrue(
+            any(
+                "manifest name `renamed-alpha` does not match `alpha`" in error
                 for error in result.errors
             ),
             result.errors,

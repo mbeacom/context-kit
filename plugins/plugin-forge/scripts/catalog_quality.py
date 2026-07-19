@@ -41,6 +41,10 @@ REQUIRED_COMPOSITIONS = {
     "verify-then-observe",
     "verify-then-hand-off",
 }
+RETRIEVAL_EVALUATION_BOUNDARY = (
+    "Deterministic intended-routing contracts only; passing does not measure "
+    "live-model routing accuracy."
+)
 STOPWORDS = {
     "a",
     "an",
@@ -457,6 +461,49 @@ def _ordered_unique(values: list[str]) -> list[str]:
     return list(dict.fromkeys(values))
 
 
+def _shipped_plugin_names(repo_root: Path, errors: list[str]) -> set[str]:
+    marketplace = load_json(
+        repo_root / ".claude-plugin/marketplace.json",
+        "marketplace",
+        errors,
+    )
+    entries = marketplace.get("plugins")
+    if not isinstance(entries, list):
+        errors.append("marketplace: `plugins` must be an array")
+        return set()
+
+    shipped: set[str] = set()
+    for index, entry in enumerate(entries):
+        label = f"marketplace: plugins[{index}]"
+        if not isinstance(entry, dict):
+            errors.append(f"{label} must be an object")
+            continue
+        name = entry.get("name")
+        source = entry.get("source")
+        if not isinstance(name, str) or not NAME_RE.fullmatch(name):
+            errors.append(f"{label}.name must be a kebab-case plugin name")
+            continue
+        if name in shipped:
+            errors.append(f"{label}.name duplicates shipped plugin `{name}`")
+            continue
+        if not isinstance(source, str) or not source.strip():
+            errors.append(f"{label}.source must be a non-empty path")
+            continue
+
+        manifest = load_json(
+            repo_root / source / ".claude-plugin/plugin.json",
+            f"{label} manifest",
+            errors,
+        )
+        if manifest.get("name") != name:
+            errors.append(
+                f"{label} manifest name `{manifest.get('name')}` does not match `{name}`"
+            )
+            continue
+        shipped.add(name)
+    return shipped
+
+
 def _validate_retrieval_scenarios(
     data: dict[str, Any],
     repo_root: Path,
@@ -464,10 +511,10 @@ def _validate_retrieval_scenarios(
 ) -> tuple[int, int, int, int]:
     if data.get("schema_version") != 1:
         errors.append("retrieval scenarios: `schema_version` must be 1")
-    boundary = data.get("evaluation_boundary")
-    if not isinstance(boundary, str) or len(boundary.strip()) < 24:
+    if data.get("evaluation_boundary") != RETRIEVAL_EVALUATION_BOUNDARY:
         errors.append(
-            "retrieval scenarios: `evaluation_boundary` must state the static-eval limit"
+            "retrieval scenarios: `evaluation_boundary` must equal the canonical "
+            "static-evaluation disclaimer"
         )
 
     routes = data.get("routes")
@@ -481,10 +528,7 @@ def _validate_retrieval_scenarios(
     for route_id in sorted(actual_route_ids - required_route_ids):
         errors.append(f"retrieval scenarios: unknown route `{route_id}`")
 
-    known_plugins = {
-        path.parent.parent.name
-        for path in (repo_root / "plugins").glob("*/.claude-plugin/plugin.json")
-    }
+    known_plugins = _shipped_plugin_names(repo_root, errors)
     route_plugins: dict[str, str] = {}
     route_tools: dict[str, set[str]] = {}
     for route_id in sorted(actual_route_ids):
@@ -557,7 +601,12 @@ def _validate_retrieval_scenarios(
     scenarios = data.get("scenarios")
     if not isinstance(scenarios, list):
         errors.append("retrieval scenarios: `scenarios` must be an array")
-        return len(actual_route_ids), len(actual_composition_ids), 0, 0
+        return (
+            len(actual_route_ids & required_route_ids),
+            len(actual_composition_ids & REQUIRED_COMPOSITIONS),
+            0,
+            0,
+        )
 
     seen_ids: set[str] = set()
     seen_queries: dict[str, str] = {}

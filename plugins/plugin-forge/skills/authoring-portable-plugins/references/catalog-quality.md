@@ -108,7 +108,7 @@ an agent, score a model response, or measure routing accuracy.
    only the primary route rather than the parent scenario's composition.
 6. Run both catalog-quality commands above. When adding a newly documented route
    or composition, update the validator's required contract set and add at least
-   one    primary scenario for every declared variant in the same change.
+   one primary scenario for every declared variant in the same change.
 
 ## Agent output contracts
 
