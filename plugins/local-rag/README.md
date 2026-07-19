@@ -52,16 +52,20 @@ Claude Code), so queries are fast and survive across sessions.
 
 ### Index lifecycle
 
-Index names are limited to 1–80 characters, must start with a letter or digit,
-may contain only letters, digits, `.`, `_`, or `-`, and cannot contain `..`.
-These rules apply consistently to `index`, `query`, `status`, and `remove`.
+Index names remain backward-compatible with earlier releases: any non-empty
+single path component except `.` or `..` is accepted, including names with
+spaces or more than 80 characters. Path separators (`/` and `\`) and NUL are
+rejected. These containment rules apply consistently to `index`, `query`,
+`status`, and `remove`.
 
 `rag remove --name X --yes` permanently removes one named index. The command is
 non-interactive and refuses to run without `--yes`; missing indexes fail clearly.
-Removal first moves only the selected index out of the active namespace, then
-unlinks its flat artifact files without recursive directory deletion. Other
-indexes are untouched, and incomplete cleanup is reported with the quarantined
-artifact location rather than silently ignored.
+Indexing, querying, status inspection, and removal share a per-index process
+lock, so removal fails clearly while that index is in use. Once locked, removal
+moves only the selected index out of the active namespace, then unlinks its flat
+artifact files without recursive directory deletion. Other indexes are
+untouched, and incomplete cleanup is reported with the quarantined artifact
+location rather than silently ignored.
 
 Portable environment variables:
 

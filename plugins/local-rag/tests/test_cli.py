@@ -4,6 +4,7 @@ import json
 import pytest
 
 from local_rag import cli
+from local_rag.engine import Engine
 from tests.test_engine import StubEmbedder
 
 
@@ -275,6 +276,7 @@ def test_remove_deletes_named_index_and_updates_list_and_status(
     assert capsys.readouterr().out.splitlines() == ["keep"]
     assert cli.main(["status", "--name", "notes"]) == 1
     assert "no index named 'notes'" in capsys.readouterr().err
+    assert not (data / "indexes" / "notes").exists()
     assert cli.main(["status", "--name", "keep"]) == 0
 
 
@@ -295,6 +297,41 @@ def test_remove_supports_corrupt_index_directory(tmp_path, monkeypatch, capsys):
     assert cli.main(["remove", "--name", "corrupt", "--yes"]) == 0
     assert not corrupt.exists()
     assert "removed=corrupt artifacts=1" in capsys.readouterr().out
+
+
+def test_remove_and_status_refuse_while_index_is_busy(tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    active = Engine(name="notes", data_dir=data, embedder=StubEmbedder())
+    try:
+        assert cli.main(["remove", "--name", "notes", "--yes"]) == 1
+        assert "index 'notes' is in use" in capsys.readouterr().err
+        assert cli.main(["status", "--name", "notes"]) == 1
+        assert "index 'notes' is in use" in capsys.readouterr().err
+    finally:
+        active.close()
+
+    assert cli.main(["remove", "--name", "notes", "--yes"]) == 0
+
+
+def test_legacy_containment_safe_name_remains_manageable(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nlegacy name\n")
+    data = tmp_path / "data"
+    name = "team notes from the previous release"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+
+    assert cli.main(["index", str(vault), "--name", name]) == 0
+    capsys.readouterr()
+    assert cli.main(["list"]) == 0
+    assert capsys.readouterr().out.splitlines() == [name]
+    assert cli.main(["status", "--name", name]) == 0
+    capsys.readouterr()
+    assert cli.main(["remove", "--name", name, "--yes"]) == 0
+    assert not (data / "indexes" / name).exists()
 
 
 @pytest.mark.parametrize(

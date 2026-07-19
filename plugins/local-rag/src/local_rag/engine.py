@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import ExitStack
 import hashlib
 import re
 from pathlib import Path
@@ -7,7 +8,7 @@ from pathlib import Path
 from .embed import OllamaEmbedder
 from .index import VecIndex
 from .loaders.markdown import iter_corpus, load_markdown
-from .storage import ensure_index_dir
+from .storage import IndexLock, ensure_index_dir, existing_index_dir
 from .store import MetaStore
 
 RRF_K = 60
@@ -18,7 +19,7 @@ HYBRID_CANDIDATE_MULTIPLIER = 3
 
 def slug(path) -> str:
     s = re.sub(r"[^a-zA-Z0-9]+", "-", str(Path(path).resolve())).strip("-").lower()
-    return s[-80:] or "default"
+    return s[-80:].lstrip("-") or "default"
 
 
 def reciprocal_rank_fusion(
@@ -54,19 +55,41 @@ def reciprocal_rank_fusion(
 
 
 class Engine:
-    def __init__(self, name: str, data_dir, embedder=None):
+    def __init__(self, name: str, data_dir, embedder=None, *, create: bool = True):
         self.name = name
-        self.dir = ensure_index_dir(data_dir, name)
-        self.embedder = embedder or OllamaEmbedder()
-        self.store = MetaStore(self.dir / "meta.sqlite")
-        self.store.init_schema()
-        self.index_path = self.dir / "index.tvim"
+        embedder_instance = embedder or OllamaEmbedder()
+        with ExitStack() as cleanup:
+            cleanup.callback(embedder_instance.close)
+            lock = IndexLock(data_dir, name)
+            lock.acquire()
+            cleanup.callback(lock.release)
+            directory = (
+                ensure_index_dir(data_dir, name) if create else existing_index_dir(data_dir, name)
+            )
+            store = MetaStore(directory / "meta.sqlite")
+            cleanup.callback(store.close)
+            store.init_schema()
+            self.dir = directory
+            self.embedder = embedder_instance
+            self.store = store
+            self.index_path = self.dir / "index.tvim"
+            self._lock = lock
+            cleanup.pop_all()
 
     def close(self) -> None:
         try:
-            self.store.close()
+            try:
+                store = getattr(self, "store", None)
+                if store is not None:
+                    store.close()
+            finally:
+                embedder = getattr(self, "embedder", None)
+                if embedder is not None:
+                    embedder.close()
         finally:
-            self.embedder.close()
+            lock = getattr(self, "_lock", None)
+            if lock is not None:
+                lock.release()
 
     def _dim(self) -> int:
         d = self.embedder.dim()

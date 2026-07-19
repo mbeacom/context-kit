@@ -46,7 +46,8 @@ metadata. Follow up with `rg` to pin exact lines.
 `remove` is non-interactive and refuses to run without `--yes`. It accepts the
 same safe index names as `index`, `query`, and `status`, removes only that named
 index's flat artifact directory, and fails clearly when the index is missing or
-cleanup is incomplete.
+cleanup is incomplete. These operations share a per-index process lock, so
+removal also refuses while the index is in use.
 
 ## Hybrid retrieval (compose semantic + lexical modalities)
 

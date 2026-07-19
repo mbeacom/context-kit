@@ -3,12 +3,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sqlite3
 import sys
 from pathlib import Path
 
 from .embed import OllamaEmbedder
 from .engine import Engine, slug
-from .storage import index_exists, list_indexes, remove_index, validate_index_name
+from .storage import list_indexes, remove_index, validate_index_name
 
 
 def _first_env(*names: str) -> str | None:
@@ -138,14 +139,16 @@ def main(argv=None) -> int:
         return 0
 
     if args.cmd == "index":
-        eng = Engine(_name_for(args, args.path), data, _make_embedder(args))
+        eng = None
         try:
+            eng = Engine(_name_for(args, args.path), data, _make_embedder(args))
             res = eng.index(args.path, args.include, args.exclude)
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
         finally:
-            eng.close()
+            if eng is not None:
+                eng.close()
         print(
             f"indexed={res['indexed']} skipped={res['skipped']} "
             f"files={res['files']} chunks={res['chunks']}"
@@ -154,34 +157,41 @@ def main(argv=None) -> int:
 
     if args.cmd == "status":
         name = _name_for(args)
-        if not index_exists(data, name):
+        eng = None
+        try:
+            eng = Engine(name, data, _make_embedder(args), create=False)
+            print(json.dumps(eng.store.stats()))
+        except FileNotFoundError:
             print(_missing_index(name), file=sys.stderr)
             return 1
-        eng = Engine(name, data, _make_embedder(args))
-        try:
-            print(json.dumps(eng.store.stats()))
+        except (OSError, RuntimeError, sqlite3.Error) as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 1
         finally:
-            eng.close()
+            if eng is not None:
+                eng.close()
         return 0
 
     if args.cmd == "query":
         name = _name_for(args)
-        if not index_exists(data, name):
-            print(_missing_index(name), file=sys.stderr)
-            return 1
-        eng = Engine(name, data, _make_embedder(args))
+        eng = None
         try:
+            eng = Engine(name, data, _make_embedder(args), create=False)
             hits = eng.query(
                 args.text,
                 k=args.k,
                 allowlist_paths=_read_allowlist(args.allowlist),
                 hybrid=args.hybrid,
             )
+        except FileNotFoundError:
+            print(_missing_index(name), file=sys.stderr)
+            return 1
         except Exception as e:
             print(f"error: {e}", file=sys.stderr)
             return 1
         finally:
-            eng.close()
+            if eng is not None:
+                eng.close()
         if args.json:
             print(json.dumps(hits))
         else:

@@ -6,10 +6,12 @@
   obsolete or corrupt named indexes. Removal atomically leaves the active
   namespace, unlinks only flat per-index artifacts without recursive deletion,
   preserves sibling indexes, and reports partial cleanup locations.
-- Apply one safe 1–80 character index-name contract across `index`, `query`,
-  `status`, and `remove`; reject traversal and unsafe storage entries.
-- Close SQLite and embedder resources explicitly after CLI operations, and keep
-  removal quarantine entries out of `rag list`.
+- Apply one containment-safe, backward-compatible index-name contract across
+  `index`, `query`, `status`, and `remove`; reject traversal while preserving
+  legacy names with spaces or more than 80 characters.
+- Serialize operations with a per-index process lock, reject owned-artifact
+  symlinks before opening or writing, close partially initialized resources,
+  and keep removal quarantine entries out of `rag list`.
 
 ## 0.2.0 — 2026-07-19
 

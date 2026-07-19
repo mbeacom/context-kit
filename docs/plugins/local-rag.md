@@ -70,15 +70,19 @@ sessions.
 
 ### Index lifecycle
 
-Index names are limited to 1–80 characters, start with a letter or digit, use
-only letters, digits, `.`, `_`, or `-`, and cannot contain `..`. The same
-validation protects `index`, `query`, `status`, and `remove`.
+Index names remain backward-compatible with earlier releases: any non-empty
+single path component except `.` or `..` is accepted, including names with
+spaces or more than 80 characters. Path separators (`/` and `\`) and NUL are
+rejected. The same containment validation protects `index`, `query`, `status`,
+and `remove`.
 
 `rag remove --name NAME --yes` permanently removes exactly one named index and
 never prompts. It refuses to run without `--yes`, fails clearly for missing
-indexes, and moves the selected index out of the active namespace before
-non-recursively unlinking its flat artifact files. Other indexes remain
-untouched; any incomplete cleanup reports the quarantined artifact location.
+indexes, and refuses while that index is in use. Indexing, querying, status
+inspection, and removal share a per-index process lock. Once locked, removal
+moves the selected index out of the active namespace before non-recursively
+unlinking its flat artifact files. Other indexes remain untouched; any
+incomplete cleanup reports the quarantined artifact location.
 
 ## Hybrid retrieval and scoping
 
