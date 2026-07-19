@@ -10,8 +10,10 @@ copying of skill folders.
 | **APM** | `apm marketplace add mbeacom/context-kit` | `apm install <name>@context-kit` |
 | **Claude Code** | `/plugin marketplace add mbeacom/context-kit` | `/plugin install <name>@context-kit` |
 
-Installing `code-search` (or `verify`) automatically pulls in the
-[`retrieval-core`](plugins/retrieval-core.md) spine.
+Installing `code-search` or `verify` automatically pulls in the
+[`retrieval-core`](plugins/retrieval-core.md) spine. `runtime-evidence` and
+`context-handoff` depend on `verify`, so either pulls `verify` and then
+`retrieval-core` transitively.
 
 ## Install the plugins
 
@@ -29,6 +31,8 @@ brings the retrieval spine with it.
     copilot plugin install plan-execute@context-kit
     copilot plugin install context-steering@context-kit
     copilot plugin install verify@context-kit           # auto-installs retrieval-core
+    copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
+    copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
     copilot plugin install plugin-forge@context-kit
     ```
 
@@ -47,6 +51,8 @@ brings the retrieval spine with it.
     apm install plan-execute@context-kit
     apm install context-steering@context-kit
     apm install verify@context-kit           # also pulls retrieval-core
+    apm install runtime-evidence@context-kit # pulls verify, then retrieval-core
+    apm install context-handoff@context-kit  # pulls verify, then retrieval-core
     apm install plugin-forge@context-kit
     ```
 
@@ -64,14 +70,17 @@ brings the retrieval spine with it.
     /plugin install obsidian@context-kit           # Obsidian vault → RAG bridge
     /plugin install plan-execute@context-kit       # plan-big / execute-small orchestration
     /plugin install context-steering@context-kit   # place guidance at the cheapest layer
-    /plugin install verify@context-kit             # read-only claim verification
+    /plugin install verify@context-kit             # claims + prospective change impact
+    /plugin install runtime-evidence@context-kit   # controlled runtime observation
+    /plugin install context-handoff@context-kit    # manual cross-session handoffs
     /plugin install plugin-forge@context-kit       # author portable plugins
     ```
 
 ## Requirements
 
-The skills degrade gracefully and tell you what's missing. Nothing here calls a
-cloud service.
+The skills degrade gracefully and tell you what's missing. The provided tooling
+runs locally. A user-allowlisted runtime command may still access a network or
+other external state; allowlisting does not prove it has no side effects.
 
 <div class="grid cards" markdown>
 
@@ -99,6 +108,16 @@ cloud service.
     Optional: the official `obsidian` CLI (with Obsidian running) for
     graph-accurate queries; otherwise it falls back to `rg`/`fd`. Set your vault
     with `CONTEXT_KIT_OBSIDIAN_VAULT`.
+
+-   :material-language-python:{ .lg .middle } **runtime and handoff tools**
+
+    ---
+
+    `runtime-evidence` and `context-handoff` require Python 3. Both use only the
+    standard library. The runtime runner requires POSIX and refuses Windows
+    before execution; the handoff validator is cross-platform. Runtime evidence
+    also requires a user-owned exact-ID JSON allowlist; handoffs default to
+    `.context-kit/handoff.md`.
 
 </div>
 
@@ -134,6 +153,9 @@ supported as fallbacks):
 | `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
 | `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
 | `CONTEXT_KIT_OBSIDIAN_VAULT` | vault path for `obsidian` examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
+| `CONTEXT_KIT_RUNTIME_EVIDENCE_CONFIG` | user-owned runtime command allowlist | — |
+| `CONTEXT_KIT_RUNTIME_EVIDENCE_ROOT` | installed `runtime-evidence` plugin root | `CLAUDE_PLUGIN_ROOT` |
+| `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
 
 ## Your first search
 
@@ -144,6 +166,9 @@ right skill for the task:
 - "Use code-search to find structural React `useEffect` cleanup issues."
 - "Use local-rag to query my notes for billing open questions."
 - "Use the Obsidian RAG bridge to search notes linked to Project X."
+- "Analyze the change impact of renaming this event field."
+- "Collect runtime evidence for this unable-to-check health endpoint claim."
+- "Write a handoff before I continue this task in another session."
 
 ### Semantic search with local-rag
 

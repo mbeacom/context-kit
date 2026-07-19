@@ -11,8 +11,9 @@ Copilot); this file holds the rules shared across all hosts.
 A multi-host plugin marketplace for **context engineering** — retrieval
 modalities plus a routing agent, local RAG, an Obsidian bridge,
 plan-big/execute-small orchestration, context steering, read-only verification,
-and portable plugin authoring. It is a catalog of plugins/skills, not an
-application. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+controlled runtime evidence, cross-session handoff, and portable plugin
+authoring. It is a catalog of plugins/skills, not an application. See
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Layout
 
@@ -47,6 +48,10 @@ claude plugin validate . --strict
 for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin validate "$p" --strict; done
 bash plugins/plugin-forge/scripts/check-manifests.sh   # plugin.json ⇆ apm.yml drift
 bash plugins/plugin-forge/scripts/check-skills.sh      # skill/agent discovery frontmatter
+bash plugins/plugin-forge/scripts/check-catalog-quality.sh
+bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 pre-commit run --all-files                             # markdownlint + shellcheck + ruff + these checks
+python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 cd plugins/local-rag && uv run --group dev pytest -q   # local-rag Python tests
 ```

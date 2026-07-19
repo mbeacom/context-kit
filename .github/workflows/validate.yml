@@ -41,6 +41,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Run standard-library plugin tests
+        run: |
+          python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
+          python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Install OpenBLAS (turbovec native dependency)

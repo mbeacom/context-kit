@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities and a routing agent, local RAG, Obsidian, plan-big/execute-small delegation, context steering, read-only verification, and portable plugin authoring."
+    "description": "Ten context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, local RAG, orchestration, steering, verification, controlled runtime evidence, cross-session handoff, and portable plugin authoring."
   },
   "plugins": [
     {
@@ -52,16 +52,30 @@
     {
       "name": "verify",
       "source": "./plugins/verify",
-      "description": "Read-only verification: a verifier subagent and verify-before-trust skill check claims against the actual codebase and emit per-claim verdicts with file:line evidence.",
+      "description": "Read-only claim verification and prospective change-impact analysis with per-claim verdicts, blast-radius mapping, and file:line evidence.",
       "category": "verification",
-      "tags": ["verification", "review", "read-only", "subagent", "evidence"]
+      "tags": ["verification", "change-impact", "blast-radius", "compatibility", "review", "read-only", "subagent", "evidence"]
+    },
+    {
+      "name": "runtime-evidence",
+      "source": "./plugins/runtime-evidence",
+      "description": "Controlled runtime evidence for claims static verification cannot settle, using exact IDs from a user-owned command allowlist and bounded artifacts.",
+      "category": "verification",
+      "tags": ["runtime", "evidence", "verification", "allowlist", "reproduction", "artifacts"]
+    },
+    {
+      "name": "context-handoff",
+      "source": "./plugins/context-handoff",
+      "description": "Portable, bounded, verified task-state handoffs with manual write/resume commands, a read-only compiler, and deterministic validation.",
+      "category": "continuity",
+      "tags": ["handoff", "context", "sessions", "task-state", "verification", "provenance"]
     },
     {
       "name": "plugin-forge",
       "source": "./plugins/plugin-forge",
-      "description": "Author portable GitHub Copilot / APM / Claude Code plugins and keep plugin.json and apm.yml in sync: a conventions skill, a /scaffold-plugin command, and a manifest-drift validator.",
+      "description": "Author portable GitHub Copilot, APM, and Claude Code plugins with scaffolding, manifest/frontmatter checks, and a deterministic catalog discovery-quality gate.",
       "category": "authoring",
-      "tags": ["authoring", "scaffold", "plugin", "apm", "manifest"]
+      "tags": ["authoring", "scaffold", "plugin", "apm", "manifest", "catalog-quality", "discovery", "validation"]
     }
   ]
 }

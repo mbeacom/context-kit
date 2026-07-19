@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "runtime-evidence",
+  "displayName": "Runtime Evidence",
+  "version": "0.1.0",
+  "description": "Controlled dynamic evidence collection for runtime claims that static verification cannot settle. Runs only pre-reviewed command IDs from a user-owned allowlist and emits bounded, verdict-ready artifacts.",
+  "author": { "name": "Mark Beacom" },
+  "homepage": "https://github.com/mbeacom/context-kit",
+  "repository": "https://github.com/mbeacom/context-kit",
+  "license": "MIT",
+  "keywords": ["runtime", "evidence", "verification", "testing", "allowlist", "reproduction", "claude-code", "copilot"],
+  "dependencies": ["verify"]
+}

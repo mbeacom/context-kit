@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 — 2026-07-18
+
+- Add a deterministic, Python-stdlib catalog quality gate that enforces the
+  aggregate always-on discovery-description budget, flags dangerously similar
+  triggers with an explicit threshold/allowlist policy, requires centralized
+  positive and negative discovery fixtures for every skill and agent, and
+  validates configured agent output-contract markers.
+- Add hermetic success and intentional-failure tests plus a no-network smoke test
+  for the existing plan-big/execute-small workflow using mocked workflow agents.
+  Wire both checks through pre-commit; keep live-model routing evaluation
+  documented as future scheduled, non-blocking work.
+
 ## 0.2.0 — 2026-07-18
 
 - Add `scripts/check-skills.sh`, a validator for skill/agent discovery frontmatter

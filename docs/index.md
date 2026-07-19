@@ -32,8 +32,10 @@ right information in front of your agent, and keep the wrong information out.
 **APM** (Agent Package Manager), and [Claude Code](https://code.claude.com). Its
 spine is a set of complementary **retrieval modalities** — lexical, structural,
 code-intelligence, structured-data, history, semantic (RAG), and graph — plus a routing agent that
-picks and composes them. Everything runs **locally**; the RAG layer keeps your
-corpus on your machine.
+picks and composes them. The provided tooling runs locally, and the RAG layer
+keeps your corpus on your machine. Around that retrieval spine, ten shipped plugins add
+orchestration, steering, read-only verification and change-impact analysis,
+controlled runtime evidence, cross-session handoff, and authoring quality.
 
 ## Why context-kit
 
@@ -83,18 +85,37 @@ corpus on your machine.
 
     ---
 
-    A read-only `verifier` subagent checks AI answers, plans, and PR
-    descriptions against the actual repository and returns per-claim verdicts
-    with `file:line` evidence.
+    A read-only `verifier` checks repository claims with `file:line` evidence,
+    while `/analyze-impact` maps a proposed change's prospective blast radius
+    without implementing or executing it.
 
     [:octicons-arrow-right-24: verify](plugins/verify.md)
+
+-   :material-pulse:{ .lg .middle } **Escalate to runtime evidence**
+
+    ---
+
+    `runtime-evidence` runs only exact, pre-reviewed command IDs from a
+    user-owned allowlist when static verification cannot settle a runtime claim,
+    then returns bounded artifacts to `verify`.
+
+    [:octicons-arrow-right-24: runtime-evidence](plugins/runtime-evidence.md)
+
+-   :material-swap-horizontal:{ .lg .middle } **Carry context across sessions**
+
+    ---
+
+    `context-handoff` manually writes and resumes bounded, verified task state,
+    validating repository identity and freshness before saved claims are trusted.
+
+    [:octicons-arrow-right-24: context-handoff](plugins/context-handoff.md)
 
 -   :material-hammer-wrench:{ .lg .middle } **Author more like these**
 
     ---
 
-    `plugin-forge` scaffolds portable plugins and keeps `plugin.json` and
-    `apm.yml` in lockstep — the same toolkit used to build this marketplace.
+    `plugin-forge` scaffolds portable plugins, keeps manifests in lockstep, and
+    enforces a deterministic catalog discovery-quality budget.
 
     [:octicons-arrow-right-24: plugin-forge](plugins/plugin-forge.md)
 

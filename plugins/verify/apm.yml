@@ -6,13 +6,13 @@
 # Keep name/version in sync with .claude-plugin/plugin.json; description is a
 # concise APM/CLI listing variant.
 name: verify
-version: 0.1.1
-description: Read-only claim verification with per-claim verdicts and file:line evidence.
+version: 0.2.0
+description: Read-only claim verification and prospective blast-radius analysis with file:line evidence.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit
 repository: https://github.com/mbeacom/context-kit
-keywords: [verification, review, read-only, subagent, trust, claims, evidence, claude-code, copilot]
+keywords: [verification, change-impact, blast-radius, compatibility, review, read-only, subagent, trust, claims, evidence, claude-code, copilot]
 
 dependencies:
   apm:

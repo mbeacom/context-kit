@@ -19,6 +19,10 @@ claude plugin validate . --strict
 for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin validate "$p" --strict; done
 bash plugins/plugin-forge/scripts/check-manifests.sh
 bash plugins/plugin-forge/scripts/check-skills.sh
+bash plugins/plugin-forge/scripts/check-catalog-quality.sh
+bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 pre-commit run --all-files
+python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 cd plugins/local-rag && uv run --group dev pytest -q
 ```

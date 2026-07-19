@@ -1,8 +1,9 @@
 # Plugins
 
-The marketplace ships eight plugins. The **spine** is retrieval — a routing
+The marketplace ships ten plugins. The **spine** is retrieval — a routing
 agent that picks and composes modalities — surrounded by plugins for
-orchestration, steering, verification, and authoring.
+orchestration, steering, verification and impact analysis, controlled runtime
+evidence, cross-session handoff, and authoring.
 
 <div class="grid cards" markdown>
 
@@ -64,17 +65,35 @@ orchestration, steering, verification, and authoring.
 
     ---
 
-    Read-only `verifier` subagent + `verify-before-trust` skill; per-claim
-    verdicts with `file:line` evidence.
+    Read-only per-claim verification plus prospective change-impact and
+    blast-radius analysis.
 
     `verification` · shipped
+
+-   :material-pulse:{ .lg .middle } **[runtime-evidence](runtime-evidence.md)**
+
+    ---
+
+    Controlled runtime observation after static verification cannot settle a
+    claim, using exact allowlisted command IDs and bounded artifacts.
+
+    `verification` · shipped
+
+-   :material-swap-horizontal:{ .lg .middle } **[context-handoff](context-handoff.md)**
+
+    ---
+
+    Manual-first, bounded task-state handoffs with a read-only compiler and
+    deterministic provenance/freshness validation.
+
+    `continuity` · shipped
 
 -   :material-hammer-wrench:{ .lg .middle } **[plugin-forge](plugin-forge.md)**
 
     ---
 
-    Author portable plugins and keep `plugin.json` ⇆ `apm.yml` in sync: a
-    conventions skill, `/scaffold-plugin`, and a drift validator.
+    Author portable plugins with scaffolding, manifest/frontmatter checks, and a
+    deterministic aggregate catalog discovery-quality gate.
 
     `authoring` · shipped
 
@@ -89,12 +108,16 @@ graph TD
     LR[local-rag]
     OB[obsidian]
     VF[verify]
+    RE[runtime-evidence]
+    CH[context-handoff]
     PE[plan-execute]
     CST[context-steering]
     PF[plugin-forge]
 
     CS -->|depends on| RC
     VF -->|depends on| RC
+    RE -->|depends on| VF
+    CH -->|depends on| VF
     OB -->|feeds --allowlist| LR
     RC -.composes.-> CS
     RC -.composes.-> LR
@@ -103,12 +126,15 @@ graph TD
     class RC spine;
 ```
 
-- **`code-search`** and **`verify`** declare `dependencies: ["retrieval-core"]`,
-  so installing either pulls the spine.
+- **`code-search`** and **`verify`** depend on `retrieval-core`.
+- **`runtime-evidence`** and **`context-handoff`** depend on `verify`, so
+  installing either transitively pulls the spine.
 - **`obsidian`** and **`local-rag`** pair: the bridge produces candidate note
   paths that feed `local-rag`'s hybrid `--allowlist` search.
 - **`plan-execute`**, **`context-steering`**, and **`plugin-forge`** are
   independent — orchestration, steering, and authoring around the retrieval core.
+  `verify` can optionally use `plan-execute` for broad read-only impact coverage,
+  but does not depend on it.
 
 ## Dependencies at a glance
 
@@ -120,5 +146,7 @@ graph TD
 | [obsidian](obsidian.md) | retrieval | skill only | `local-rag` (runtime) |
 | [plan-execute](plan-execute.md) | orchestration | skill + command + workflow + subagent | — |
 | [context-steering](context-steering.md) | steering | skill + examples | — |
-| [verify](verify.md) | verification | subagent + skill | `retrieval-core` |
-| [plugin-forge](plugin-forge.md) | authoring | skill + command + validator | — |
+| [verify](verify.md) | verification | subagent + 2 skills + command | `retrieval-core` |
+| [runtime-evidence](runtime-evidence.md) | verification | skill + command + subagent + stdlib runner | `verify` → `retrieval-core` |
+| [context-handoff](context-handoff.md) | continuity | skill + 2 commands + subagent + stdlib validator | `verify` → `retrieval-core` |
+| [plugin-forge](plugin-forge.md) | authoring | skill + command + validators/tests | — |

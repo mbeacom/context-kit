@@ -52,7 +52,11 @@ Run `${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh` from any working director
 to catch `name` or `version` drift across all plugins, and
 `${CLAUDE_PLUGIN_ROOT}/scripts/check-skills.sh` to catch skill/agent discovery
 frontmatter problems (a missing/oversized `description`, or a `name` that does
-not match its directory or file). Both run in pre-commit and CI.
+not match its directory or file). Run
+`${CLAUDE_PLUGIN_ROOT}/scripts/check-catalog-quality.sh` for cross-catalog checks:
+the aggregate always-on description budget, dangerously similar trigger
+descriptions, centralized positive/negative fixture coverage, and explicit agent
+output-contract markers. All run in pre-commit and CI.
 
 ## Component layout
 
@@ -72,7 +76,9 @@ skills; always-on skill metadata has a context cost.
 Give every `SKILL.md` and `agents/*.md` a `name` that matches its directory or
 file and a `description` that starts with a trigger ("Use when …", "Use to …").
 GitHub Copilot and Claude Code both decide when to load a component from those
-two fields, so `check-skills.sh` enforces them.
+two fields, so `check-skills.sh` enforces them. Add positive and negative query
+examples to `plugin-forge/quality/discovery-fixtures.json` at the same time; the
+catalog gate requires exact coverage for every current skill and agent.
 
 ## Portability rules
 
@@ -123,8 +129,13 @@ to wire the catalog entry.
   examples, dependency syntax, versioning, and the `apm pack` warning.
 - Read `references/layout.md` for the canonical tree, marketplace entry shape,
   and validation commands.
+- Read `references/catalog-quality.md` for the deterministic description-budget,
+  similarity, fixture, output-contract, and workflow-smoke-test policies.
 - Use `/scaffold-plugin <new-plugin-name> "short description"` to create a
   standard starter under `plugins/<name>/` without adding it to the catalog.
 - Run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh` to validate manifest
   drift, and `bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-skills.sh` to validate
-  skill/agent discovery frontmatter, across the repository.
+  skill/agent discovery frontmatter, across the repository. Run
+  `bash ${CLAUDE_PLUGIN_ROOT}/scripts/check-catalog-quality.sh` for aggregate
+  discovery quality and `bash ${CLAUDE_PLUGIN_ROOT}/scripts/test-catalog-quality.sh`
+  for the hermetic validator and workflow smoke tests.

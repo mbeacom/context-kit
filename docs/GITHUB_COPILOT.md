@@ -17,7 +17,16 @@ copilot plugin marketplace add mbeacom/context-kit
 copilot plugin install code-search@context-kit      # auto-installs retrieval-core
 copilot plugin install local-rag@context-kit
 copilot plugin install obsidian@context-kit
+copilot plugin install plan-execute@context-kit
+copilot plugin install context-steering@context-kit
+copilot plugin install verify@context-kit           # auto-installs retrieval-core
+copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
+copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
+copilot plugin install plugin-forge@context-kit
 ```
+
+`runtime-evidence` and `context-handoff` depend on `verify`; `verify`
+transitively pulls `retrieval-core`.
 
 Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
 `copilot plugin uninstall <name>`.
@@ -42,6 +51,9 @@ Once installed, ask Copilot naturally, for example:
 - "Use code-search to find structural React `useEffect` cleanup issues."
 - "Use local-rag to query my notes for billing open questions."
 - "Use the Obsidian RAG bridge to search notes linked to Project X."
+- "Analyze the prospective impact of changing this schema."
+- "Collect bounded runtime evidence for this unable-to-check claim."
+- "Write a context handoff for the next session."
 
 ## Running local-rag outside Claude Code
 
@@ -66,6 +78,9 @@ Supported neutral environment variables:
 | `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
 | `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
 | `CONTEXT_KIT_OBSIDIAN_VAULT` | vault path used by examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
+| `CONTEXT_KIT_RUNTIME_EVIDENCE_CONFIG` | user-owned exact-ID JSON command allowlist | — |
+| `CONTEXT_KIT_RUNTIME_EVIDENCE_ROOT` | installed runtime-evidence root | `CLAUDE_PLUGIN_ROOT` |
+| `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
 
 The Claude-specific variables remain supported so existing plugin installs keep
 working. The `CONTEXT_KIT_*` names are preferred for portable docs and
@@ -85,6 +100,11 @@ skills expect:
   `scc`, and `rtk`.
 - Required for `local-rag`: `uv`, `ollama`, and an embedding model such as
   `nomic-embed-text`.
+- Required for `runtime-evidence` and `context-handoff`: Python 3. Their runner
+  and validator use only the standard library. The runtime runner requires POSIX
+  and refuses Windows before execution; the handoff validator is cross-platform.
+  Copilot does not provide universal host-level command enforcement; runtime
+  collection remains bound to the plugin's reviewed exact-ID allowlist.
 - Optional for `obsidian-rag-bridge`: the official `obsidian` CLI with Obsidian
   running; otherwise use the `rg`/`fd` fallback over vault files.
 

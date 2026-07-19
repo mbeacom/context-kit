@@ -13,7 +13,8 @@ information in front of an agent and keeping the wrong information out. Its spin
 is organized around **retrieval modalities** — complementary ways an agent finds
 information (lexical, structural, code-intelligence, structured-data, history, semantic/RAG, graph),
 selected by what's known about the query and corpus, and composed together —
-surrounded by plugins for orchestration, steering, verification, and authoring.
+surrounded by plugins for orchestration, steering, verification, controlled
+runtime evidence, cross-session handoff, and authoring.
 See `docs/ARCHITECTURE.md` for the modality model and `docs/GITHUB_COPILOT.md` for
 Copilot setup notes.
 
@@ -55,14 +56,22 @@ Copilot setup notes.
   skills vs subagents vs hooks) plus inert `examples/` (rules + hooks). Ships NO
   active hooks/rules — the examples are copy-paste templates.
 - `verify` — a read-only `verifier` subagent (tools: Read/Grep/Glob only) + a
-  `verify-before-trust` skill that check claims against the codebase and emit
-  per-claim verdicts with `file:line` evidence. Declares
+  `verify-before-trust` skill for claim verdicts and a prospective, read-only
+  `change-impact` skill + `/analyze-impact` command for blast-radius analysis.
+  Declares
   `dependencies: ["retrieval-core"]`.
+- `runtime-evidence` — static-verification escalation for runtime claims. Its
+  stdlib Python runner executes exact argv selected by exact command ID from a
+  user-owned JSON allowlist, without a shell, and writes bounded artifacts.
+  Declares `dependencies: ["verify"]`.
+- `context-handoff` — manual-first `/write-handoff` and `/resume-handoff`
+  workflow with a read-only compiler and deterministic validator. v0.1 has no
+  lifecycle hooks or automatic RAG ingestion. Declares
+  `dependencies: ["verify"]`.
 - `plugin-forge` — authoring toolkit for portable plugins: the
-  `authoring-portable-plugins` skill, a `/scaffold-plugin` command, and two
-  validators — `scripts/check-manifests.sh` (fails on `plugin.json` ⇆ `apm.yml`
-  name/version drift) and `scripts/check-skills.sh` (fails on malformed
-  skill/agent discovery frontmatter). Both run in pre-commit and CI.
+  `authoring-portable-plugins` skill, `/scaffold-plugin`, manifest/frontmatter
+  validators, and a deterministic aggregate catalog-quality gate with regression
+  tests and a mocked no-network workflow smoke test.
 
 ## Commands
 
@@ -72,6 +81,9 @@ Copilot setup notes.
 - Lint everything (markdownlint + shellcheck + hygiene + manifest/skill checks): `pre-commit run --all-files`
 - Check manifest sync and skill discovery frontmatter directly:
   `bash plugins/plugin-forge/scripts/check-manifests.sh` · `bash plugins/plugin-forge/scripts/check-skills.sh`
+- Check and test aggregate catalog quality:
+  `bash plugins/plugin-forge/scripts/check-catalog-quality.sh` ·
+  `bash plugins/plugin-forge/scripts/test-catalog-quality.sh`
 - Smoke-test the APM path (needs the `apm` CLI): from a clone,
   `apm marketplace add ./ --name ps` then, in a scratch dir,
   `apm install code-search@ps --target claude` — verify it deploys both
@@ -80,13 +92,15 @@ Copilot setup notes.
   (a non-zero exit listing `brew install …` for missing optional tools is expected, not a failure).
 - Run the `local-rag` Python tests: `cd plugins/local-rag && uv run --group dev pytest -q`
   (uv resolves a dev venv; no live ollama needed — the embed client is mocked, turbovec is exercised for real).
+- Run the stdlib plugin tests:
+  `python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'` ·
+  `python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'`
 - Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
-every plugin, `pre-commit`, and the `local-rag` pytest suite (the Linux runner
-preloads OpenBLAS so `turbovec` imports). `local-rag` Python sources are linted
-with `ruff` via pre-commit.
+every plugin, `pre-commit` (including catalog gates), and the `local-rag` pytest
+suite plus the runtime-evidence and context-handoff standard-library suites.
 
 ## Conventions when modifying this repo
 
