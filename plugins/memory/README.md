@@ -38,10 +38,13 @@ export CONTEXT_KIT_MEMORY_ROOT="/path/to/context-kit/plugins/memory"
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" validate record.md
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
   capture record.md --provider none
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
+  search "why did we change retry policy" --provider none
 ```
 
 Records default to `~/.local/share/context-kit/memory`; override with
-`CONTEXT_KIT_MEMORY_HOME`.
+`CONTEXT_KIT_MEMORY_HOME`. Local recall searches reviewed primary memories and
+cue anchors without requiring an external provider.
 
 ## Optional MemPalace provider
 

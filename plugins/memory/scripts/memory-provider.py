@@ -18,14 +18,21 @@ from pathlib import Path
 
 SCHEMA = "context-kit/memory-v1"
 MAX_BYTES = 32 * 1024
-MAX_LINES = 220
+MAX_MEMORY_LINES = 220
+MAX_HANDOFF_LINES = 300
+MAX_HANDOFF_ITEMS = 25
 MAX_CUES = 3
 PROJECT_SLUG_PREFIX_LENGTH = 31
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,95}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
-PROJECT_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$")
+COMMIT_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
+REPOSITORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
+FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+PLACEHOLDER_RE = re.compile(r"\{\{[^{}\n]+\}\}")
+LIST_ITEM_RE = re.compile(r"^(?:[-*+] |\d+[.)] )")
+TOKEN_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._/-]*")
 MEMORY_TYPES = {"fact", "decision", "procedure", "constraint", "episode"}
-SCOPES = {"project", "personal"}
+SCOPES = {"project"}
 FRESHNESS_STATES = {"current", "stale", "superseded", "revoked"}
 REVIEW_STATES = {"proposed", "accepted", "rejected"}
 REQUIRED_FIELDS = (
@@ -91,11 +98,8 @@ class Config:
             raise Refusal(
                 "set CONTEXT_KIT_MEMORY_PROJECT (or pass --project) to isolate memory"
             )
-        if not PROJECT_RE.fullmatch(self.project):
-            raise Refusal(
-                "memory project must start with an alphanumeric character and use "
-                "only letters, numbers, dot, underscore, slash, or hyphen"
-            )
+        if not REPOSITORY_RE.fullmatch(self.project):
+            raise Refusal("memory project must be a concrete owner/name identity")
         prefix = re.sub(r"[^A-Za-z0-9._-]+", "-", self.project).strip("-").lower()
         digest = hashlib.sha256(self.project.encode("utf-8")).hexdigest()
         return f"{prefix[:PROJECT_SLUG_PREFIX_LENGTH]}-{digest}"
@@ -186,20 +190,56 @@ def _validate_timestamp(value: str, field: str) -> None:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
         raise Refusal(f"{field} must be an ISO 8601 timestamp") from exc
-    if parsed.tzinfo is None:
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise Refusal(f"{field} must include a timezone")
 
 
-def _sections(body: list[str], headings: tuple[str, ...]) -> dict[str, list[str]]:
-    found = [line for line in body if line.startswith("## ")]
-    if found != list(headings):
+def _build_sections(
+    body: list[str],
+    headings: tuple[str, ...],
+    found: list[tuple[str, int]],
+) -> dict[str, list[str]]:
+    found_headings = [heading for heading, _position in found]
+    if found_headings != list(headings):
         raise Refusal("artifact headings are missing, reordered, or unexpected")
-    positions = [body.index(heading) for heading in headings]
+    positions = [position for _heading, position in found]
     result: dict[str, list[str]] = {}
     for index, heading in enumerate(headings):
         end = positions[index + 1] if index + 1 < len(positions) else len(body)
         result[heading] = body[positions[index] + 1 : end]
     return result
+
+
+def _memory_sections(body: list[str]) -> dict[str, list[str]]:
+    found: list[tuple[str, int]] = []
+    fence: tuple[str, int] | None = None
+    for index, line in enumerate(body):
+        fence_match = FENCE_RE.match(line)
+        if fence is not None:
+            if fence_match:
+                marker, suffix = fence_match.groups()
+                if (
+                    marker[0] == fence[0]
+                    and len(marker) >= fence[1]
+                    and not suffix.strip()
+                ):
+                    fence = None
+            continue
+        if fence_match:
+            marker, _suffix = fence_match.groups()
+            fence = (marker[0], len(marker))
+            continue
+        if line.startswith("## "):
+            found.append((line, index))
+    return _build_sections(body, MEMORY_HEADINGS, found)
+
+
+def _handoff_sections(body: list[str]) -> dict[str, list[str]]:
+    found = []
+    for index, line in enumerate(body):
+        if line.startswith("## "):
+            found.append((f"## {line[3:].strip()}", index))
+    return _build_sections(body, HANDOFF_HEADINGS, found)
 
 
 def _nonempty_section(lines: list[str], heading: str) -> str:
@@ -209,7 +249,33 @@ def _nonempty_section(lines: list[str], heading: str) -> str:
     return text
 
 
-def _read_bounded(path: Path) -> tuple[bytes, str]:
+def _required_section(lines: list[str], heading: str) -> str:
+    text = "\n".join(lines).strip()
+    if not text:
+        raise Refusal(f"{heading} must not be empty; use '- None.'")
+    return text
+
+
+def _validate_branch(value: str) -> None:
+    try:
+        result = subprocess.run(
+            ["git", "check-ref-format", "--branch", value],
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=5.0,
+        )
+    except FileNotFoundError as exc:
+        raise Refusal("git is required to validate branch provenance") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise Refusal("Git branch validation timed out") from exc
+    if result.returncode != 0:
+        raise Refusal("branch must be a valid concrete Git branch name")
+
+
+def _read_bounded(
+    path: Path, *, max_lines: int = MAX_MEMORY_LINES
+) -> tuple[bytes, str]:
     if not path.is_file():
         raise Refusal(f"artifact is not a file: {path}")
     raw = path.read_bytes()
@@ -219,12 +285,12 @@ def _read_bounded(path: Path) -> tuple[bytes, str]:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise Refusal("artifact must be UTF-8") from exc
-    if len(text.splitlines()) > MAX_LINES:
-        raise Refusal(f"artifact exceeds {MAX_LINES} lines")
+    if len(text.splitlines()) > max_lines:
+        raise Refusal(f"artifact exceeds {max_lines} lines")
     return raw, text
 
 
-def validate_memory(path: Path) -> dict[str, str]:
+def validate_memory(path: Path, *, verify_source: bool = True) -> dict[str, object]:
     raw, text = _read_bounded(path)
     fields, body = _parse_frontmatter(text)
     missing = [field for field in REQUIRED_FIELDS if field not in fields]
@@ -241,7 +307,7 @@ def validate_memory(path: Path) -> dict[str, str]:
     if fields["type"] not in MEMORY_TYPES:
         raise Refusal(f"memory type must be one of {sorted(MEMORY_TYPES)}")
     if fields["scope"] not in SCOPES:
-        raise Refusal(f"memory scope must be one of {sorted(SCOPES)}")
+        raise Refusal("memory scope must be 'project'")
     if fields["freshness"] not in FRESHNESS_STATES:
         raise Refusal(f"freshness must be one of {sorted(FRESHNESS_STATES)}")
     if fields["review"] not in REVIEW_STATES:
@@ -250,37 +316,51 @@ def validate_memory(path: Path) -> dict[str, str]:
         raise Refusal("source_hash must be a lowercase SHA-256 digest")
     _validate_timestamp(fields["observed_at"], "observed_at")
     _validate_timestamp(fields["captured_at"], "captured_at")
-    if fields["scope"] == "project":
-        for field in ("repository", "branch", "head"):
-            if fields[field].lower() in {"none", "unknown"}:
-                raise Refusal(f"project memory requires a concrete {field}")
+    if not REPOSITORY_RE.fullmatch(fields["repository"]):
+        raise Refusal("repository must be a concrete owner/name identity")
+    _validate_branch(fields["branch"])
+    if not COMMIT_RE.fullmatch(fields["head"]):
+        raise Refusal("head must be a 7-64 character hexadecimal commit")
 
-    sections = _sections(body, MEMORY_HEADINGS)
+    sections = _memory_sections(body)
     primary = _nonempty_section(sections["## Primary Memory"], "Primary Memory")
     if len(primary) > 600:
         raise Refusal("Primary Memory must be at most 600 characters")
     _nonempty_section(sections["## Evidence"], "Evidence")
 
-    cues = [
-        line[2:].strip()
-        for line in sections["## Cue Anchors"]
-        if line.startswith("- ") and line.strip() != "- None."
-    ]
+    cue_lines = [line.strip() for line in sections["## Cue Anchors"] if line.strip()]
+    if cue_lines == ["- None."]:
+        cues: list[str] = []
+    else:
+        if not cue_lines or any(
+            not line.startswith("- ") or line == "- None." for line in cue_lines
+        ):
+            raise Refusal("Cue Anchors must contain only bullets or '- None.'")
+        cues = [line[2:].strip() for line in cue_lines]
     if len(cues) > MAX_CUES:
         raise Refusal(f"Cue Anchors may contain at most {MAX_CUES} entries")
     if any(not cue or len(cue) > 120 for cue in cues):
         raise Refusal("each cue anchor must contain 1..120 characters")
+    _required_section(sections["## Supersedes"], "Supersedes")
+    _nonempty_section(sections["## Review Notes"], "Review Notes")
 
     source = Path(fields["source"]).expanduser()
-    if source.is_file():
+    if verify_source and source.is_file():
         actual = hashlib.sha256(source.read_bytes()).hexdigest()
         if actual != fields["source_hash"]:
             raise Refusal("source_hash does not match the referenced source file")
-    return {**fields, "artifact_hash": hashlib.sha256(raw).hexdigest()}
+    return {
+        **fields,
+        "artifact_hash": hashlib.sha256(raw).hexdigest(),
+        "primary_memory": primary,
+        "cue_anchors": cues,
+    }
 
 
-def validate_handoff(path: Path) -> dict[str, str]:
-    raw, text = _read_bounded(path)
+def validate_handoff(path: Path) -> dict[str, object]:
+    raw, text = _read_bounded(path, max_lines=MAX_HANDOFF_LINES)
+    if PLACEHOLDER_RE.search(text):
+        raise Refusal("handoff contains unresolved {{...}} template placeholders")
     fields, body = _parse_frontmatter(text)
     missing = [field for field in HANDOFF_FIELDS if field not in fields]
     if missing:
@@ -288,10 +368,25 @@ def validate_handoff(path: Path) -> dict[str, str]:
     if fields["schema"] != "context-kit/handoff-v1":
         raise Refusal("handoff schema must be context-kit/handoff-v1")
     _validate_timestamp(fields["generated_at"], "generated_at")
+    for field in ("head", "base_commit"):
+        if not COMMIT_RE.fullmatch(fields[field]):
+            raise Refusal(f"{field} must be a 7-64 character hexadecimal commit")
     if fields["worktree_state"] not in {"clean", "dirty"}:
         raise Refusal("handoff worktree_state must be clean or dirty")
-    sections = _sections(body, HANDOFF_HEADINGS)
-    _nonempty_section(sections["## Scope"], "Scope")
+    titles = [line.strip() for line in body if line.startswith("# ")]
+    if titles != ["# Context Handoff"]:
+        raise Refusal("handoff must contain exactly one '# Context Handoff' title")
+    sections = _handoff_sections(body)
+    for heading, lines in sections.items():
+        _required_section(lines, heading.removeprefix("## "))
+        item_count = sum(
+            bool(LIST_ITEM_RE.match(line)) for line in lines if line.strip()
+        )
+        if item_count > MAX_HANDOFF_ITEMS:
+            raise Refusal(
+                f"{heading.removeprefix('## ')} has {item_count} list items; "
+                f"maximum is {MAX_HANDOFF_ITEMS}"
+            )
     return {**fields, "artifact_hash": hashlib.sha256(raw).hexdigest()}
 
 
@@ -330,7 +425,18 @@ def _normalize_repository(remote: str) -> str:
     return "/".join(parts[-2:])
 
 
-def _assert_handoff_current(metadata: dict[str, str], repo: Path) -> None:
+def _assert_project_matches(metadata: dict[str, object], config: Config) -> None:
+    project = config.project
+    if not project:
+        config.project_slug
+    if metadata["repository"] != project:
+        raise Refusal(
+            "artifact repository does not match configured memory project: "
+            f"artifact={metadata['repository']!r} project={project!r}"
+        )
+
+
+def _assert_handoff_current(metadata: dict[str, object], repo: Path) -> None:
     root = Path(_git(repo, "rev-parse", "--show-toplevel")).resolve()
     remote = _normalize_repository(_git(root, "remote", "get-url", "origin"))
     branch = _git(root, "branch", "--show-current")
@@ -448,6 +554,7 @@ def _archive_with_provider(config: Config, directory: Path) -> None:
 def _capture_memory(args: argparse.Namespace, config: Config) -> int:
     source = Path(args.artifact).expanduser().resolve()
     metadata = validate_memory(source)
+    _assert_project_matches(metadata, config)
     raw = source.read_bytes()
     destination = config.home / "records" / config.project_slug / f"{metadata['id']}.md"
     state = _write_once(destination, raw)
@@ -472,6 +579,7 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
 def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
     source = Path(args.artifact).expanduser().resolve()
     metadata = validate_handoff(source)
+    _assert_project_matches(metadata, config)
     _assert_handoff_current(metadata, Path(args.repo).expanduser().resolve())
     raw = source.read_bytes()
     name = (
@@ -498,8 +606,68 @@ def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
+def _local_search(args: argparse.Namespace, config: Config) -> int:
+    terms = {term.lower() for term in TOKEN_RE.findall(args.query)}
+    if not terms:
+        raise Refusal("search query must contain at least one searchable term")
+    directory = config.home / "records" / config.project_slug
+    results: list[dict[str, object]] = []
+    invalid_records: list[dict[str, str]] = []
+    for path in sorted(directory.glob("*.md")) if directory.exists() else []:
+        try:
+            metadata = validate_memory(path, verify_source=False)
+            _assert_project_matches(metadata, config)
+        except Refusal as exc:
+            invalid_records.append({"artifact": str(path), "error": str(exc)})
+            continue
+        if metadata["freshness"] == "revoked" or metadata["review"] == "rejected":
+            continue
+        primary = metadata["primary_memory"]
+        cues = metadata["cue_anchors"]
+        primary_text = primary.lower()
+        cue_text = " ".join(cues).lower()
+        source = Path(str(metadata["source"])).expanduser()
+        if not source.is_file():
+            source_state = "unavailable"
+        elif hashlib.sha256(source.read_bytes()).hexdigest() == metadata["source_hash"]:
+            source_state = "verified"
+        else:
+            source_state = "drifted"
+        primary_matches = sum(term in primary_text for term in terms)
+        cue_matches = sum(term in cue_text for term in terms)
+        score = primary_matches * 2 + cue_matches
+        if score:
+            results.append(
+                {
+                    "id": metadata["id"],
+                    "type": metadata["type"],
+                    "freshness": metadata["freshness"],
+                    "review": metadata["review"],
+                    "primary_memory": primary,
+                    "cue_anchors": cues,
+                    "source": metadata["source"],
+                    "source_hash": metadata["source_hash"],
+                    "source_state": source_state,
+                    "score": score,
+                }
+            )
+    results.sort(key=lambda item: (-int(item["score"]), str(item["id"])))
+    print(
+        json.dumps(
+            {
+                "provider": "local",
+                "project": config.project_slug,
+                "records": results[: args.results],
+                "invalid_records": invalid_records,
+            }
+        )
+    )
+    return 0
+
+
 def _search(args: argparse.Namespace, config: Config) -> int:
-    config.project_slug
+    if config.provider == "none":
+        return _local_search(args, config)
     result = _run_mempalace(
         config,
         ["search", args.query, "--results", str(args.results)],
@@ -523,7 +691,13 @@ def _doctor(config: Config) -> int:
         "auto_capture": config.auto_capture,
     }
     if config.provider == "none":
-        result["status"] = "disabled"
+        result.update(
+            {
+                "status": "ready",
+                "mode": "local",
+                "records_path": str(config.home / "records" / config.project_slug),
+            }
+        )
         print(json.dumps(result))
         return 0
     config.project_slug
@@ -547,6 +721,7 @@ def _record_review(config: Config) -> int:
     for path in sorted(directory.glob("*.md")) if directory.exists() else []:
         try:
             metadata = validate_memory(path)
+            _assert_project_matches(metadata, config)
             source = Path(metadata["source"]).expanduser()
             source_state = "verified" if source.is_file() else "unavailable"
             results.append(

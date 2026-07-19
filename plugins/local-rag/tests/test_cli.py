@@ -60,6 +60,33 @@ def test_allowlist_from_stdin(tmp_path, monkeypatch, capsys):
     assert out and all(h["path"] == "b.md" for h in out)
 
 
+def test_empty_allowlist_file_returns_no_hits(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.md").write_text("# A\n\napple\n")
+    allowlist = tmp_path / "allowlist.txt"
+    allowlist.write_text("", encoding="utf-8")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(tmp_path), "--name", "t"]) == 0
+    capsys.readouterr()
+
+    assert (
+        cli.main(
+            [
+                "query",
+                "apple",
+                "--name",
+                "t",
+                "--allowlist",
+                str(allowlist),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == []
+
+
 def test_context_kit_data_overrides_claude_env(tmp_path, monkeypatch):
     vault = tmp_path / "vault"
     vault.mkdir()

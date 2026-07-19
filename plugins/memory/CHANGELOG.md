@@ -8,6 +8,8 @@
   MemPalace CLI with project-isolated storage and exact-argv execution.
 - Derive collision-resistant project storage keys and publish write-once records
   atomically under concurrent capture.
+- Enforce project provenance, complete record and handoff structure, empty
+  allowlist boundaries, and local-only recall without MemPalace.
 - Add opt-in Claude Stop, PreCompact, and detached SessionEnd capture hooks.
 - Adopt Memora-inspired primary memories, cue anchors, freshness states,
   supersession history, rank-fusion guidance, and propose-only consolidation.

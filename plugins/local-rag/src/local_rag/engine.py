@@ -198,7 +198,7 @@ class Engine:
         idx = self._load_index(dim)
         qv = self.embedder.embed([text])[0]
         allow = None
-        if allowlist_paths:
+        if allowlist_paths is not None:
             allow = self.store.chunk_ids_for_paths(self._normalize_allowlist(allowlist_paths))
         candidate_depth = k * HYBRID_CANDIDATE_MULTIPLIER if hybrid else k
         semantic_hits = idx.search(qv, k=candidate_depth, allowlist=allow)

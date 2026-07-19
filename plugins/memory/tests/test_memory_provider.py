@@ -132,6 +132,95 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual(2, result)
         self.assertIn("does not match", stderr)
 
+    def test_rejects_invalid_project_provenance(self) -> None:
+        replacements = (
+            ("scope: project", "scope: personal"),
+            ("repository: mbeacom/context-kit", "repository: invalid"),
+            ("branch: main", "branch: invalid branch"),
+            ("branch: main", "branch: foo/.hidden"),
+            ("branch: main", "branch: foo/name.lock/bar"),
+            ("branch: main", "branch: HEAD"),
+            ("head: abcdef0123456789", "head: not-a-commit"),
+        )
+        for original, replacement in replacements:
+            with self.subTest(replacement=replacement):
+                self.write_record()
+                text = self.record.read_text(encoding="utf-8")
+                self.record.write_text(
+                    text.replace(original, replacement),
+                    encoding="utf-8",
+                )
+
+                result, _, _ = self.invoke(["validate", str(self.record)])
+
+                self.assertEqual(2, result)
+
+    def test_rejects_nonbullet_cues_and_empty_required_sections(self) -> None:
+        replacements = (
+            ("- retry policy\n- billing backoff", "retry policy"),
+            ("## Supersedes\n\n- None.", "## Supersedes\n"),
+            (
+                "## Review Notes\n\n- Accepted after source review.",
+                "## Review Notes\n",
+            ),
+        )
+        for original, replacement in replacements:
+            with self.subTest(replacement=replacement):
+                self.write_record()
+                text = self.record.read_text(encoding="utf-8")
+                self.record.write_text(
+                    text.replace(original, replacement),
+                    encoding="utf-8",
+                )
+
+                result, _, _ = self.invoke(["validate", str(self.record)])
+
+                self.assertEqual(2, result)
+
+    def test_accepts_level_two_heading_inside_fenced_evidence(self) -> None:
+        text = self.record.read_text(encoding="utf-8")
+        self.record.write_text(
+            text.replace(
+                f"- `{self.source}` — exact reviewed source.",
+                "\n".join(
+                    [
+                        f"- `{self.source}` — exact reviewed source.",
+                        "```markdown",
+                        "## Nested source heading",
+                        "```",
+                    ]
+                ),
+            ),
+            encoding="utf-8",
+        )
+
+        result, _, _ = self.invoke(["validate", str(self.record)])
+
+        self.assertEqual(0, result)
+
+    def test_accepts_nested_fence_inside_longer_fenced_evidence(self) -> None:
+        text = self.record.read_text(encoding="utf-8")
+        self.record.write_text(
+            text.replace(
+                f"- `{self.source}` — exact reviewed source.",
+                "\n".join(
+                    [
+                        f"- `{self.source}` — exact reviewed source.",
+                        "````markdown",
+                        "```markdown",
+                        "## Nested source heading",
+                        "```",
+                        "````",
+                    ]
+                ),
+            ),
+            encoding="utf-8",
+        )
+
+        result, _, _ = self.invoke(["validate", str(self.record)])
+
+        self.assertEqual(0, result)
+
     def test_local_capture_is_idempotent(self) -> None:
         argv = ["capture", str(self.record), "--provider", "none", *self.base_args()]
 
@@ -178,13 +267,77 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertTrue(any("refusing to overwrite" in result for result in results))
         self.assertIn(destination.read_bytes(), {b"first", b"second"})
 
-    def test_doctor_reports_disabled_provider(self) -> None:
+    def test_doctor_reports_ready_local_mode(self) -> None:
         result, stdout, _ = self.invoke(
             ["doctor", "--provider", "none", *self.base_args()]
         )
 
         self.assertEqual(0, result)
-        self.assertEqual("disabled", json.loads(stdout)["status"])
+        report = json.loads(stdout)
+        self.assertEqual("ready", report["status"])
+        self.assertEqual("local", report["mode"])
+
+    def test_doctor_rejects_non_repository_project(self) -> None:
+        result, _, stderr = self.invoke(
+            [
+                "doctor",
+                "--provider",
+                "none",
+                "--home",
+                str(self.home),
+                "--project",
+                "invalid",
+            ]
+        )
+
+        self.assertEqual(2, result)
+        self.assertIn("owner/name", stderr)
+
+    def test_local_search_matches_primary_memory_and_cues(self) -> None:
+        capture, _, _ = self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+
+        result, stdout, _ = self.invoke(
+            ["search", "billing backoff", "--provider", "none", *self.base_args()]
+        )
+
+        self.assertEqual(0, capture)
+        self.assertEqual(0, result)
+        report = json.loads(stdout)
+        self.assertEqual("local", report["provider"])
+        self.assertEqual("retry-policy", report["records"][0]["id"])
+
+    def test_local_search_returns_drifted_source_as_candidate(self) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        self.source.write_text("changed evidence\n", encoding="utf-8")
+
+        result, stdout, _ = self.invoke(
+            ["search", "billing backoff", "--provider", "none", *self.base_args()]
+        )
+
+        self.assertEqual(0, result)
+        record = json.loads(stdout)["records"][0]
+        self.assertEqual("drifted", record["source_state"])
+
+    def test_capture_rejects_repository_project_mismatch(self) -> None:
+        result, _, stderr = self.invoke(
+            [
+                "capture",
+                str(self.record),
+                "--provider",
+                "none",
+                "--home",
+                str(self.home),
+                "--project",
+                "other/repository",
+            ]
+        )
+
+        self.assertEqual(2, result)
+        self.assertIn("does not match", stderr)
 
     def test_selected_provider_fails_clearly_when_cli_is_missing(self) -> None:
         with (
@@ -244,6 +397,91 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual(0, result)
         saved = Path(json.loads(stdout)["artifact"])
         self.assertEqual(handoff.read_bytes(), saved.read_bytes())
+
+    def test_archive_handoff_rejects_repository_project_mismatch(self) -> None:
+        handoff = self.root / "handoff.md"
+        handoff.write_text(self.valid_handoff(), encoding="utf-8")
+
+        with patch.object(memory_provider, "_assert_handoff_current"):
+            result, _, stderr = self.invoke(
+                [
+                    "archive-handoff",
+                    str(handoff),
+                    "--provider",
+                    "none",
+                    "--home",
+                    str(self.home),
+                    "--project",
+                    "other/repository",
+                ]
+            )
+
+        self.assertEqual(2, result)
+        self.assertIn("does not match", stderr)
+
+    def test_handoff_validation_matches_authoritative_structure(self) -> None:
+        missing_title = self.root / "missing-title.md"
+        missing_title.write_text(
+            self.valid_handoff().replace("# Context Handoff\n\n", ""),
+            encoding="utf-8",
+        )
+        empty_section = self.root / "empty-section.md"
+        empty_section.write_text(
+            self.valid_handoff().replace("## Decisions\n\n- value", "## Decisions\n"),
+            encoding="utf-8",
+        )
+
+        for path in (missing_title, empty_section):
+            with self.subTest(path=path):
+                with self.assertRaises(memory_provider.Refusal):
+                    memory_provider.validate_handoff(path)
+
+    def test_handoff_uses_300_line_limit(self) -> None:
+        handoff = self.root / "long-handoff.md"
+        prose = "\n".join(f"evidence line {index}" for index in range(230))
+        text = self.valid_handoff().replace(
+            "## Verified Facts\n\n- value",
+            f"## Verified Facts\n\n{prose}",
+        )
+        handoff.write_text(text, encoding="utf-8")
+
+        metadata = memory_provider.validate_handoff(handoff)
+
+        self.assertGreater(len(text.splitlines()), memory_provider.MAX_MEMORY_LINES)
+        self.assertLessEqual(len(text.splitlines()), memory_provider.MAX_HANDOFF_LINES)
+        self.assertEqual("context-kit/handoff-v1", metadata["schema"])
+
+    def test_handoff_rejects_fenced_extra_level_two_heading(self) -> None:
+        handoff = self.root / "fenced-heading.md"
+        handoff.write_text(
+            self.valid_handoff().replace(
+                "## Verified Facts\n\n- value",
+                "\n".join(
+                    [
+                        "## Verified Facts",
+                        "",
+                        "```markdown",
+                        "## Extra",
+                        "```",
+                    ]
+                ),
+            ),
+            encoding="utf-8",
+        )
+
+        with self.assertRaises(memory_provider.Refusal):
+            memory_provider.validate_handoff(handoff)
+
+    def test_handoff_normalizes_heading_whitespace(self) -> None:
+        handoff = self.root / "heading-whitespace.md"
+        handoff.write_text(
+            self.valid_handoff().replace("## Scope\n", "## Scope   \n"),
+            encoding="utf-8",
+        )
+
+        metadata = memory_provider.validate_handoff(handoff)
+
+        self.assertEqual("context-kit/handoff-v1", metadata["schema"])
 
     def test_handoff_archival_rejects_stale_repository_context(self) -> None:
         handoff = self.root / "handoff.md"
@@ -412,6 +650,9 @@ class MemoryProviderTests(unittest.TestCase):
                 "base_commit: abcdef0123456789",
                 "worktree_state: clean",
                 "---",
+                "",
+                "# Context Handoff",
+                "",
                 "",
             ]
         )

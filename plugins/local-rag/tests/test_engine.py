@@ -64,6 +64,16 @@ def test_allowlist_paths(tmp_path):
     assert hits and all(h["path"] == "car.md" for h in hits)
 
 
+def test_explicit_empty_allowlist_returns_no_hits(tmp_path):
+    vault = _vault(tmp_path)
+    eng = Engine(name="t", data_dir=tmp_path / "data", embedder=StubEmbedder())
+    eng.index(vault)
+
+    assert eng.query("engine wheels", k=5, allowlist_paths=[]) == []
+    if eng.store.fts5_available:
+        assert eng.query("engine wheels", k=5, allowlist_paths=[], hybrid=True) == []
+
+
 def test_allowlist_normalizes_absolute_and_prefixed_paths(tmp_path):
     vault = _vault(tmp_path)
     data = tmp_path / "data"

@@ -22,8 +22,8 @@ not.
 | `schema` | Exact value `context-kit/memory-v1`. |
 | `id` | Stable lowercase identifier using letters, numbers, `.`, `_`, or `-`. |
 | `type` | `fact`, `decision`, `procedure`, `constraint`, or `episode`. |
-| `scope` | `project` or `personal`. |
-| `repository` | Stable `owner/name` identity for project memories; `none` for personal memory. |
+| `scope` | Exact value `project`; v1 has no global personal namespace. |
+| `repository` | Stable `owner/name` identity matching the configured project. |
 | `branch` | Observation branch for project memory. |
 | `head` | Observation commit for project memory. |
 | `observed_at` | ISO 8601 timestamp with timezone for the source event. |
@@ -33,9 +33,10 @@ not.
 | `source` | Source path or stable evidence identifier. |
 | `source_hash` | Lowercase SHA-256 of the source bytes. |
 
-Project records require concrete repository, branch, and HEAD values. If those
-anchors are unavailable, retain the item as unresolved context rather than
-claiming a durable project memory.
+Project records require a valid `owner/name`, Git branch, and 7–64 character
+hexadecimal commit, and the repository must exactly match the configured memory
+project. If those anchors are unavailable, retain the item as unresolved context
+rather than claiming a durable project memory.
 
 ## Required sections
 
