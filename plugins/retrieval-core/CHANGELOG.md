@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0 — 2026-07-18
+
+- Route the new **code-intelligence** modality (symbol definitions, references,
+  and call hierarchy) in the `retrieval-strategy` skill and `retrieval-strategist`
+  agent, and add a "resolve then pin" composition (code-intelligence → `rg`).
+
 ## 0.2.6 — 2026-07-18
 
 - Lead host guidance with GitHub Copilot, then APM, then Claude Code in the

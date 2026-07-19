@@ -1,6 +1,6 @@
 ---
 name: retrieval-strategist
-description: Use for open-ended "where/how is X handled" retrieval questions that span multiple search modalities, or when the right search strategy is unclear. Plans and sequences lexical, structural, structured-data, history, semantic (RAG), and graph search, and composes them (hybrid rerank, scope-then-search, find-then-pin). Read-only; reports findings and the strategy used.
+description: Use for open-ended "where/how is X handled" retrieval questions that span multiple search modalities, or when the right search strategy is unclear. Plans and sequences lexical, structural, code-intelligence (symbol defs/refs), structured-data, history, semantic (RAG), and graph search, and composes them (hybrid rerank, scope-then-search, find-then-pin). Read-only; reports findings and the strategy used.
 model: sonnet
 effort: medium
 tools: Grep, Glob, Read, Bash
@@ -32,6 +32,7 @@ porting.
      candidate set to semantic search to rerank by meaning.
    - **Scope then search** — graph backlinks narrow scope → search within it.
    - **Find then pin** — semantic surfaces a region → `rg` pins exact lines.
+   - **Resolve then pin** — code-intelligence (LSP/`global`) yields the exact symbol references → `rg` pins and expands the lines.
    - For hybrid retrieval, emit candidate file paths (lexical/graph) and pipe to `rag query --allowlist -`.
 5. Stop when you can answer; report the answer, the exact locations
    (`path:line`), and the strategy/tools you used.

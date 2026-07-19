@@ -1,8 +1,9 @@
 # code-search
 
 !!! abstract "Fast CLI search across modalities"
-    Lexical, structural, structured-data, history, structured rewrite, metrics,
-    and non-code document search — packaged as two skills split by corpus.
+    Lexical, structural, code-intelligence, structured-data, history, structured
+    rewrite, metrics, and non-code document search — packaged as two skills split
+    by corpus.
 
 `code-search` gives an agent modern, fast command-line search for source code and
 for data/documents. It declares `dependencies: ["retrieval-core"]`, so installing
@@ -35,7 +36,7 @@ it also lands the [retrieval spine](retrieval-core.md).
 
 | Skill | Modalities | Tools |
 | --- | --- | --- |
-| **`code-search`** | lexical, structural, history, structured rewrite, metrics | `rg`, `fd`, `ast-grep`/`sg`, `semgrep`, `git log -S/-G/-L`, `difftastic`, `comby`, `tokei`, `scc` |
+| **`code-search`** | lexical, structural, code-intelligence, history, structured rewrite, metrics | `rg`, `fd`, `ast-grep`/`sg`, `semgrep`, `global`, `ctags`, `git log -S/-G/-L`, `difftastic`, `comby`, `tokei`, `scc` |
 | **`data-and-docs-search`** | structured-data, data files, non-code docs | `jq`, `yq`, `gron`, `duckdb`, `sqlite-utils`, `rga`, `pandoc`, `pdftotext` |
 
 ## Examples

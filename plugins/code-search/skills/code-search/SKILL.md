@@ -1,12 +1,12 @@
 ---
 name: code-search
-description: "Use when searching source code: text/regex (ripgrep), structural/AST patterns (ast-grep, semgrep), when/why code changed (git history), structural rewrites (comby), or codebase size/complexity (tokei, scc)."
+description: "Use when searching source code: text/regex (ripgrep), structural/AST patterns (ast-grep, semgrep), symbol definitions/references/call hierarchy (LSP, GNU Global, ctags), when/why code changed (git history), structural rewrites (comby), or codebase size/complexity (tokei, scc)."
 license: MIT
 compatibility: "Requires ripgrep (rg). Optional: fd, ast-grep (sg), semgrep, comby, difftastic, tokei, scc, and rtk (rtk-ai/rtk) for compact rg/git output."
 metadata:
   author: Mark Beacom
   version: "0.1.0"
-allowed-tools: Bash(rg:*) Bash(fd:*) Bash(sg:*) Bash(ast-grep:*) Bash(semgrep:*) Bash(git:*) Bash(comby:*) Bash(difft:*) Bash(tokei:*) Bash(scc:*) Bash(rtk rg:*) Bash(rtk git:*) Read Glob Grep
+allowed-tools: Bash(rg:*) Bash(fd:*) Bash(sg:*) Bash(ast-grep:*) Bash(semgrep:*) Bash(git:*) Bash(comby:*) Bash(difft:*) Bash(tokei:*) Bash(scc:*) Bash(global:*) Bash(gtags:*) Bash(ctags:*) Bash(readtags:*) Bash(rtk rg:*) Bash(rtk git:*) Read Glob Grep
 ---
 
 # Code Search
@@ -23,12 +23,14 @@ location.
 | Find files by name/path           | `fd`                 | [fd](references/fd.md)           |
 | Structural / syntax-aware search  | `sg` (ast-grep)      | [ast-grep](references/ast-grep.md) |
 | Security/lint rule packs, taint   | `semgrep`            | [semgrep](references/semgrep.md) |
+| Symbol defs / refs / call hierarchy | LSP · `global` · `ctags` | [code-intelligence](references/code-intelligence.md) |
 | When/why code changed             | `git log -S/-G/-L`   | [git-history](references/git-history.md) |
 | Structural search-and-replace     | `comby`, `sg --rewrite` | [comby](references/comby.md)  |
 | Size / complexity by language     | `tokei`, `scc`       | [metrics](references/metrics.md) |
 
-**Decision flow:** text → `rg` | structural → `sg` | rule packs → `semgrep` |
-filenames → `fd` | change history → `git` pickaxe | rewrite → `comby` | LOC → `tokei`.
+**Decision flow:** text → `rg` | structural → `sg` | symbol defs/refs → LSP/`global` |
+rule packs → `semgrep` | filenames → `fd` | change history → `git` pickaxe |
+rewrite → `comby` | LOC → `tokei`.
 
 ## Best practices
 

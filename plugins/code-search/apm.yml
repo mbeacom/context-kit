@@ -5,8 +5,8 @@
 # stays authoritative; APM consumes it as a plugin collection.
 # Keep name/version/description in sync with .claude-plugin/plugin.json.
 name: code-search
-version: 0.2.5
-description: Fast CLI search across modalities — lexical, structural, structured-data, history, rewrite, metrics, and docs.
+version: 0.3.0
+description: Fast CLI search across modalities — lexical, structural, code-intelligence, structured-data, history, rewrite, metrics, and docs.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit

@@ -13,6 +13,8 @@ TOOLS=(
   "difft|structural diffs (difftastic)|difftastic"
   "tokei|LOC metrics|tokei"
   "scc|complexity metrics|scc"
+  "ctags|symbol definitions (universal-ctags)|universal-ctags"
+  "global|symbol defs+references (GNU Global)|global"
   "jq|JSON query|jq"
   "yq|YAML/TOML/XML query|yq"
   "gron|greppable JSON|gron"
