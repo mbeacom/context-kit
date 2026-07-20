@@ -93,3 +93,11 @@ configure the host's native MemPalace integration separately.
 - Automatic capture is disabled by default.
 - Project data never falls back to a global provider store.
 - MemPalace and Memora informed the design; this implementation is independent.
+
+## Supported providers
+
+Two provider modes are supported. MemPalace is the only optional external provider.
+Memora informed the memory contract design but is not a runtime provider today.
+See [`skills/memory-workflows/references/provider-qualification.md`](skills/memory-workflows/references/provider-qualification.md)
+for the full qualification policy and the current decision table with revisit
+triggers for Memora.

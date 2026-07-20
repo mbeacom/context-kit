@@ -86,6 +86,8 @@ explicit commands or configure the host's native MemPalace integration.
 
 - **`references/memory-contract.md`** — record schema and evidence rules.
 - **`references/provider-mempalace.md`** — provider setup, isolation, and CLI.
+- **`references/provider-qualification.md`** — provider qualification criteria
+  and the current decision table for local records, MemPalace, and Memora.
 - **`references/retrieval-and-review.md`** — recall, freshness, cues, and
   consolidation.
 - **`references/automation.md`** — opt-in hook behavior and host boundaries.
