@@ -40,6 +40,12 @@ FRESHNESS_STATES = {"current", "stale", "superseded", "revoked"}
 REVIEW_STATES = {"proposed", "accepted", "rejected"}
 STATE_SCHEMA = "context-kit/memory-state-v1"
 RECEIPT_SCHEMA = "context-kit/memory-provider-receipt-v1"
+PROJECTION_MARKER_SCHEMA = "context-kit/memory-provider-projection-v1"
+PROJECTION_MARKER_NAME = ".context-kit-projection.json"
+STATE_SEQUENCE_WIDTH = 20
+STATE_LOCK_TIMEOUT_SECONDS = 5.0
+STATE_LOCK_STALE_SECONDS = 300.0
+STATE_SEQUENCE_RE = re.compile(r"^(\d{20})-[0-9a-f]{32}\.json$")
 REVIEW_TRANSITIONS = {
     "proposed": {"accepted", "rejected"},
     "accepted": {"rejected"},
@@ -544,7 +550,19 @@ def _initial_state(metadata: dict[str, object]) -> dict[str, str]:
 
 def _event_paths(config: Config, record_id: str) -> list[Path]:
     directory = config.states_path / record_id
-    return sorted(directory.glob("*.json")) if directory.exists() else []
+    paths = list(directory.glob("*.json")) if directory.exists() else []
+    sequenced = [path for path in paths if STATE_SEQUENCE_RE.fullmatch(path.name)]
+    legacy = [path for path in paths if path not in sequenced]
+    if sequenced and legacy:
+        raise Refusal(
+            "mixed legacy and sequenced state events; migrate legacy events before "
+            f"recording more state for {record_id}"
+        )
+    if sequenced:
+        return sorted(
+            sequenced, key=lambda path: int(STATE_SEQUENCE_RE.fullmatch(path.name)[1])
+        )
+    return sorted(legacy)
 
 
 @contextlib.contextmanager
@@ -553,19 +571,72 @@ def _state_lock(config: Config, record_id: str):
     parent = config.states_path / record_id
     parent.mkdir(parents=True, exist_ok=True)
     lock = parent / ".lock"
-    deadline = time.monotonic() + 5.0
+    token = uuid.uuid4().hex
+    owner = lock / "owner.json"
+    deadline = time.monotonic() + STATE_LOCK_TIMEOUT_SECONDS
     while True:
         try:
             lock.mkdir()
+            _write_once(
+                owner,
+                json.dumps(
+                    {
+                        "pid": os.getpid(),
+                        "token": token,
+                        "acquired_at": _utc_timestamp(),
+                    },
+                    sort_keys=True,
+                ).encode("utf-8"),
+            )
             break
         except FileExistsError:
+            if _reclaim_stale_lock(lock):
+                continue
             if time.monotonic() >= deadline:
                 raise Refusal(f"state transition is busy for record: {record_id}")
             time.sleep(0.02)
     try:
         yield
     finally:
-        lock.rmdir()
+        try:
+            payload = json.loads(owner.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        if payload.get("token") == token:
+            owner.unlink(missing_ok=True)
+            lock.rmdir()
+
+
+def _reclaim_stale_lock(lock: Path) -> bool:
+    """Reclaim only a dead POSIX owner, or a conservatively old non-POSIX lock."""
+    owner = lock / "owner.json"
+    try:
+        payload = json.loads(owner.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    pid = payload.get("pid")
+    reclaim = False
+    if os.name == "posix" and isinstance(pid, int) and pid > 0:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            reclaim = True
+        except PermissionError:
+            return False
+    elif os.name != "posix":
+        try:
+            reclaim = time.time() - lock.stat().st_mtime >= STATE_LOCK_STALE_SECONDS
+        except OSError:
+            return False
+    if not reclaim:
+        return False
+    retired = lock.with_name(f".lock-stale-{uuid.uuid4().hex}")
+    try:
+        os.replace(lock, retired)
+    except OSError:
+        return False
+    shutil.rmtree(retired, ignore_errors=True)
+    return True
 
 
 def _validate_state_event(
@@ -593,7 +664,9 @@ def _validate_state_event(
         "effective_freshness",
         "reason",
     }
-    if not isinstance(payload, dict) or set(payload) != required:
+    sequenced = STATE_SEQUENCE_RE.fullmatch(path.name)
+    expected = required | {"sequence"} if sequenced else required
+    if not isinstance(payload, dict) or set(payload) != expected:
         raise Refusal(f"state event has an invalid schema: {path}")
     if payload["schema"] != STATE_SCHEMA:
         raise Refusal(f"state event has an unsupported schema: {path}")
@@ -609,6 +682,11 @@ def _validate_state_event(
         raise Refusal(f"state event belongs to another project: {path}")
     if not isinstance(payload["event_id"], str) or not payload["event_id"]:
         raise Refusal(f"state event is missing an event_id: {path}")
+    if sequenced and (
+        not isinstance(payload["sequence"], int)
+        or payload["sequence"] != int(sequenced[1])
+    ):
+        raise Refusal(f"state event sequence does not match its filename: {path}")
     if not isinstance(payload["reason"], str) or not payload["reason"].strip():
         raise Refusal(f"state event is missing a reason: {path}")
     if len(payload["reason"]) > 1000:
@@ -754,6 +832,7 @@ def _provider_receipt(
     detail: str,
     projection_hash: str | None = None,
     backup_path: Path | None = None,
+    recovery_status: str = "not-needed",
 ) -> Path:
     payload: dict[str, object] = {
         "schema": RECEIPT_SCHEMA,
@@ -771,6 +850,7 @@ def _provider_receipt(
         "outcome": outcome,
         "detail": detail,
         "backup_path": str(backup_path) if backup_path else None,
+        "recovery_status": recovery_status,
     }
     return _write_json_once(config.receipts_path, payload)
 
@@ -1330,6 +1410,17 @@ def _record_state(args: argparse.Namespace, config: Config) -> int:
             ),
         }
         _validate_transition(current, requested)
+        existing = _event_paths(config, args.record_id)
+        if existing and not STATE_SEQUENCE_RE.fullmatch(existing[0].name):
+            raise Refusal(
+                "legacy timestamp-named state events are replayed read-only; "
+                "migrate them before recording a new transition"
+            )
+        sequence = (
+            int(STATE_SEQUENCE_RE.fullmatch(existing[-1].name)[1]) + 1
+            if existing
+            else 1
+        )
         payload: dict[str, object] = {
             "schema": STATE_SCHEMA,
             "event_id": uuid.uuid4().hex,
@@ -1343,8 +1434,16 @@ def _record_state(args: argparse.Namespace, config: Config) -> int:
             "effective_review": requested["review"],
             "effective_freshness": requested["freshness"],
             "reason": reason,
+            "sequence": sequence,
         }
-        event = _write_json_once(config.states_path / args.record_id, payload)
+        raw = (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode("utf-8")
+        event = (
+            config.states_path
+            / args.record_id
+            / f"{sequence:0{STATE_SEQUENCE_WIDTH}d}-{uuid.uuid4().hex}.json"
+        )
+        if _write_once(event, raw) != "created":
+            raise Refusal(f"refusing to reuse a generated state event path: {event}")
     print(
         json.dumps(
             {
@@ -1385,12 +1484,52 @@ def _read_receipts(config: Config) -> list[dict[str, object]]:
     return receipts
 
 
+def _write_projection_marker(
+    stage: Path, config: Config, projection_hash: str, provider_version: str
+) -> None:
+    raw = (
+        json.dumps(
+            {
+                "schema": PROJECTION_MARKER_SCHEMA,
+                "project": config.project,
+                "project_key": config.project_slug,
+                "projection_hash": projection_hash,
+                "provider_version": provider_version,
+                "applied_at": _utc_timestamp(),
+            },
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
+    _write_once(stage / PROJECTION_MARKER_NAME, raw)
+
+
 def _has_current_provider_projection(config: Config, projection_hash: str) -> bool:
-    return any(
-        receipt.get("outcome") == "success"
-        and receipt.get("operation") == "sync-provider"
-        and receipt.get("projection_hash") == projection_hash
-        for receipt in _read_receipts(config)
+    marker = config.palace_path / PROJECTION_MARKER_NAME
+    try:
+        payload = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict) or set(payload) != {
+        "schema",
+        "project",
+        "project_key",
+        "projection_hash",
+        "provider_version",
+        "applied_at",
+    }:
+        return False
+    try:
+        _validate_timestamp(str(payload["applied_at"]), "applied_at")
+    except Refusal:
+        return False
+    return (
+        payload["schema"] == PROJECTION_MARKER_SCHEMA
+        and payload["project"] == config.project
+        and payload["project_key"] == config.project_slug
+        and payload["projection_hash"] == projection_hash
+        and isinstance(payload["provider_version"], str)
     )
 
 
@@ -1428,6 +1567,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
     backup: Path | None = None
     executable = ""
     argv: list[str] = []
+    recovery_status = "not-needed"
     try:
         _materialize_projection(records, projection)
         stage.mkdir(mode=0o700)
@@ -1441,6 +1581,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         )
         if not stage.is_dir():
             raise Refusal("MemPalace did not leave a valid staged palace")
+        _write_projection_marker(stage, config, projection_hash, version)
         if config.palace_path.exists():
             backup = parent / f"palace-backup-{uuid.uuid4().hex}"
             os.replace(config.palace_path, backup)
@@ -1449,6 +1590,10 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         except OSError:
             if backup is not None and not config.palace_path.exists():
                 os.replace(backup, config.palace_path)
+                backup = None
+                recovery_status = "restored-to-live-palace"
+            elif backup is not None:
+                recovery_status = "backup-preserved"
             raise
     except (OSError, Refusal) as exc:
         receipt = _provider_receipt(
@@ -1461,6 +1606,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
             detail=str(exc),
             projection_hash=projection_hash,
             backup_path=backup,
+            recovery_status=recovery_status,
         )
         raise Refusal(
             f"provider synchronization failed; receipt={receipt}: {exc}"

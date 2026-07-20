@@ -56,6 +56,14 @@ effective review/freshness state, and a non-empty reason. The adapter rejects
 events for missing records, mismatched hashes/projects, invalid transition
 chains, and terminal freshness transitions.
 
+New events have a zero-padded per-record sequence prefix assigned under the
+record lock, so replay order does not depend on the wall clock. Older
+timestamp-named events remain readable in deterministic filename order, but
+must be migrated before appending a new sequenced event. Locks record PID,
+token, and acquisition time. On POSIX, only a confirmed dead PID is reclaimed;
+on other platforms process liveness is not portable, so only a conservative age
+timeout can reclaim an owner lock and young or unverifiable locks are refused.
+
 With no event, effective state is the immutable frontmatter. Active recall and
 provider eligibility require **both** `review: accepted` and
 `freshness: current`; all other records remain available to review and explicit

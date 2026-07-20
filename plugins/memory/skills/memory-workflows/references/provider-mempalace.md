@@ -103,7 +103,8 @@ the staged MemPalace command to succeed, preserves the old palace as a visible
 backup, then swaps the staged palace into place. Unsupported platforms refuse
 apply rather than partially replacing a palace. After capture or a state
 transition, reconcile before provider-backed recall; the adapter refuses provider search
-until a successful receipt matches the current active projection.
+until the live palace contains its matching staged projection marker. Historical
+receipts are audit evidence only; they never authorize provider recall.
 
 ## GitHub Copilot MCP (optional, separate from this adapter)
 
