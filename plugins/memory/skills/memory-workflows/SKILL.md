@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Python 3 is required for the bundled validator/provider adapter. MemPalace is optional and must be installed separately for provider-backed recall."
 metadata:
   author: Mark Beacom
-  version: "0.1.0"
+  version: "0.2.0"
 allowed-tools: Read Grep Glob Write Bash(python3:*) Bash(mempalace:*) Bash(git:*)
 ---
 
