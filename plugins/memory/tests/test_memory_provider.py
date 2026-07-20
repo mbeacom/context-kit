@@ -527,6 +527,110 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual("skipped", receipt["outcome"])
         self.assertEqual("not-invoked", receipt["provider_version"])
 
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_reports_compatibility_for_tested_mempalace_version(self) -> None:
+        executable, _ = self.fake_mempalace()
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, _ = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result)
+        report = json.loads(stdout)
+        self.assertEqual("ready", report["status"])
+        compatibility = report["compatibility"]
+        self.assertEqual("3.6.0", compatibility["parsed_version"])
+        self.assertEqual("tested", compatibility["version_status"])
+        self.assertEqual("3.6.x", compatibility["tested_release_line"])
+        self.assertEqual("3.6.0", compatibility["tested_version"])
+        self.assertEqual(str(executable), compatibility["executable"])
+        self.assertIn(self.project_slug(), compatibility["palace_path"])
+        capability_names = {
+            c["name"]: c["status"] for c in compatibility["capabilities"]
+        }
+        self.assertEqual(
+            {"capture": "ok", "search": "ok", "wake": "ok", "hook": "ok"},
+            capability_names,
+        )
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_refuses_clearly_when_capability_is_missing(self) -> None:
+        executable, _ = self.fake_mempalace(
+            help_overrides={"mine": "usage: mempalace mine DIR\n"}
+        )
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, _, stderr = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(2, result)
+        self.assertIn("missing required capabilities", stderr)
+        self.assertIn("capture", stderr)
+        self.assertIn("--wing", stderr)
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_refuses_clearly_when_subcommand_is_absent(self) -> None:
+        executable, _ = self.fake_mempalace(exit_overrides={"hook run --help": 2})
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, _, stderr = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(2, result)
+        self.assertIn("hook", stderr)
+        self.assertIn("exited 2", stderr)
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_reports_older_version_without_hard_block(self) -> None:
+        executable, _ = self.fake_mempalace(version_output="mempalace 3.5.4\n")
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, _ = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result)
+        compatibility = json.loads(stdout)["compatibility"]
+        self.assertEqual("older-than-tested", compatibility["version_status"])
+        self.assertEqual("3.5.4", compatibility["parsed_version"])
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_reports_newer_version_without_hard_block(self) -> None:
+        executable, _ = self.fake_mempalace(version_output="mempalace 3.7.1\n")
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, _ = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result)
+        compatibility = json.loads(stdout)["compatibility"]
+        self.assertEqual("newer-than-tested", compatibility["version_status"])
+        self.assertEqual("3.7.1", compatibility["parsed_version"])
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_reports_unknown_version_when_unparseable(self) -> None:
+        executable, _ = self.fake_mempalace(version_output="mempalace-dev-build\n")
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, _ = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result)
+        compatibility = json.loads(stdout)["compatibility"]
+        self.assertEqual("unknown", compatibility["version_status"])
+        self.assertIsNone(compatibility["parsed_version"])
+
     def test_portable_environment_precedes_claude_options(self) -> None:
         args = type("Args", (), {"provider": None, "home": None, "project": None})()
         with patch.dict(
@@ -872,7 +976,34 @@ class MemoryProviderTests(unittest.TestCase):
         )
         self.assertEqual(payload.decode(), call["stdin"])
 
-    def fake_mempalace(self, stdout: str = "") -> tuple[Path, Path]:
+    #: Default `--help` bodies that satisfy every required capability probe
+    #: in `memory_provider._required_mempalace_capabilities()` for the
+    #: MemPalace 3.6.0 release the adapter is tested against. Tests override
+    #: individual topics to model missing/incompatible upstream CLI surfaces.
+    DEFAULT_HELP_TOPICS = {
+        "mine": "usage: mempalace mine DIR --wing WING\n",
+        "search": "usage: mempalace search QUERY --results N\n",
+        "wake-up": "usage: mempalace wake-up\n",
+        "hook": "usage: mempalace hook run --hook EVENT --harness HARNESS\n",
+    }
+
+    def fake_mempalace(
+        self,
+        stdout: str = "",
+        *,
+        version_output: str = "mempalace 3.6.0\n",
+        help_overrides: dict[str, str] | None = None,
+        exit_overrides: dict[str, int] | None = None,
+    ) -> tuple[Path, Path]:
+        """Write a fake `mempalace` executable that logs every call.
+
+        By default it answers `--version` and `<topic> --help` with output
+        that satisfies every required capability probe, so tests only need to
+        override the specific topic(s) they want to model as missing,
+        incompatible, or drifted.
+        """
+        help_topics = dict(self.DEFAULT_HELP_TOPICS)
+        help_topics.update(help_overrides or {})
         executable = self.root / "mempalace"
         calls = self.root / "calls.jsonl"
         executable.write_text(
@@ -881,13 +1012,25 @@ class MemoryProviderTests(unittest.TestCase):
                     "#!/usr/bin/env python3",
                     "import json, os, sys",
                     f"calls = {str(calls)!r}",
+                    "argv = sys.argv[1:]",
                     "record = {",
-                    "  'argv': sys.argv[1:],",
+                    "  'argv': argv,",
                     "  'stdin': sys.stdin.read(),",
                     "  'palace': os.environ.get('MEMPALACE_PALACE_PATH'),",
                     "}",
                     "with open(calls, 'a', encoding='utf-8') as handle:",
                     "    handle.write(json.dumps(record) + '\\n')",
+                    f"help_topics = {help_topics!r}",
+                    f"exit_overrides = {(exit_overrides or {})!r}",
+                    "key = ' '.join(argv)",
+                    "if key in exit_overrides:",
+                    "    sys.exit(exit_overrides[key])",
+                    "if argv == ['--version']:",
+                    f"    sys.stdout.write({version_output!r})",
+                    "    sys.exit(0)",
+                    "if argv and argv[-1] == '--help':",
+                    "    sys.stdout.write(help_topics.get(argv[0], 'usage: mempalace\\n'))",
+                    "    sys.exit(0)",
                     f"sys.stdout.write({stdout!r})",
                 ]
             ),

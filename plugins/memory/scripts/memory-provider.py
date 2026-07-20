@@ -51,6 +51,12 @@ FRESHNESS_TRANSITIONS = {
     "superseded": set(),
     "revoked": set(),
 }
+# The adapter is verified against this MemPalace release; see
+# skills/memory-workflows/references/provider-mempalace.md for the
+# compatibility matrix and how `doctor` reports drift.
+MEMPALACE_TESTED_VERSION = (3, 6, 0)
+MEMPALACE_TESTED_RELEASE_LINE = "3.6.x"
+SEMVER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 REQUIRED_FIELDS = (
     "schema",
     "id",
@@ -789,6 +795,114 @@ def _mempalace_executable() -> str:
     return executable
 
 
+@dataclass(frozen=True)
+class CapabilityProbe:
+    """One exact-argv help surface the adapter depends on."""
+
+    name: str
+    argv: tuple[str, ...]
+    contract: str
+    required_tokens: tuple[str, ...] = ()
+
+
+def _required_mempalace_capabilities() -> tuple[CapabilityProbe, ...]:
+    # Each probe mirrors an exact argv the adapter actually invokes elsewhere
+    # in this module (`_archive_with_provider`, `_search`, `_wake`, `_run_hook`).
+    # Probing `--help` (never the mutating command itself) lets `doctor` catch
+    # upstream CLI drift without importing MemPalace internals or writing to a
+    # palace.
+    return (
+        CapabilityProbe(
+            name="capture",
+            argv=("mine", "--help"),
+            contract="mine <dir> --wing <project-key>",
+            required_tokens=("--wing",),
+        ),
+        CapabilityProbe(
+            name="search",
+            argv=("search", "--help"),
+            contract="search <query> --results <n>",
+            required_tokens=("--results",),
+        ),
+        CapabilityProbe(
+            name="wake",
+            argv=("wake-up", "--help"),
+            contract="wake-up",
+        ),
+        CapabilityProbe(
+            name="hook",
+            argv=("hook", "run", "--help"),
+            contract="hook run --hook <event> --harness claude-code",
+            required_tokens=("--hook", "--harness"),
+        ),
+    )
+
+
+def _probe_mempalace_capability(
+    executable: str,
+    config: Config,
+    probe: CapabilityProbe,
+    *,
+    timeout: float = 10.0,
+) -> dict[str, object]:
+    report: dict[str, object] = {
+        "name": probe.name,
+        "command": " ".join(probe.argv),
+        "contract": probe.contract,
+    }
+    try:
+        result = subprocess.run(
+            [executable, *probe.argv],
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+            env=_provider_env(config),
+        )
+    except subprocess.TimeoutExpired:
+        report["status"] = "timeout"
+        report["detail"] = f"probe timed out after {timeout:g}s"
+        return report
+    except OSError as exc:
+        report["status"] = "error"
+        report["detail"] = str(exc)
+        return report
+    output = "\n".join(
+        (
+            result.stdout.decode("utf-8", errors="replace"),
+            result.stderr.decode("utf-8", errors="replace"),
+        )
+    )
+    if result.returncode != 0:
+        report["status"] = "missing"
+        report["detail"] = f"`{' '.join(probe.argv)}` exited {result.returncode}"
+        return report
+    missing_tokens = [token for token in probe.required_tokens if token not in output]
+    if missing_tokens:
+        report["status"] = "incompatible"
+        report["detail"] = f"missing option(s): {', '.join(missing_tokens)}"
+        return report
+    report["status"] = "ok"
+    return report
+
+
+def _parse_mempalace_version(raw: str) -> tuple[int, int, int] | None:
+    match = SEMVER_RE.search(raw)
+    if not match:
+        return None
+    major, minor, patch = (int(part) for part in match.groups())
+    return (major, minor, patch)
+
+
+def _mempalace_version_status(parsed: tuple[int, int, int] | None) -> str:
+    if parsed is None:
+        return "unknown"
+    if parsed[:2] == MEMPALACE_TESTED_VERSION[:2]:
+        return "tested"
+    if parsed[:2] < MEMPALACE_TESTED_VERSION[:2]:
+        return "older-than-tested"
+    return "newer-than-tested"
+
+
 def _provider_env(config: Config, palace_path: Path | None = None) -> dict[str, str]:
     env = os.environ.copy()
     path = palace_path or config.palace_path
@@ -1115,13 +1229,45 @@ def _doctor(config: Config) -> int:
         return 0
     config.project_slug
     executable = _mempalace_executable()
-    version = _run_mempalace(config, ["--version"], timeout=20.0)
+    version_result = _run_mempalace(config, ["--version"], timeout=20.0)
+    raw_version = version_result.stdout.decode("utf-8", errors="replace").strip()
+    parsed_version = _parse_mempalace_version(raw_version)
+    version_status = _mempalace_version_status(parsed_version)
+    capabilities = [
+        _probe_mempalace_capability(executable, config, probe)
+        for probe in _required_mempalace_capabilities()
+    ]
+    missing = [c for c in capabilities if c["status"] != "ok"]
+    compatibility = {
+        "detected_version": raw_version,
+        "parsed_version": (
+            ".".join(str(part) for part in parsed_version) if parsed_version else None
+        ),
+        "version_status": version_status,
+        "tested_release_line": MEMPALACE_TESTED_RELEASE_LINE,
+        "tested_version": ".".join(str(part) for part in MEMPALACE_TESTED_VERSION),
+        "executable": executable,
+        "palace_path": str(config.palace_path),
+        "capabilities": capabilities,
+    }
+    result["compatibility"] = compatibility
+    if missing:
+        summary = "; ".join(
+            f"{c['name']} ({c['command']}): {c['detail']}" for c in missing
+        )
+        raise Refusal(
+            "MemPalace CLI is missing required capabilities for this adapter "
+            f"(tested against {MEMPALACE_TESTED_RELEASE_LINE}, detected "
+            f"{raw_version or 'unknown version'}): {summary}"
+        )
+    # A patch/minor version different from the tested line is not on its own
+    # a reason to block: only missing/incompatible capabilities are fatal.
     result.update(
         {
             "status": "ready",
             "executable": executable,
             "palace_path": str(config.palace_path),
-            "version": version.stdout.decode("utf-8", errors="replace").strip(),
+            "version": raw_version,
         }
     )
     print(json.dumps(result))
