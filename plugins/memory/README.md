@@ -65,20 +65,21 @@ exact argv with no shell, preserves records locally, and never installs or
 imports MemPalace itself. Only `sync-provider --apply` writes or rebuilds the
 provider palace. Eligible capture records a pending-sync receipt; run an
 explicit sync after eligible captures or state changes before provider-backed
-recall. Reconciliation preserves a backup before replacing a project palace.
+recall. Reconciliation preserves the immediately previous palace before replacement and
+removes older generated backups after the success receipt is durable.
 
-## Opt-in automatic capture
+## Opt-in lifecycle queue
 
 Claude hooks are inert until enabled:
 
 ```bash
-export CONTEXT_KIT_MEMORY_PROVIDER=mempalace
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
 ```
 
-GitHub Copilot and APM do not run Claude hooks. Use explicit commands or
-configure the host's native MemPalace integration separately.
+Enabled hooks queue exact payloads locally for explicit review; they never create
+memory records or mutate MemPalace. GitHub Copilot and APM do not run Claude
+hooks.
 
 ## Components
 
@@ -96,7 +97,7 @@ configure the host's native MemPalace integration separately.
 - New records start proposed and retain immutable evidence.
 - Recall results are leads, not proof.
 - Consolidation creates supersession history; it does not erase evidence.
-- Automatic capture is disabled by default.
+- Lifecycle payload queuing is disabled by default.
 - Project data never falls back to a global provider store.
 - MemPalace and Memora informed the design; this implementation is independent.
 

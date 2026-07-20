@@ -1,5 +1,5 @@
 {
-  "description": "Opt-in MemPalace capture; inert unless CONTEXT_KIT_MEMORY_AUTO_CAPTURE is enabled.",
+  "description": "Opt-in local lifecycle queue; never writes to a provider.",
   "hooks": {
     "Stop": [
       {
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/memory-provider.py\" hook session-end --detach",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/memory-provider.py\" hook session-end",
             "timeout": 5
           }
         ]

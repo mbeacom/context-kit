@@ -10,7 +10,8 @@
   reconciliation with staged project-isolated palaces, backups, and
   live-palace projection markers.
 - Require explicit provider synchronization after eligible captures or state
-  changes; capture and handoff archival never mutate the provider palace.
+  changes; capture, handoff archival, and lifecycle hooks never mutate the
+  provider palace. Opt-in hooks queue payloads locally for explicit review.
 - Harden MemPalace compatibility checks against the tested 3.6.x CLI surface
   and add an opt-in real-CLI smoke test.
 - Document project-scoped, server-enforced read-only GitHub Copilot MCP setup,

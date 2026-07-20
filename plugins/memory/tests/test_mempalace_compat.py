@@ -154,9 +154,8 @@ class MemPalaceCompatibilityTests(unittest.TestCase):
 
         # `sqlite_exact` is a lexical, no-embedding backend: it avoids
         # downloading or loading an embedding model, so this stays fast and
-        # offline. If the installed MemPalace does not support it, skip
-        # instead of falling back to the default backend, which could
-        # otherwise download a model as a side effect of running tests.
+        # offline. Skip only a specific unsupported-backend response; provider
+        # crashes and other nonzero results remain test failures.
         mine = self.run_cli(
             "mine",
             str(project_dir),
@@ -166,12 +165,23 @@ class MemPalaceCompatibilityTests(unittest.TestCase):
             "sqlite_exact",
             timeout=60.0,
         )
-        if mine.returncode != 0:
+        mine_error = mine.stderr.decode("utf-8", errors="replace").strip()
+        unsupported_markers = (
+            "unknown backend",
+            "unsupported backend",
+            "invalid choice",
+            "backend is not available",
+        )
+        if (
+            mine.returncode != 0
+            and "sqlite_exact" in mine_error.lower()
+            and any(marker in mine_error.lower() for marker in unsupported_markers)
+        ):
             self.skipTest(
-                "installed MemPalace could not mine with the sqlite_exact "
-                "no-embedding backend: "
-                f"{mine.stderr.decode('utf-8', errors='replace').strip()}"
+                "installed MemPalace explicitly rejected the sqlite_exact "
+                f"no-embedding backend: {mine_error}"
             )
+        self.assertEqual(0, mine.returncode, mine.stderr.decode())
 
         search = self.run_cli(
             "search",

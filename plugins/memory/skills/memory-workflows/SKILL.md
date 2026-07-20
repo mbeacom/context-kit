@@ -70,19 +70,20 @@ Run review before relying on old records. Consolidation is propose-only:
 
 Never destructively rewrite the only evidence for a remembered claim.
 
-## Optional automatic capture
+## Optional lifecycle queue
 
-Claude hooks ship inert. They forward lifecycle payloads to MemPalace only when
-all of these are explicitly configured:
+Claude hooks ship inert. When explicitly enabled, they queue lifecycle payloads
+under the project-isolated memory home for manual review:
 
 ```bash
-export CONTEXT_KIT_MEMORY_PROVIDER=mempalace
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
 ```
 
-Run `doctor` first. GitHub Copilot and APM do not run Claude hooks; use the
-explicit commands or configure the host's native MemPalace integration.
+Hooks never create reviewed memory records or mutate a provider palace. Review a
+queued payload, create a `memory-v1` artifact, run explicit `capture`, and then
+run `sync-provider --apply` when provider recall should change. GitHub Copilot
+and APM do not run Claude hooks.
 
 ## Resources
 

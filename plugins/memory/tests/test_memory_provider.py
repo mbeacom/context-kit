@@ -396,6 +396,33 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual(0, result)
         self.assertIn("does not bind", json.loads(stdout)["records"][0]["error"])
 
+    def test_record_state_rejects_oversized_reason_before_writing(self) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+
+        result, _, stderr = self.invoke(
+            [
+                "record-state",
+                "retry-policy",
+                "--review",
+                "rejected",
+                "--reason",
+                "x" * (memory_provider.MAX_STATE_REASON_CHARS + 1),
+                "--provider",
+                "none",
+                *self.base_args(),
+            ]
+        )
+
+        events = self.home / "states" / self.project_slug() / "retry-policy"
+        self.assertEqual(2, result)
+        self.assertIn("must not exceed", stderr)
+        self.assertEqual([], list(events.glob("*.json")) if events.exists() else [])
+
+    def test_utc_timestamp_uses_a_zero_offset(self) -> None:
+        self.assertTrue(memory_provider._utc_timestamp().endswith("+00:00"))
+
     def test_concurrent_state_transitions_remain_a_valid_chain(self) -> None:
         self.write_record(review="proposed")
         self.invoke(
@@ -712,7 +739,7 @@ class MemoryProviderTests(unittest.TestCase):
             c["name"]: c["status"] for c in compatibility["capabilities"]
         }
         self.assertEqual(
-            {"capture": "ok", "search": "ok", "wake": "ok", "hook": "ok"},
+            {"capture": "ok", "search": "ok", "wake": "ok"},
             capability_names,
         )
 
@@ -735,7 +762,7 @@ class MemoryProviderTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
     def test_doctor_refuses_clearly_when_subcommand_is_absent(self) -> None:
-        executable, _ = self.fake_mempalace(exit_overrides={"hook run --help": 2})
+        executable, _ = self.fake_mempalace(exit_overrides={"wake-up --help": 2})
         with patch.dict(
             os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
         ):
@@ -744,7 +771,7 @@ class MemoryProviderTests(unittest.TestCase):
             )
 
         self.assertEqual(2, result)
-        self.assertIn("hook", stderr)
+        self.assertIn("wake", stderr)
         self.assertIn("exited 2", stderr)
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
@@ -1002,6 +1029,13 @@ class MemoryProviderTests(unittest.TestCase):
         palace = self.home / "providers" / "mempalace" / self.project_slug() / "palace"
         palace.mkdir(parents=True)
         (palace / "old.txt").write_text("old palace", encoding="utf-8")
+        stale_backups = [
+            palace.parent / "palace-backup-old-a",
+            palace.parent / "palace-backup-old-b",
+        ]
+        for stale in stale_backups:
+            stale.mkdir()
+            (stale / "stale.txt").write_text("stale backup", encoding="utf-8")
         with patch.dict(
             os.environ,
             {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)},
@@ -1027,6 +1061,11 @@ class MemoryProviderTests(unittest.TestCase):
         backup = Path(report["backup_path"])
         self.assertTrue(backup.is_dir())
         self.assertEqual("old palace", (backup / "old.txt").read_text(encoding="utf-8"))
+        self.assertEqual(
+            sorted(str(path.resolve()) for path in stale_backups),
+            report["removed_backups"],
+        )
+        self.assertFalse(any(path.exists() for path in stale_backups))
         self.assertTrue(Path(report["receipt"]).is_file())
 
     @unittest.skipUnless(os.name == "posix", "safe directory swap requires POSIX")
@@ -1140,6 +1179,46 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual("old palace", (palace / "old.txt").read_text(encoding="utf-8"))
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_failed_sync_receipt_keeps_detected_provider_version(self) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        executable, _ = self.fake_mempalace()
+
+        def fail_after_version(config, argv, **kwargs):
+            if argv == ["--version"]:
+                return type("Result", (), {"stdout": b"mempalace 3.6.0\n"})()
+            raise memory_provider.Refusal("simulated mine failure")
+
+        with (
+            patch.dict(
+                os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+            ),
+            patch.object(
+                memory_provider,
+                "_run_mempalace",
+                side_effect=fail_after_version,
+            ),
+        ):
+            result, _, _ = self.invoke(
+                [
+                    "sync-provider",
+                    "--apply",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+
+        receipt = json.loads(
+            sorted((self.home / "receipts" / self.project_slug()).glob("*.json"))[
+                -1
+            ].read_text(encoding="utf-8")
+        )
+        self.assertEqual(2, result)
+        self.assertEqual("mempalace 3.6.0", receipt["provider_version"])
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
     def test_search_forwards_exact_query_and_result_limit(self) -> None:
         executable, calls = self.fake_mempalace(stdout="remembered evidence\n")
         with patch.dict(
@@ -1219,7 +1298,7 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertIn("sync-provider --apply", stderr)
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
-    def test_enabled_hook_forwards_payload_and_scopes_palace(self) -> None:
+    def test_enabled_hook_queues_payload_without_invoking_provider(self) -> None:
         executable, calls = self.fake_mempalace(stdout="{}")
         payload = b'{"event":"stop","session_id":"abc"}'
         with patch.dict(
@@ -1236,13 +1315,12 @@ class MemoryProviderTests(unittest.TestCase):
             result, stdout, _ = self.invoke(["hook", "stop"], payload)
 
         self.assertEqual(0, result)
-        self.assertEqual("{}", stdout)
-        call = json.loads(calls.read_text(encoding="utf-8").splitlines()[0])
-        self.assertEqual(
-            ["hook", "run", "--hook", "stop", "--harness", "claude-code"],
-            call["argv"],
-        )
-        self.assertEqual(payload.decode(), call["stdin"])
+        report = json.loads(stdout)
+        pending = Path(report["pending"])
+        self.assertEqual("queued-for-review", report["status"])
+        self.assertFalse(report["provider_invoked"])
+        self.assertEqual(payload, pending.read_bytes())
+        self.assertFalse(calls.exists())
 
     #: Default `--help` bodies that satisfy every required capability probe
     #: in `memory_provider._required_mempalace_capabilities()` for the
@@ -1252,7 +1330,6 @@ class MemoryProviderTests(unittest.TestCase):
         "mine": "usage: mempalace mine DIR --wing WING\n",
         "search": "usage: mempalace search QUERY --results N\n",
         "wake-up": "usage: mempalace wake-up\n",
-        "hook": "usage: mempalace hook run --hook EVENT --harness HARNESS\n",
     }
 
     def fake_mempalace(

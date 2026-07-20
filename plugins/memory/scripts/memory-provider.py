@@ -16,7 +16,7 @@ import tempfile
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 SCHEMA = "context-kit/memory-v1"
@@ -25,6 +25,8 @@ MAX_MEMORY_LINES = 220
 MAX_HANDOFF_LINES = 300
 MAX_HANDOFF_ITEMS = 25
 MAX_CUES = 3
+MAX_STATE_REASON_CHARS = 1000
+PROVIDER_BACKUP_RETENTION = 1
 PROJECT_SLUG_PREFIX_LENGTH = 31
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,95}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -524,7 +526,7 @@ def _write_once(destination: Path, raw: bytes) -> str:
 
 
 def _utc_timestamp() -> str:
-    return datetime.now().astimezone().isoformat(timespec="microseconds")
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")
 
 
 def _new_write_once_path(directory: Path, suffix: str) -> Path:
@@ -694,7 +696,7 @@ def _validate_state_event(
         raise Refusal(f"state event sequence does not match its filename: {path}")
     if not isinstance(payload["reason"], str) or not payload["reason"].strip():
         raise Refusal(f"state event is missing a reason: {path}")
-    if len(payload["reason"]) > 1000:
+    if len(payload["reason"]) > MAX_STATE_REASON_CHARS:
         raise Refusal(f"state event reason is too long: {path}")
     for key in ("timestamp",):
         if not isinstance(payload[key], str):
@@ -912,7 +914,7 @@ class CapabilityProbe:
 
 def _required_mempalace_capabilities() -> tuple[CapabilityProbe, ...]:
     # Each probe mirrors an exact argv the adapter actually invokes elsewhere
-    # in this module (`_archive_with_provider`, `_search`, `_wake`, `_run_hook`).
+    # in this module (`_sync_provider`, `_search`, and `_wake`).
     # Probing `--help` (never the mutating command itself) lets `doctor` catch
     # upstream CLI drift without importing MemPalace internals or writing to a
     # palace.
@@ -933,12 +935,6 @@ def _required_mempalace_capabilities() -> tuple[CapabilityProbe, ...]:
             name="wake",
             argv=("wake-up", "--help"),
             contract="wake-up",
-        ),
-        CapabilityProbe(
-            name="hook",
-            argv=("hook", "run", "--help"),
-            contract="hook run --hook <event> --harness claude-code",
-            required_tokens=("--hook", "--harness"),
         ),
     )
 
@@ -1381,6 +1377,8 @@ def _record_state(args: argparse.Namespace, config: Config) -> int:
     reason = args.reason.strip()
     if not reason:
         raise Refusal("--reason must not be empty")
+    if len(reason) > MAX_STATE_REASON_CHARS:
+        raise Refusal(f"--reason must not exceed {MAX_STATE_REASON_CHARS} characters")
     with _state_lock(config, args.record_id):
         metadata, current = _load_record(path, config)
         requested = {
@@ -1520,6 +1518,24 @@ def _has_current_provider_projection(config: Config, projection_hash: str) -> bo
     )
 
 
+def _prune_provider_backups(parent: Path, keep: Path | None) -> list[str]:
+    backups = [
+        path
+        for path in parent.glob("palace-backup-*")
+        if path.is_dir() and path != keep
+    ]
+    if keep is None:
+        backups.sort(
+            key=lambda path: (path.stat().st_mtime_ns, path.name), reverse=True
+        )
+        backups = backups[PROVIDER_BACKUP_RETENTION:]
+    removed: list[str] = []
+    for path in backups:
+        shutil.rmtree(path)
+        removed.append(str(path))
+    return sorted(removed)
+
+
 def _sync_provider(args: argparse.Namespace, config: Config) -> int:
     if config.provider != "mempalace":
         raise Refusal("sync-provider requires --provider mempalace")
@@ -1554,6 +1570,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
     stage = parent / f".palace-rebuild-{uuid.uuid4().hex}"
     backup: Path | None = None
     executable = ""
+    version = "unknown"
     argv: list[str] = []
     recovery_status = "not-needed"
     try:
@@ -1592,7 +1609,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
     except (OSError, Refusal) as exc:
         receipt = _provider_receipt(
             config,
-            provider_version="unknown",
+            provider_version=version,
             operation="sync-provider",
             artifact_hash=None,
             argv=argv,
@@ -1620,10 +1637,18 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         projection_hash=projection_hash,
         backup_path=backup,
     )
+    try:
+        removed_backups = _prune_provider_backups(parent, backup)
+    except OSError as exc:
+        raise Refusal(
+            "provider synchronized but backup retention failed; "
+            f"receipt={receipt}: {exc}"
+        ) from exc
     plan.update(
         {
             "status": "synchronized",
             "backup_path": str(backup) if backup else None,
+            "removed_backups": removed_backups,
             "receipt": str(receipt),
         }
     )
@@ -1631,82 +1656,31 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
-def _hook_timeout(event: str) -> float:
-    return {"stop": 25.0, "precompact": 85.0, "session-end": 300.0}[event]
-
-
 def _run_hook(event: str, config: Config, payload: bytes) -> int:
     if not config.auto_capture:
         print("{}")
         return 0
-    config.project_slug
-    result = _run_mempalace(
-        config,
-        ["hook", "run", "--hook", event, "--harness", "claude-code"],
-        input_bytes=payload,
-        timeout=_hook_timeout(event),
-    )
-    if result.stdout:
-        _write_stdout(result.stdout)
-    else:
-        print("{}")
-    return 0
-
-
-def _queue_hook(event: str, config: Config, payload: bytes) -> int:
-    if not config.auto_capture:
-        print("{}")
-        return 0
-    config.project_slug
-    pending_dir = config.home / "pending" / config.project_slug
-    pending_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        dir=pending_dir,
-        prefix=f"{event}-",
-        suffix=".json",
-        delete=False,
-    ) as handle:
-        handle.write(payload)
-        pending = Path(handle.name)
-    os.chmod(pending, 0o600)
-    log_dir = config.home / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{config.project_slug}-hooks.log"
-    worker_env = os.environ.copy()
-    worker_env.update(
-        {
-            "CONTEXT_KIT_MEMORY_PROVIDER": config.provider,
-            "CONTEXT_KIT_MEMORY_HOME": str(config.home),
-            "CONTEXT_KIT_MEMORY_PROJECT": config.project or "",
-            "CONTEXT_KIT_MEMORY_AUTO_CAPTURE": "true",
-        }
-    )
-    with log_path.open("ab") as log:
-        subprocess.Popen(
-            [
-                sys.executable,
-                str(Path(__file__).resolve()),
-                "hook-worker",
-                event,
-                str(pending),
-            ],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=log,
-            close_fds=True,
-            start_new_session=True,
-            env=worker_env,
-        )
-    print("{}")
-    return 0
-
-
-def _hook_worker(event: str, pending: Path, config: Config) -> int:
     try:
-        payload = pending.read_bytes()
-        return _run_hook(event, config, payload)
-    finally:
-        pending.unlink(missing_ok=True)
+        decoded = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Refusal(f"hook payload must be valid JSON: {exc}") from exc
+    if not isinstance(decoded, dict):
+        raise Refusal("hook payload must be a JSON object")
+    pending_dir = config.home / "pending-hooks" / config.project_slug
+    pending = _new_write_once_path(pending_dir, f"-{event}.json")
+    if _write_once(pending, payload) != "created":
+        raise Refusal(f"refusing to reuse a generated hook payload path: {pending}")
+    print(
+        json.dumps(
+            {
+                "status": "queued-for-review",
+                "event": event,
+                "pending": str(pending),
+                "provider_invoked": False,
+            }
+        )
+    )
+    return 0
 
 
 def _add_config_args(parser: argparse.ArgumentParser) -> None:
@@ -1781,12 +1755,7 @@ def _parser() -> argparse.ArgumentParser:
 
     hook = sub.add_parser("hook")
     hook.add_argument("event", choices=("stop", "precompact", "session-end"))
-    hook.add_argument("--detach", action="store_true")
     _add_config_args(hook)
-
-    worker = sub.add_parser("hook-worker", help=argparse.SUPPRESS)
-    worker.add_argument("event", choices=("stop", "precompact", "session-end"))
-    worker.add_argument("pending")
     return parser
 
 
@@ -1819,11 +1788,7 @@ def main(argv: list[str] | None = None) -> int:
             return _sync_provider(args, config)
         if args.command == "hook":
             payload = sys.stdin.buffer.read()
-            if args.detach:
-                return _queue_hook(args.event, config, payload)
             return _run_hook(args.event, config, payload)
-        if args.command == "hook-worker":
-            return _hook_worker(args.event, Path(args.pending), config)
     except (OSError, Refusal) as exc:
         print(json.dumps({"status": "refused", "error": str(exc)}), file=sys.stderr)
         return 2

@@ -10,10 +10,9 @@ does not vendor or import its Python internals.
 This adapter is tested against **MemPalace 3.6.0** (the 3.6.x release line).
 `doctor` never imports MemPalace internals; instead it parses `mempalace
 --version` and probes the exact `--help` surfaces the adapter depends on
-(`mine --help`, `search --help`, `wake-up --help`, `hook run --help`) with
-bounded timeouts, so upstream CLI drift is caught before capture, search,
-wake, or hook forwarding runs silently against changed argv or missing
-options.
+(`mine --help`, `search --help`, and `wake-up --help`) with bounded timeouts,
+so upstream CLI drift is caught before synchronization, search, or wake runs
+against changed argv or missing options.
 
 | Installed version | `doctor` reports | Meaning |
 | --- | --- | --- |
@@ -24,7 +23,7 @@ options.
 
 A version outside the tested line is **not** on its own a hard failure —
 `doctor` only refuses when a required capability (`capture`, `search`,
-`wake`, or `hook`) is actually missing or incompatible. This avoids blocking
+or `wake`) is actually missing or incompatible. This avoids blocking
 a working install solely on a patch/minor version mismatch, while still
 refusing clearly when the CLI contract really has changed. Run
 `python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor` after
@@ -108,15 +107,18 @@ until the live palace contains its matching staged projection marker. Historical
 receipts are audit evidence only; they never authorize provider recall. The
 marker also binds the complete local record/state ledger, so a capture or state
 change requires a fresh explicit sync even if the active record set later looks
-the same.
+the same. After the success receipt is durable, reconciliation retains only the
+immediately previous generated palace backup and removes older generated
+backups.
 
 ## GitHub Copilot MCP (optional, separate from this adapter)
 
 MemPalace 3.6 ships `mempalace-mcp`, a standalone MCP server. This is a
 **separate integration path from the stdlib adapter above**: the adapter
-above is what `capture`, `search`, `wake`, `review`, and the Claude hooks use;
-`mempalace-mcp` instead lets a host's own agent (here, GitHub Copilot CLI)
-call MemPalace recall directly as MCP tools. `context-kit` does not
+above is what `capture`, `search`, `wake`, and `review` use; Claude hooks only
+queue local payloads for explicit review. `mempalace-mcp` instead lets a host's
+own agent (here, GitHub Copilot CLI) call MemPalace recall directly as MCP
+tools. `context-kit` does not
 auto-register, auto-install, or otherwise wire this up for you — set it up
 explicitly if you want it.
 
@@ -150,20 +152,14 @@ explicitly if you want it.
    client. Verify the exact flag surface for your installed version with
    `mempalace-mcp --help` before relying on it.
 
-3. You can preview the equivalent entry with the Copilot CLI's own syntax —
-   note this command writes to your **personal** `~/.copilot/mcp-config.json`,
-   so copy the resulting block into the project file above rather than
-   leaving it there if you want it project-scoped:
-
-   ```bash
-   copilot mcp add mempalace --json -- mempalace-mcp --read-only --palace <palace_path from doctor>
-   ```
-
-4. Optionally restrict which tools Copilot can call (client-side filter, on
+3. Optionally restrict which tools Copilot can call (client-side filter, on
    top of the server's own `--read-only` enforcement) by replacing `"tools":
-   ["*"]` with an explicit list, or passing `--tools "search"` (etc.) to
-   `copilot mcp add`. Use `mempalace-mcp --help` or `copilot mcp get
-   mempalace` to see available tool names for your installed version.
+   ["*"]` with an explicit list. Use `mempalace-mcp --help` to see available
+   tool names for your installed version.
+
+Do not use `copilot mcp add` for this project-scoped setup: it writes directly
+to your personal `~/.copilot/mcp-config.json` and does not provide a `--json`
+preview mode. Keep the hand-edited workspace file from step 2.
 
 Never point `--palace` at a shared or global palace — always use the exact
 project-isolated path `doctor` reports so MCP recall stays scoped the same
