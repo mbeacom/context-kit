@@ -79,14 +79,15 @@ python3 "$MEMORY" archive-handoff .context-kit/handoff.md
 ```
 
 `capture` and `archive-handoff` always preserve an exact local copy first.
-Memory capture invokes MemPalace only for effective `accepted/current` records;
-a proposed capture reports an explicit skipped archival result. Handoffs remain
-local historical evidence and are not placed in the active memory provider.
-Use `--local-only` to skip provider archival.
+Neither command writes to MemPalace. An accepted/current capture records a
+durable `pending-sync` receipt; proposed or inactive capture records a distinct
+not-eligible skip. Handoffs remain local historical evidence and are not placed
+in the active memory provider. Run `sync-provider --apply` explicitly after an
+eligible capture or any state change before provider-backed recall.
 
 ## Receipts and reconciliation
 
-Every provider archival attempt, skip, failure, and successful reconciliation
+Every provider capture decision, skip, failure, and successful reconciliation
 writes an immutable receipt below:
 
 ```text
@@ -104,7 +105,10 @@ backup, then swaps the staged palace into place. Unsupported platforms refuse
 apply rather than partially replacing a palace. After capture or a state
 transition, reconcile before provider-backed recall; the adapter refuses provider search
 until the live palace contains its matching staged projection marker. Historical
-receipts are audit evidence only; they never authorize provider recall.
+receipts are audit evidence only; they never authorize provider recall. The
+marker also binds the complete local record/state ledger, so a capture or state
+change requires a fresh explicit sync even if the active record set later looks
+the same.
 
 ## GitHub Copilot MCP (optional, separate from this adapter)
 

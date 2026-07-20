@@ -577,6 +577,14 @@ def _state_lock(config: Config, record_id: str):
     while True:
         try:
             lock.mkdir()
+        except FileExistsError:
+            if _reclaim_stale_lock(lock):
+                continue
+            if time.monotonic() >= deadline:
+                raise Refusal(f"state transition is busy for record: {record_id}")
+            time.sleep(0.02)
+            continue
+        try:
             _write_once(
                 owner,
                 json.dumps(
@@ -588,13 +596,10 @@ def _state_lock(config: Config, record_id: str):
                     sort_keys=True,
                 ).encode("utf-8"),
             )
-            break
-        except FileExistsError:
-            if _reclaim_stale_lock(lock):
-                continue
-            if time.monotonic() >= deadline:
-                raise Refusal(f"state transition is busy for record: {record_id}")
-            time.sleep(0.02)
+        except (OSError, Refusal):
+            shutil.rmtree(lock, ignore_errors=True)
+            raise
+        break
     try:
         yield
     finally:
@@ -803,6 +808,26 @@ def _projection_hash(records: list[tuple[Path, dict[str, object]]]) -> str:
         digest.update(str(metadata["id"]).encode("utf-8"))
         digest.update(b"\0")
         digest.update(str(metadata["artifact_hash"]).encode("ascii"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _ledger_hash(config: Config) -> str:
+    """Bind provider authority to all local record and state history, not its shape."""
+    digest = hashlib.sha256()
+    paths: list[Path] = []
+    if config.records_path.exists():
+        paths.extend(config.records_path.glob("*.md"))
+    if config.states_path.exists():
+        paths.extend(
+            path
+            for path in config.states_path.rglob("*.json")
+            if ".lock" not in path.relative_to(config.states_path).parts
+        )
+    for path in sorted(paths, key=lambda item: str(item.relative_to(config.home))):
+        digest.update(str(path.relative_to(config.home)).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
         digest.update(b"\n")
     return digest.hexdigest()
 
@@ -1031,69 +1056,6 @@ def _mempalace_version(config: Config) -> tuple[str, str]:
     return executable, version.stdout.decode("utf-8", errors="replace").strip()
 
 
-def _archive_active_projection(
-    config: Config, *, operation: str, artifact_hash: str | None
-) -> tuple[bool, str, Path | None]:
-    records, _ = _active_projection(config)
-    projection_hash = _projection_hash(records)
-    if not records:
-        receipt = _provider_receipt(
-            config,
-            provider_version="not-invoked",
-            operation=operation,
-            artifact_hash=artifact_hash,
-            argv=[],
-            outcome="skipped",
-            detail="no accepted/current records are eligible for provider archival",
-            projection_hash=projection_hash,
-        )
-        return (
-            False,
-            "no accepted/current records are eligible for provider archival",
-            receipt,
-        )
-
-    projection_parent = config.home / "providers" / "mempalace" / config.project_slug
-    projection_parent.mkdir(parents=True, exist_ok=True)
-    projection = Path(tempfile.mkdtemp(prefix=".projection-", dir=projection_parent))
-    executable = ""
-    argv: list[str] = []
-    try:
-        _materialize_projection(records, projection)
-        executable, version = _mempalace_version(config)
-        argv = [executable, "mine", str(projection), "--wing", config.project_slug]
-        _run_mempalace(
-            config,
-            argv[1:],
-            timeout=300.0,
-        )
-    except Refusal as exc:
-        receipt = _provider_receipt(
-            config,
-            provider_version="unknown",
-            operation=operation,
-            artifact_hash=artifact_hash,
-            argv=argv,
-            outcome="failed",
-            detail=str(exc),
-            projection_hash=projection_hash,
-        )
-        raise Refusal(f"{exc}; receipt={receipt}") from exc
-    finally:
-        shutil.rmtree(projection, ignore_errors=True)
-    receipt = _provider_receipt(
-        config,
-        provider_version=version,
-        operation=operation,
-        artifact_hash=artifact_hash,
-        argv=argv,
-        outcome="success",
-        detail=f"indexed {len(records)} accepted/current records",
-        projection_hash=projection_hash,
-    )
-    return True, "archived accepted/current projection", receipt
-
-
 def _capture_memory(args: argparse.Namespace, config: Config) -> int:
     source = Path(args.artifact).expanduser().resolve()
     metadata = validate_memory(source)
@@ -1103,20 +1065,31 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
     state = _write_once(destination, raw)
     archived = False
     archive_reason = "provider not selected"
+    archive_outcome = "not-selected"
     receipt: Path | None = None
     effective = effective_state(metadata, config)
     if config.provider == "mempalace" and not args.local_only:
         if _is_active(effective):
-            archived, archive_reason, receipt = _archive_active_projection(
+            archive_reason = (
+                "eligible for provider indexing but pending explicit "
+                "sync-provider --apply"
+            )
+            archive_outcome = "pending-sync"
+            receipt = _provider_receipt(
                 config,
                 operation="capture",
+                provider_version="not-invoked",
                 artifact_hash=str(metadata["artifact_hash"]),
+                argv=[],
+                outcome="pending-sync",
+                detail=archive_reason,
             )
         else:
             archive_reason = (
-                "skipped: record is not eligible for provider archival "
+                "not provider eligible; explicit sync will exclude this record "
                 f"(review={effective['review']}, freshness={effective['freshness']})"
             )
+            archive_outcome = "skipped"
             receipt = _provider_receipt(
                 config,
                 provider_version="not-invoked",
@@ -1128,6 +1101,7 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
             )
     elif args.local_only:
         archive_reason = "skipped: --local-only"
+        archive_outcome = "skipped"
     print(
         json.dumps(
             {
@@ -1137,10 +1111,15 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
                 "provider": config.provider,
                 "provider_archived": archived,
                 "provider_archive": {
-                    "outcome": "success" if archived else "skipped",
+                    "outcome": archive_outcome,
                     "reason": archive_reason,
                     "receipt": str(receipt) if receipt else None,
                 },
+                "provider_reconciliation": (
+                    "required: run sync-provider --apply"
+                    if config.provider == "mempalace" and _is_active(effective)
+                    else "not-required"
+                ),
                 "effective_state": effective,
             }
         )
@@ -1190,6 +1169,7 @@ def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
                     "reason": archive_reason,
                     "receipt": str(receipt) if receipt else None,
                 },
+                "provider_reconciliation": "not-required: handoffs are not active memory",
                 "saved_head": metadata["head"],
             }
         )
@@ -1485,7 +1465,11 @@ def _read_receipts(config: Config) -> list[dict[str, object]]:
 
 
 def _write_projection_marker(
-    stage: Path, config: Config, projection_hash: str, provider_version: str
+    stage: Path,
+    config: Config,
+    projection_hash: str,
+    ledger_hash: str,
+    provider_version: str,
 ) -> None:
     raw = (
         json.dumps(
@@ -1494,6 +1478,7 @@ def _write_projection_marker(
                 "project": config.project,
                 "project_key": config.project_slug,
                 "projection_hash": projection_hash,
+                "ledger_hash": ledger_hash,
                 "provider_version": provider_version,
                 "applied_at": _utc_timestamp(),
             },
@@ -1516,6 +1501,7 @@ def _has_current_provider_projection(config: Config, projection_hash: str) -> bo
         "project",
         "project_key",
         "projection_hash",
+        "ledger_hash",
         "provider_version",
         "applied_at",
     }:
@@ -1529,6 +1515,7 @@ def _has_current_provider_projection(config: Config, projection_hash: str) -> bo
         and payload["project"] == config.project
         and payload["project_key"] == config.project_slug
         and payload["projection_hash"] == projection_hash
+        and payload["ledger_hash"] == _ledger_hash(config)
         and isinstance(payload["provider_version"], str)
     )
 
@@ -1538,6 +1525,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         raise Refusal("sync-provider requires --provider mempalace")
     records, excluded = _active_projection(config)
     projection_hash = _projection_hash(records)
+    ledger_hash = _ledger_hash(config)
     plan: dict[str, object] = {
         "project": config.project_slug,
         "palace_path": str(config.palace_path),
@@ -1581,7 +1569,13 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         )
         if not stage.is_dir():
             raise Refusal("MemPalace did not leave a valid staged palace")
-        _write_projection_marker(stage, config, projection_hash, version)
+        _write_projection_marker(
+            stage,
+            config,
+            projection_hash,
+            ledger_hash,
+            version,
+        )
         if config.palace_path.exists():
             backup = parent / f"palace-backup-{uuid.uuid4().hex}"
             os.replace(config.palace_path, backup)

@@ -61,11 +61,11 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
 ```
 
 Each configured project gets an isolated MemPalace palace. The adapter uses
-exact argv with no shell, preserves records locally before archival, and never
-installs or imports MemPalace itself. It archives only accepted/current records,
-writes immutable provider receipts, and offers `sync-provider` (dry-run) plus
-an explicit `sync-provider --apply` reconciliation that preserves a backup
-before replacing a project palace.
+exact argv with no shell, preserves records locally, and never installs or
+imports MemPalace itself. Only `sync-provider --apply` writes or rebuilds the
+provider palace. Eligible capture records a pending-sync receipt; run an
+explicit sync after eligible captures or state changes before provider-backed
+recall. Reconciliation preserves a backup before replacing a project palace.
 
 ## Opt-in automatic capture
 

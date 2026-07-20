@@ -31,4 +31,6 @@ capture multiple unrelated claims.
    and effective review/freshness state. Proposed or inactive records are
    locally persisted but must visibly report provider archival as skipped; they
    are never success-shaped archives. After evidence review, use `record-state`
-   with a non-empty reason rather than editing the immutable artifact.
+   with a non-empty reason rather than editing the immutable artifact. An
+   accepted/current capture is provider-eligible but still pending: run
+   `sync-provider --apply` explicitly before provider-backed recall.

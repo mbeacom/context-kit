@@ -591,6 +591,51 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual(2, refused)
         self.assertIn("busy", stderr)
 
+    def test_owner_write_failure_cleans_up_new_lock(self) -> None:
+        self.write_record(review="proposed")
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        real_write_once = memory_provider._write_once
+
+        def fail_owner(destination, raw):
+            if destination.name == "owner.json":
+                raise OSError("simulated owner metadata failure")
+            return real_write_once(destination, raw)
+
+        with patch.object(memory_provider, "_write_once", side_effect=fail_owner):
+            failed, _, _ = self.invoke(
+                [
+                    "record-state",
+                    "retry-policy",
+                    "--review",
+                    "accepted",
+                    "--reason",
+                    "Injected failure.",
+                    "--provider",
+                    "none",
+                    *self.base_args(),
+                ]
+            )
+        lock = self.home / "states" / self.project_slug() / "retry-policy" / ".lock"
+        recovered, _, _ = self.invoke(
+            [
+                "record-state",
+                "retry-policy",
+                "--review",
+                "accepted",
+                "--reason",
+                "Lock was cleaned up.",
+                "--provider",
+                "none",
+                *self.base_args(),
+            ]
+        )
+
+        self.assertEqual(2, failed)
+        self.assertFalse(lock.exists())
+        self.assertEqual(0, recovered)
+
     def test_capture_rejects_repository_project_mismatch(self) -> None:
         result, _, stderr = self.invoke(
             [
@@ -636,7 +681,7 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual(0, result)
         report = json.loads(stdout)
         self.assertFalse(report["provider_archived"])
-        self.assertIn("not eligible", report["provider_archive"]["reason"])
+        self.assertIn("not provider eligible", report["provider_archive"]["reason"])
         receipt = json.loads(
             Path(report["provider_archive"]["receipt"]).read_text(encoding="utf-8")
         )
@@ -645,7 +690,7 @@ class MemoryProviderTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
     def test_doctor_reports_compatibility_for_tested_mempalace_version(self) -> None:
-        executable, _ = self.fake_mempalace()
+        executable, calls = self.fake_mempalace()
         with patch.dict(
             os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
         ):
@@ -918,7 +963,9 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual("drifted", entry["source_state"])
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
-    def test_provider_capture_uses_exact_scoped_argv(self) -> None:
+    def test_provider_capture_requires_explicit_sync_without_invoking_mine(
+        self,
+    ) -> None:
         executable, calls = self.fake_mempalace()
         with patch.dict(
             os.environ,
@@ -936,27 +983,22 @@ class MemoryProviderTests(unittest.TestCase):
             )
 
         self.assertEqual(0, result)
-        self.assertTrue(json.loads(stdout)["provider_archived"])
+        report = json.loads(stdout)
+        self.assertFalse(report["provider_archived"])
+        self.assertEqual("pending-sync", report["provider_archive"]["outcome"])
+        self.assertIn("sync-provider --apply", report["provider_reconciliation"])
         provider_receipt = Path(json.loads(stdout)["provider_archive"]["receipt"])
         self.assertTrue(provider_receipt.is_file())
-        call = next(
-            json.loads(line)
-            for line in calls.read_text(encoding="utf-8").splitlines()
-            if json.loads(line)["argv"][0] == "mine"
-        )
-        self.assertEqual("mine", call["argv"][0])
-        self.assertEqual(["--wing", self.project_slug()], call["argv"][-2:])
-        self.assertIn(
-            f"providers/mempalace/{self.project_slug()}/palace",
-            call["palace"],
-        )
+        self.assertFalse(calls.exists())
+        receipt = json.loads(provider_receipt.read_text(encoding="utf-8"))
+        self.assertEqual("pending-sync", receipt["outcome"])
 
     @unittest.skipUnless(os.name == "posix", "safe directory swap requires POSIX")
     def test_provider_sync_dry_run_and_apply_preserves_backup(self) -> None:
         self.invoke(
             ["capture", str(self.record), "--provider", "none", *self.base_args()]
         )
-        executable, _ = self.fake_mempalace()
+        executable, calls = self.fake_mempalace()
         palace = self.home / "providers" / "mempalace" / self.project_slug() / "palace"
         palace.mkdir(parents=True)
         (palace / "old.txt").write_text("old palace", encoding="utf-8")
@@ -1001,7 +1043,7 @@ class MemoryProviderTests(unittest.TestCase):
             ),
             encoding="utf-8",
         )
-        executable, _ = self.fake_mempalace()
+        executable, calls = self.fake_mempalace()
         with patch.dict(
             os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
         ):
@@ -1014,17 +1056,12 @@ class MemoryProviderTests(unittest.TestCase):
                     *self.base_args(),
                 ]
             )
-            self.invoke(
-                ["capture", str(second), "--provider", "none", *self.base_args()]
+            captured, capture_stdout, _ = self.invoke(
+                ["capture", str(second), "--provider", "mempalace", *self.base_args()]
             )
-            second_sync, _, _ = self.invoke(
-                [
-                    "sync-provider",
-                    "--apply",
-                    "--provider",
-                    "mempalace",
-                    *self.base_args(),
-                ]
+            mine_count_after_capture = sum(
+                json.loads(line)["argv"][0] == "mine"
+                for line in calls.read_text(encoding="utf-8").splitlines()
             )
             rejected, _, _ = self.invoke(
                 [
@@ -1050,7 +1087,11 @@ class MemoryProviderTests(unittest.TestCase):
             )
 
         self.assertEqual(0, first_sync)
-        self.assertEqual(0, second_sync)
+        self.assertEqual(0, captured)
+        self.assertEqual(
+            "pending-sync", json.loads(capture_stdout)["provider_archive"]["outcome"]
+        )
+        self.assertEqual(1, mine_count_after_capture)
         self.assertEqual(0, rejected)
         self.assertEqual(2, search)
         self.assertIn("sync-provider --apply", stderr)
