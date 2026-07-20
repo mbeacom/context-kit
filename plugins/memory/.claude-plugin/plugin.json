@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "memory",
   "displayName": "Durable Memory",
-  "version": "0.1.0",
-  "description": "Provenance-bound durable memory across sessions: reviewed records, recall-then-verify workflows, an optional MemPalace provider adapter, and opt-in lifecycle capture.",
+  "version": "0.2.0",
+  "description": "Provenance-bound durable memory across sessions: immutable records, append-only review state, active-only recall, explicit MemPalace reconciliation, and opt-in lifecycle capture.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",
@@ -31,8 +31,8 @@
     },
     "auto_capture": {
       "type": "boolean",
-      "title": "Automatic lifecycle capture",
-      "description": "Forward Claude lifecycle events to the configured provider",
+      "title": "Lifecycle payload queue",
+      "description": "Queue Claude lifecycle payloads locally for explicit review without writing to a provider",
       "default": false
     }
   }

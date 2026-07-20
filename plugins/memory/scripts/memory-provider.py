@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -12,8 +13,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
+import uuid
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 SCHEMA = "context-kit/memory-v1"
@@ -22,6 +25,8 @@ MAX_MEMORY_LINES = 220
 MAX_HANDOFF_LINES = 300
 MAX_HANDOFF_ITEMS = 25
 MAX_CUES = 3
+MAX_STATE_REASON_CHARS = 1000
+PROVIDER_BACKUP_RETENTION = 1
 PROJECT_SLUG_PREFIX_LENGTH = 31
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{0,95}$")
 HASH_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -35,6 +40,31 @@ MEMORY_TYPES = {"fact", "decision", "procedure", "constraint", "episode"}
 SCOPES = {"project"}
 FRESHNESS_STATES = {"current", "stale", "superseded", "revoked"}
 REVIEW_STATES = {"proposed", "accepted", "rejected"}
+STATE_SCHEMA = "context-kit/memory-state-v1"
+RECEIPT_SCHEMA = "context-kit/memory-provider-receipt-v1"
+PROJECTION_MARKER_SCHEMA = "context-kit/memory-provider-projection-v1"
+PROJECTION_MARKER_NAME = ".context-kit-projection.json"
+STATE_SEQUENCE_WIDTH = 20
+STATE_LOCK_TIMEOUT_SECONDS = 5.0
+STATE_LOCK_STALE_SECONDS = 300.0
+STATE_SEQUENCE_RE = re.compile(r"^(\d{20})-[0-9a-f]{32}\.json$")
+REVIEW_TRANSITIONS = {
+    "proposed": {"accepted", "rejected"},
+    "accepted": {"rejected"},
+    "rejected": {"accepted"},
+}
+FRESHNESS_TRANSITIONS = {
+    "current": {"stale", "superseded", "revoked"},
+    "stale": {"current", "superseded", "revoked"},
+    "superseded": set(),
+    "revoked": set(),
+}
+# The adapter is verified against this MemPalace release; see
+# skills/memory-workflows/references/provider-mempalace.md for the
+# compatibility matrix and how `doctor` reports drift.
+MEMPALACE_TESTED_VERSION = (3, 6, 0)
+MEMPALACE_TESTED_RELEASE_LINE = "3.6.x"
+SEMVER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 REQUIRED_FIELDS = (
     "schema",
     "id",
@@ -107,6 +137,18 @@ class Config:
     @property
     def palace_path(self) -> Path:
         return self.home / "providers" / "mempalace" / self.project_slug / "palace"
+
+    @property
+    def records_path(self) -> Path:
+        return self.home / "records" / self.project_slug
+
+    @property
+    def states_path(self) -> Path:
+        return self.home / "states" / self.project_slug
+
+    @property
+    def receipts_path(self) -> Path:
+        return self.home / "receipts" / self.project_slug
 
 
 def _first_env(*names: str) -> str | None:
@@ -483,6 +525,363 @@ def _write_once(destination: Path, raw: bytes) -> str:
     return "created"
 
 
+def _utc_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="microseconds")
+
+
+def _new_write_once_path(directory: Path, suffix: str) -> Path:
+    directory.mkdir(parents=True, exist_ok=True)
+    stamp = _utc_timestamp().replace("-", "").replace(":", "").replace("+", "p")
+    return directory / f"{stamp}-{os.getpid()}-{uuid.uuid4().hex}{suffix}"
+
+
+def _write_json_once(directory: Path, payload: dict[str, object]) -> Path:
+    raw = (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode("utf-8")
+    destination = _new_write_once_path(directory, ".json")
+    if _write_once(destination, raw) != "created":
+        raise Refusal(f"refusing to reuse a generated write-once path: {destination}")
+    return destination
+
+
+def _initial_state(metadata: dict[str, object]) -> dict[str, str]:
+    return {
+        "review": str(metadata["review"]),
+        "freshness": str(metadata["freshness"]),
+    }
+
+
+def _event_paths(config: Config, record_id: str) -> list[Path]:
+    directory = config.states_path / record_id
+    paths = list(directory.glob("*.json")) if directory.exists() else []
+    sequenced = [path for path in paths if STATE_SEQUENCE_RE.fullmatch(path.name)]
+    legacy = [path for path in paths if path not in sequenced]
+    if sequenced and legacy:
+        raise Refusal(
+            "mixed legacy and sequenced state events; migrate legacy events before "
+            f"recording more state for {record_id}"
+        )
+    if sequenced:
+        return sorted(
+            sequenced, key=lambda path: int(STATE_SEQUENCE_RE.fullmatch(path.name)[1])
+        )
+    return sorted(legacy)
+
+
+@contextlib.contextmanager
+def _state_lock(config: Config, record_id: str):
+    """Serialize state transitions without making the evidence artifact writable."""
+    parent = config.states_path / record_id
+    parent.mkdir(parents=True, exist_ok=True)
+    lock = parent / ".lock"
+    token = uuid.uuid4().hex
+    owner = lock / "owner.json"
+    deadline = time.monotonic() + STATE_LOCK_TIMEOUT_SECONDS
+    while True:
+        try:
+            lock.mkdir()
+        except FileExistsError:
+            if _reclaim_stale_lock(lock):
+                continue
+            if time.monotonic() >= deadline:
+                raise Refusal(f"state transition is busy for record: {record_id}")
+            time.sleep(0.02)
+            continue
+        try:
+            _write_once(
+                owner,
+                json.dumps(
+                    {
+                        "pid": os.getpid(),
+                        "token": token,
+                        "acquired_at": _utc_timestamp(),
+                    },
+                    sort_keys=True,
+                ).encode("utf-8"),
+            )
+        except (OSError, Refusal):
+            shutil.rmtree(lock, ignore_errors=True)
+            raise
+        break
+    try:
+        yield
+    finally:
+        try:
+            payload = json.loads(owner.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        if payload.get("token") == token:
+            owner.unlink(missing_ok=True)
+            lock.rmdir()
+
+
+def _reclaim_stale_lock(lock: Path) -> bool:
+    """Reclaim only a dead POSIX owner, or a conservatively old non-POSIX lock."""
+    owner = lock / "owner.json"
+    try:
+        payload = json.loads(owner.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    pid = payload.get("pid")
+    reclaim = False
+    if os.name == "posix" and isinstance(pid, int) and pid > 0:
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            reclaim = True
+        except PermissionError:
+            return False
+    elif os.name != "posix":
+        try:
+            reclaim = time.time() - lock.stat().st_mtime >= STATE_LOCK_STALE_SECONDS
+        except OSError:
+            return False
+    if not reclaim:
+        return False
+    retired = lock.with_name(f".lock-stale-{uuid.uuid4().hex}")
+    try:
+        os.replace(lock, retired)
+    except OSError:
+        return False
+    shutil.rmtree(retired, ignore_errors=True)
+    return True
+
+
+def _validate_state_event(
+    path: Path,
+    *,
+    metadata: dict[str, object],
+    config: Config,
+    state: dict[str, str],
+) -> dict[str, object]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Refusal(f"invalid state event {path}: {exc}") from exc
+    required = {
+        "schema",
+        "event_id",
+        "record_id",
+        "record_hash",
+        "project",
+        "project_key",
+        "timestamp",
+        "prior_review",
+        "prior_freshness",
+        "effective_review",
+        "effective_freshness",
+        "reason",
+    }
+    sequenced = STATE_SEQUENCE_RE.fullmatch(path.name)
+    expected = required | {"sequence"} if sequenced else required
+    if not isinstance(payload, dict) or set(payload) != expected:
+        raise Refusal(f"state event has an invalid schema: {path}")
+    if payload["schema"] != STATE_SCHEMA:
+        raise Refusal(f"state event has an unsupported schema: {path}")
+    if (
+        payload["record_id"] != metadata["id"]
+        or payload["record_hash"] != metadata["artifact_hash"]
+    ):
+        raise Refusal(f"state event does not bind the exact record: {path}")
+    if (
+        payload["project"] != config.project
+        or payload["project_key"] != config.project_slug
+    ):
+        raise Refusal(f"state event belongs to another project: {path}")
+    if not isinstance(payload["event_id"], str) or not payload["event_id"]:
+        raise Refusal(f"state event is missing an event_id: {path}")
+    if sequenced and (
+        not isinstance(payload["sequence"], int)
+        or payload["sequence"] != int(sequenced[1])
+    ):
+        raise Refusal(f"state event sequence does not match its filename: {path}")
+    if not isinstance(payload["reason"], str) or not payload["reason"].strip():
+        raise Refusal(f"state event is missing a reason: {path}")
+    if len(payload["reason"]) > MAX_STATE_REASON_CHARS:
+        raise Refusal(f"state event reason is too long: {path}")
+    for key in ("timestamp",):
+        if not isinstance(payload[key], str):
+            raise Refusal(f"state event has a non-string {key}: {path}")
+        _validate_timestamp(payload[key], key)
+    for key, allowed in (
+        ("prior_review", REVIEW_STATES),
+        ("effective_review", REVIEW_STATES),
+        ("prior_freshness", FRESHNESS_STATES),
+        ("effective_freshness", FRESHNESS_STATES),
+    ):
+        if not isinstance(payload[key], str) or payload[key] not in allowed:
+            raise Refusal(f"state event has invalid {key}: {path}")
+    if (
+        payload["prior_review"] != state["review"]
+        or payload["prior_freshness"] != state["freshness"]
+    ):
+        raise Refusal(f"state event prior state does not match its history: {path}")
+    _validate_transition(
+        state,
+        {
+            "review": str(payload["effective_review"]),
+            "freshness": str(payload["effective_freshness"]),
+        },
+    )
+    return payload
+
+
+def _validate_transition(previous: dict[str, str], next_state: dict[str, str]) -> None:
+    if previous == next_state:
+        raise Refusal("state event must change review or freshness")
+    if (
+        previous["review"] != next_state["review"]
+        and next_state["review"] not in REVIEW_TRANSITIONS[previous["review"]]
+    ):
+        raise Refusal(
+            f"invalid review transition: {previous['review']} -> {next_state['review']}"
+        )
+    if (
+        previous["freshness"] != next_state["freshness"]
+        and next_state["freshness"] not in FRESHNESS_TRANSITIONS[previous["freshness"]]
+    ):
+        raise Refusal(
+            "invalid freshness transition: "
+            f"{previous['freshness']} -> {next_state['freshness']}"
+        )
+
+
+def effective_state(metadata: dict[str, object], config: Config) -> dict[str, str]:
+    """Resolve immutable initial frontmatter plus append-only state events."""
+    state = _initial_state(metadata)
+    for path in _event_paths(config, str(metadata["id"])):
+        event = _validate_state_event(
+            path, metadata=metadata, config=config, state=state
+        )
+        state = {
+            "review": str(event["effective_review"]),
+            "freshness": str(event["effective_freshness"]),
+        }
+    return state
+
+
+def _load_record(
+    path: Path, config: Config
+) -> tuple[dict[str, object], dict[str, str]]:
+    metadata = validate_memory(path, verify_source=False)
+    _assert_project_matches(metadata, config)
+    return metadata, effective_state(metadata, config)
+
+
+def _is_active(state: dict[str, str]) -> bool:
+    return state == {"review": "accepted", "freshness": "current"}
+
+
+def _source_state(metadata: dict[str, object]) -> str:
+    source = Path(str(metadata["source"])).expanduser()
+    if not source.is_file():
+        return "unavailable"
+    actual = hashlib.sha256(source.read_bytes()).hexdigest()
+    return "verified" if actual == metadata["source_hash"] else "drifted"
+
+
+def _active_projection(
+    config: Config,
+) -> tuple[list[tuple[Path, dict[str, object]]], list[dict[str, str]]]:
+    included: list[tuple[Path, dict[str, object]]] = []
+    excluded: list[dict[str, str]] = []
+    for path in (
+        sorted(config.records_path.glob("*.md")) if config.records_path.exists() else []
+    ):
+        try:
+            metadata, state = _load_record(path, config)
+            if _is_active(state):
+                included.append((path, metadata))
+            else:
+                excluded.append(
+                    {
+                        "id": str(metadata["id"]),
+                        "review": state["review"],
+                        "freshness": state["freshness"],
+                    }
+                )
+        except Refusal as exc:
+            excluded.append({"artifact": str(path), "error": str(exc)})
+    return included, excluded
+
+
+def _projection_hash(records: list[tuple[Path, dict[str, object]]]) -> str:
+    digest = hashlib.sha256()
+    for _, metadata in records:
+        digest.update(str(metadata["id"]).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(metadata["artifact_hash"]).encode("ascii"))
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _ledger_hash(config: Config) -> str:
+    """Bind provider authority to all local record and state history, not its shape."""
+    digest = hashlib.sha256()
+    paths: list[Path] = []
+    if config.records_path.exists():
+        paths.extend(config.records_path.glob("*.md"))
+    if config.states_path.exists():
+        paths.extend(
+            path
+            for path in config.states_path.rglob("*.json")
+            if ".lock" not in path.relative_to(config.states_path).parts
+        )
+    for path in sorted(paths, key=lambda item: str(item.relative_to(config.home))):
+        digest.update(str(path.relative_to(config.home)).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+        digest.update(b"\n")
+    return digest.hexdigest()
+
+
+def _materialize_projection(
+    records: list[tuple[Path, dict[str, object]]], destination: Path
+) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    if any(destination.iterdir()):
+        raise Refusal(
+            f"refusing to reuse a non-empty projection directory: {destination}"
+        )
+    for path, metadata in records:
+        target = destination / f"{metadata['id']}.md"
+        shutil.copyfile(path, target)
+        os.chmod(target, 0o600)
+
+
+def _provider_receipt(
+    config: Config,
+    *,
+    provider_version: str,
+    operation: str,
+    artifact_hash: str | None,
+    argv: list[str],
+    outcome: str,
+    detail: str,
+    projection_hash: str | None = None,
+    backup_path: Path | None = None,
+    recovery_status: str = "not-needed",
+) -> Path:
+    payload: dict[str, object] = {
+        "schema": RECEIPT_SCHEMA,
+        "receipt_id": uuid.uuid4().hex,
+        "timestamp": _utc_timestamp(),
+        "provider": "mempalace",
+        "provider_version": provider_version,
+        "project": config.project,
+        "project_key": config.project_slug,
+        "palace_path": str(config.palace_path),
+        "operation": operation,
+        "artifact_hash": artifact_hash,
+        "projection_hash": projection_hash,
+        "argv": argv,
+        "outcome": outcome,
+        "detail": detail,
+        "backup_path": str(backup_path) if backup_path else None,
+        "recovery_status": recovery_status,
+    }
+    return _write_json_once(config.receipts_path, payload)
+
+
 def _mempalace_executable() -> str:
     override = _first_env("CONTEXT_KIT_MEMPALACE_BIN")
     if override:
@@ -503,10 +902,113 @@ def _mempalace_executable() -> str:
     return executable
 
 
-def _provider_env(config: Config) -> dict[str, str]:
+@dataclass(frozen=True)
+class CapabilityProbe:
+    """One exact-argv help surface the adapter depends on."""
+
+    name: str
+    argv: tuple[str, ...]
+    contract: str
+    required_tokens: tuple[str, ...] = ()
+
+
+def _required_mempalace_capabilities() -> tuple[CapabilityProbe, ...]:
+    # Each probe mirrors an exact argv the adapter actually invokes elsewhere
+    # in this module (`_sync_provider`, `_search`, and `_wake`).
+    # Probing `--help` (never the mutating command itself) lets `doctor` catch
+    # upstream CLI drift without importing MemPalace internals or writing to a
+    # palace.
+    return (
+        CapabilityProbe(
+            name="capture",
+            argv=("mine", "--help"),
+            contract="mine <dir> --wing <project-key>",
+            required_tokens=("--wing",),
+        ),
+        CapabilityProbe(
+            name="search",
+            argv=("search", "--help"),
+            contract="search <query> --results <n>",
+            required_tokens=("--results",),
+        ),
+        CapabilityProbe(
+            name="wake",
+            argv=("wake-up", "--help"),
+            contract="wake-up",
+        ),
+    )
+
+
+def _probe_mempalace_capability(
+    executable: str,
+    config: Config,
+    probe: CapabilityProbe,
+    *,
+    timeout: float = 10.0,
+) -> dict[str, object]:
+    report: dict[str, object] = {
+        "name": probe.name,
+        "command": " ".join(probe.argv),
+        "contract": probe.contract,
+    }
+    try:
+        result = subprocess.run(
+            [executable, *probe.argv],
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+            env=_provider_env(config),
+        )
+    except subprocess.TimeoutExpired:
+        report["status"] = "timeout"
+        report["detail"] = f"probe timed out after {timeout:g}s"
+        return report
+    except OSError as exc:
+        report["status"] = "error"
+        report["detail"] = str(exc)
+        return report
+    output = "\n".join(
+        (
+            result.stdout.decode("utf-8", errors="replace"),
+            result.stderr.decode("utf-8", errors="replace"),
+        )
+    )
+    if result.returncode != 0:
+        report["status"] = "missing"
+        report["detail"] = f"`{' '.join(probe.argv)}` exited {result.returncode}"
+        return report
+    missing_tokens = [token for token in probe.required_tokens if token not in output]
+    if missing_tokens:
+        report["status"] = "incompatible"
+        report["detail"] = f"missing option(s): {', '.join(missing_tokens)}"
+        return report
+    report["status"] = "ok"
+    return report
+
+
+def _parse_mempalace_version(raw: str) -> tuple[int, int, int] | None:
+    match = SEMVER_RE.search(raw)
+    if not match:
+        return None
+    major, minor, patch = (int(part) for part in match.groups())
+    return (major, minor, patch)
+
+
+def _mempalace_version_status(parsed: tuple[int, int, int] | None) -> str:
+    if parsed is None:
+        return "unknown"
+    if parsed[:2] == MEMPALACE_TESTED_VERSION[:2]:
+        return "tested"
+    if parsed[:2] < MEMPALACE_TESTED_VERSION[:2]:
+        return "older-than-tested"
+    return "newer-than-tested"
+
+
+def _provider_env(config: Config, palace_path: Path | None = None) -> dict[str, str]:
     env = os.environ.copy()
-    config.palace_path.parent.mkdir(parents=True, exist_ok=True)
-    env["MEMPALACE_PALACE_PATH"] = str(config.palace_path)
+    path = palace_path or config.palace_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    env["MEMPALACE_PALACE_PATH"] = str(path)
     return env
 
 
@@ -516,6 +1018,7 @@ def _run_mempalace(
     *,
     input_bytes: bytes | None = None,
     timeout: float = 120.0,
+    palace_path: Path | None = None,
 ) -> subprocess.CompletedProcess[bytes]:
     if config.provider != "mempalace":
         raise Refusal("this operation requires CONTEXT_KIT_MEMORY_PROVIDER=mempalace")
@@ -527,7 +1030,7 @@ def _run_mempalace(
             capture_output=True,
             check=False,
             timeout=timeout,
-            env=_provider_env(config),
+            env=_provider_env(config, palace_path),
         )
     except subprocess.TimeoutExpired as exc:
         raise Refusal(f"MemPalace command timed out after {timeout:g}s") from exc
@@ -543,12 +1046,10 @@ def _write_stdout(raw: bytes) -> None:
     sys.stdout.write(raw.decode("utf-8", errors="replace"))
 
 
-def _archive_with_provider(config: Config, directory: Path) -> None:
-    _run_mempalace(
-        config,
-        ["mine", str(directory), "--wing", config.project_slug],
-        timeout=300.0,
-    )
+def _mempalace_version(config: Config) -> tuple[str, str]:
+    executable = _mempalace_executable()
+    version = _run_mempalace(config, ["--version"], timeout=20.0)
+    return executable, version.stdout.decode("utf-8", errors="replace").strip()
 
 
 def _capture_memory(args: argparse.Namespace, config: Config) -> int:
@@ -556,12 +1057,47 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
     metadata = validate_memory(source)
     _assert_project_matches(metadata, config)
     raw = source.read_bytes()
-    destination = config.home / "records" / config.project_slug / f"{metadata['id']}.md"
+    destination = config.records_path / f"{metadata['id']}.md"
     state = _write_once(destination, raw)
     archived = False
+    archive_reason = "provider not selected"
+    archive_outcome = "not-selected"
+    receipt: Path | None = None
+    effective = effective_state(metadata, config)
     if config.provider == "mempalace" and not args.local_only:
-        _archive_with_provider(config, destination.parent)
-        archived = True
+        if _is_active(effective):
+            archive_reason = (
+                "eligible for provider indexing but pending explicit "
+                "sync-provider --apply"
+            )
+            archive_outcome = "pending-sync"
+            receipt = _provider_receipt(
+                config,
+                operation="capture",
+                provider_version="not-invoked",
+                artifact_hash=str(metadata["artifact_hash"]),
+                argv=[],
+                outcome="pending-sync",
+                detail=archive_reason,
+            )
+        else:
+            archive_reason = (
+                "not provider eligible; explicit sync will exclude this record "
+                f"(review={effective['review']}, freshness={effective['freshness']})"
+            )
+            archive_outcome = "skipped"
+            receipt = _provider_receipt(
+                config,
+                provider_version="not-invoked",
+                operation="capture",
+                artifact_hash=str(metadata["artifact_hash"]),
+                argv=[],
+                outcome="skipped",
+                detail=archive_reason,
+            )
+    elif args.local_only:
+        archive_reason = "skipped: --local-only"
+        archive_outcome = "skipped"
     print(
         json.dumps(
             {
@@ -570,6 +1106,17 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
                 "project": config.project_slug,
                 "provider": config.provider,
                 "provider_archived": archived,
+                "provider_archive": {
+                    "outcome": archive_outcome,
+                    "reason": archive_reason,
+                    "receipt": str(receipt) if receipt else None,
+                },
+                "provider_reconciliation": (
+                    "required: run sync-provider --apply"
+                    if config.provider == "mempalace" and _is_active(effective)
+                    else "not-required"
+                ),
+                "effective_state": effective,
             }
         )
     )
@@ -588,9 +1135,23 @@ def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
     destination = config.home / "handoffs" / config.project_slug / name
     state = _write_once(destination, raw)
     archived = False
+    archive_reason = "provider not selected"
+    receipt: Path | None = None
     if config.provider == "mempalace" and not args.local_only:
-        _archive_with_provider(config, destination.parent)
-        archived = True
+        archive_reason = (
+            "skipped: handoffs are local historical evidence, not active memory"
+        )
+        receipt = _provider_receipt(
+            config,
+            provider_version="not-invoked",
+            operation="archive-handoff",
+            artifact_hash=str(metadata["artifact_hash"]),
+            argv=[],
+            outcome="skipped",
+            detail=archive_reason,
+        )
+    elif args.local_only:
+        archive_reason = "skipped: --local-only"
     print(
         json.dumps(
             {
@@ -599,6 +1160,12 @@ def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
                 "project": config.project_slug,
                 "provider": config.provider,
                 "provider_archived": archived,
+                "provider_archive": {
+                    "outcome": "skipped",
+                    "reason": archive_reason,
+                    "receipt": str(receipt) if receipt else None,
+                },
+                "provider_reconciliation": "not-required: handoffs are not active memory",
                 "saved_head": metadata["head"],
             }
         )
@@ -610,29 +1177,31 @@ def _local_search(args: argparse.Namespace, config: Config) -> int:
     terms = {term.lower() for term in TOKEN_RE.findall(args.query)}
     if not terms:
         raise Refusal("search query must contain at least one searchable term")
-    directory = config.home / "records" / config.project_slug
     results: list[dict[str, object]] = []
     invalid_records: list[dict[str, str]] = []
-    for path in sorted(directory.glob("*.md")) if directory.exists() else []:
+    inactive_records: list[dict[str, str]] = []
+    for path in (
+        sorted(config.records_path.glob("*.md")) if config.records_path.exists() else []
+    ):
         try:
-            metadata = validate_memory(path, verify_source=False)
-            _assert_project_matches(metadata, config)
+            metadata, state = _load_record(path, config)
         except Refusal as exc:
             invalid_records.append({"artifact": str(path), "error": str(exc)})
             continue
-        if metadata["freshness"] == "revoked" or metadata["review"] == "rejected":
+        if not _is_active(state) and not args.include_inactive:
+            inactive_records.append(
+                {
+                    "id": str(metadata["id"]),
+                    "review": state["review"],
+                    "freshness": state["freshness"],
+                }
+            )
             continue
         primary = metadata["primary_memory"]
         cues = metadata["cue_anchors"]
         primary_text = primary.lower()
         cue_text = " ".join(cues).lower()
-        source = Path(str(metadata["source"])).expanduser()
-        if not source.is_file():
-            source_state = "unavailable"
-        elif hashlib.sha256(source.read_bytes()).hexdigest() == metadata["source_hash"]:
-            source_state = "verified"
-        else:
-            source_state = "drifted"
+        source_state = _source_state(metadata)
         primary_matches = sum(term in primary_text for term in terms)
         cue_matches = sum(term in cue_text for term in terms)
         score = primary_matches * 2 + cue_matches
@@ -641,8 +1210,8 @@ def _local_search(args: argparse.Namespace, config: Config) -> int:
                 {
                     "id": metadata["id"],
                     "type": metadata["type"],
-                    "freshness": metadata["freshness"],
-                    "review": metadata["review"],
+                    "freshness": state["freshness"],
+                    "review": state["review"],
                     "primary_memory": primary,
                     "cue_anchors": cues,
                     "source": metadata["source"],
@@ -659,6 +1228,8 @@ def _local_search(args: argparse.Namespace, config: Config) -> int:
                 "project": config.project_slug,
                 "records": results[: args.results],
                 "invalid_records": invalid_records,
+                "inactive_records": inactive_records,
+                "include_inactive": args.include_inactive,
             }
         )
     )
@@ -668,6 +1239,18 @@ def _local_search(args: argparse.Namespace, config: Config) -> int:
 def _search(args: argparse.Namespace, config: Config) -> int:
     if config.provider == "none":
         return _local_search(args, config)
+    if args.include_inactive:
+        raise Refusal(
+            "--include-inactive is available only for local audit search; "
+            "the provider index is active-only"
+        )
+    records, _ = _active_projection(config)
+    projection_hash = _projection_hash(records)
+    if not _has_current_provider_projection(config, projection_hash):
+        raise Refusal(
+            "provider index is not reconciled with accepted/current records; "
+            "run sync-provider --apply or use --provider none for local recall"
+        )
     result = _run_mempalace(
         config,
         ["search", args.query, "--results", str(args.results)],
@@ -702,13 +1285,45 @@ def _doctor(config: Config) -> int:
         return 0
     config.project_slug
     executable = _mempalace_executable()
-    version = _run_mempalace(config, ["--version"], timeout=20.0)
+    version_result = _run_mempalace(config, ["--version"], timeout=20.0)
+    raw_version = version_result.stdout.decode("utf-8", errors="replace").strip()
+    parsed_version = _parse_mempalace_version(raw_version)
+    version_status = _mempalace_version_status(parsed_version)
+    capabilities = [
+        _probe_mempalace_capability(executable, config, probe)
+        for probe in _required_mempalace_capabilities()
+    ]
+    missing = [c for c in capabilities if c["status"] != "ok"]
+    compatibility = {
+        "detected_version": raw_version,
+        "parsed_version": (
+            ".".join(str(part) for part in parsed_version) if parsed_version else None
+        ),
+        "version_status": version_status,
+        "tested_release_line": MEMPALACE_TESTED_RELEASE_LINE,
+        "tested_version": ".".join(str(part) for part in MEMPALACE_TESTED_VERSION),
+        "executable": executable,
+        "palace_path": str(config.palace_path),
+        "capabilities": capabilities,
+    }
+    result["compatibility"] = compatibility
+    if missing:
+        summary = "; ".join(
+            f"{c['name']} ({c['command']}): {c['detail']}" for c in missing
+        )
+        raise Refusal(
+            "MemPalace CLI is missing required capabilities for this adapter "
+            f"(tested against {MEMPALACE_TESTED_RELEASE_LINE}, detected "
+            f"{raw_version or 'unknown version'}): {summary}"
+        )
+    # A patch/minor version different from the tested line is not on its own
+    # a reason to block: only missing/incompatible capabilities are fatal.
     result.update(
         {
             "status": "ready",
             "executable": executable,
             "palace_path": str(config.palace_path),
-            "version": version.stdout.decode("utf-8", errors="replace").strip(),
+            "version": raw_version,
         }
     )
     print(json.dumps(result))
@@ -716,21 +1331,20 @@ def _doctor(config: Config) -> int:
 
 
 def _record_review(config: Config) -> int:
-    directory = config.home / "records" / config.project_slug
     results: list[dict[str, str]] = []
-    for path in sorted(directory.glob("*.md")) if directory.exists() else []:
+    for path in (
+        sorted(config.records_path.glob("*.md")) if config.records_path.exists() else []
+    ):
         try:
-            metadata = validate_memory(path)
-            _assert_project_matches(metadata, config)
-            source = Path(metadata["source"]).expanduser()
-            source_state = "verified" if source.is_file() else "unavailable"
+            metadata, state = _load_record(path, config)
             results.append(
                 {
                     "id": metadata["id"],
                     "artifact": str(path),
-                    "freshness": metadata["freshness"],
-                    "review": metadata["review"],
-                    "source_state": source_state,
+                    "freshness": state["freshness"],
+                    "review": state["review"],
+                    "source_state": _source_state(metadata),
+                    "active": str(_is_active(state)).lower(),
                 }
             )
         except Refusal as exc:
@@ -741,86 +1355,332 @@ def _record_review(config: Config) -> int:
                     "error": str(exc),
                 }
             )
-    print(json.dumps({"project": config.project_slug, "records": results}))
+    print(
+        json.dumps(
+            {
+                "project": config.project_slug,
+                "records": results,
+                "audit": True,
+                "include_inactive": True,
+            }
+        )
+    )
     return 0
 
 
-def _hook_timeout(event: str) -> float:
-    return {"stop": 25.0, "precompact": 85.0, "session-end": 300.0}[event]
+def _record_state(args: argparse.Namespace, config: Config) -> int:
+    if not ID_RE.fullmatch(args.record_id):
+        raise Refusal("record id must be lowercase and use letters, numbers, ._-")
+    path = config.records_path / f"{args.record_id}.md"
+    if not path.is_file():
+        raise Refusal(f"record does not exist in this project: {args.record_id}")
+    reason = args.reason.strip()
+    if not reason:
+        raise Refusal("--reason must not be empty")
+    if len(reason) > MAX_STATE_REASON_CHARS:
+        raise Refusal(f"--reason must not exceed {MAX_STATE_REASON_CHARS} characters")
+    with _state_lock(config, args.record_id):
+        metadata, current = _load_record(path, config)
+        requested = {
+            "review": args.review if args.review is not None else current["review"],
+            "freshness": (
+                args.freshness if args.freshness is not None else current["freshness"]
+            ),
+        }
+        _validate_transition(current, requested)
+        existing = _event_paths(config, args.record_id)
+        if existing and not STATE_SEQUENCE_RE.fullmatch(existing[0].name):
+            raise Refusal(
+                "legacy timestamp-named state events are replayed read-only; "
+                "migrate them before recording a new transition"
+            )
+        sequence = (
+            int(STATE_SEQUENCE_RE.fullmatch(existing[-1].name)[1]) + 1
+            if existing
+            else 1
+        )
+        payload: dict[str, object] = {
+            "schema": STATE_SCHEMA,
+            "event_id": uuid.uuid4().hex,
+            "record_id": metadata["id"],
+            "record_hash": metadata["artifact_hash"],
+            "project": config.project,
+            "project_key": config.project_slug,
+            "timestamp": _utc_timestamp(),
+            "prior_review": current["review"],
+            "prior_freshness": current["freshness"],
+            "effective_review": requested["review"],
+            "effective_freshness": requested["freshness"],
+            "reason": reason,
+            "sequence": sequence,
+        }
+        raw = (json.dumps(payload, sort_keys=True, indent=2) + "\n").encode("utf-8")
+        event = (
+            config.states_path
+            / args.record_id
+            / f"{sequence:0{STATE_SEQUENCE_WIDTH}d}-{uuid.uuid4().hex}.json"
+        )
+        if _write_once(event, raw) != "created":
+            raise Refusal(f"refusing to reuse a generated state event path: {event}")
+    print(
+        json.dumps(
+            {
+                "status": "created",
+                "event": str(event),
+                "record": str(path),
+                "record_hash": metadata["artifact_hash"],
+                "project": config.project_slug,
+                "prior_state": current,
+                "effective_state": requested,
+                "provider_reconciliation": (
+                    "required before provider recall"
+                    if config.provider == "mempalace"
+                    else "not-applicable"
+                ),
+            }
+        )
+    )
+    return 0
+
+
+def _read_receipts(config: Config) -> list[dict[str, object]]:
+    receipts: list[dict[str, object]] = []
+    if not config.receipts_path.exists():
+        return receipts
+    for path in sorted(config.receipts_path.glob("*.json")):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if (
+            isinstance(payload, dict)
+            and payload.get("schema") == RECEIPT_SCHEMA
+            and payload.get("project") == config.project
+            and payload.get("project_key") == config.project_slug
+        ):
+            receipts.append(payload)
+    return receipts
+
+
+def _write_projection_marker(
+    stage: Path,
+    config: Config,
+    projection_hash: str,
+    ledger_hash: str,
+    provider_version: str,
+) -> None:
+    raw = (
+        json.dumps(
+            {
+                "schema": PROJECTION_MARKER_SCHEMA,
+                "project": config.project,
+                "project_key": config.project_slug,
+                "projection_hash": projection_hash,
+                "ledger_hash": ledger_hash,
+                "provider_version": provider_version,
+                "applied_at": _utc_timestamp(),
+            },
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
+    _write_once(stage / PROJECTION_MARKER_NAME, raw)
+
+
+def _has_current_provider_projection(config: Config, projection_hash: str) -> bool:
+    marker = config.palace_path / PROJECTION_MARKER_NAME
+    try:
+        payload = json.loads(marker.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return False
+    if not isinstance(payload, dict) or set(payload) != {
+        "schema",
+        "project",
+        "project_key",
+        "projection_hash",
+        "ledger_hash",
+        "provider_version",
+        "applied_at",
+    }:
+        return False
+    try:
+        _validate_timestamp(str(payload["applied_at"]), "applied_at")
+    except Refusal:
+        return False
+    return (
+        payload["schema"] == PROJECTION_MARKER_SCHEMA
+        and payload["project"] == config.project
+        and payload["project_key"] == config.project_slug
+        and payload["projection_hash"] == projection_hash
+        and payload["ledger_hash"] == _ledger_hash(config)
+        and isinstance(payload["provider_version"], str)
+    )
+
+
+def _prune_provider_backups(parent: Path, keep: Path | None) -> list[str]:
+    backups = [
+        path
+        for path in parent.glob("palace-backup-*")
+        if path.is_dir() and path != keep
+    ]
+    if keep is None:
+        backups.sort(
+            key=lambda path: (path.stat().st_mtime_ns, path.name), reverse=True
+        )
+        backups = backups[PROVIDER_BACKUP_RETENTION:]
+    removed: list[str] = []
+    for path in backups:
+        shutil.rmtree(path)
+        removed.append(str(path))
+    return sorted(removed)
+
+
+def _sync_provider(args: argparse.Namespace, config: Config) -> int:
+    if config.provider != "mempalace":
+        raise Refusal("sync-provider requires --provider mempalace")
+    records, excluded = _active_projection(config)
+    projection_hash = _projection_hash(records)
+    ledger_hash = _ledger_hash(config)
+    plan: dict[str, object] = {
+        "project": config.project_slug,
+        "palace_path": str(config.palace_path),
+        "active_record_ids": [str(metadata["id"]) for _, metadata in records],
+        "excluded_records": excluded,
+        "projection_hash": projection_hash,
+        "apply": bool(args.apply),
+    }
+    if not args.apply:
+        plan["status"] = "dry-run"
+        plan["safety"] = (
+            "apply builds a fresh project-isolated palace, preserves a backup, "
+            "then swaps only after MemPalace succeeds"
+        )
+        print(json.dumps(plan))
+        return 0
+    if os.name != "posix":
+        raise Refusal(
+            "safe provider replacement is supported only on POSIX; "
+            "dry-run was not applied and no palace was changed"
+        )
+
+    parent = config.palace_path.parent
+    parent.mkdir(parents=True, exist_ok=True)
+    projection = Path(tempfile.mkdtemp(prefix=".projection-", dir=parent))
+    stage = parent / f".palace-rebuild-{uuid.uuid4().hex}"
+    backup: Path | None = None
+    executable = ""
+    version = "unknown"
+    argv: list[str] = []
+    recovery_status = "not-needed"
+    try:
+        _materialize_projection(records, projection)
+        stage.mkdir(mode=0o700)
+        executable, version = _mempalace_version(config)
+        argv = [executable, "mine", str(projection), "--wing", config.project_slug]
+        _run_mempalace(
+            config,
+            argv[1:],
+            timeout=300.0,
+            palace_path=stage,
+        )
+        if not stage.is_dir():
+            raise Refusal("MemPalace did not leave a valid staged palace")
+        _write_projection_marker(
+            stage,
+            config,
+            projection_hash,
+            ledger_hash,
+            version,
+        )
+        if config.palace_path.exists():
+            backup = parent / f"palace-backup-{uuid.uuid4().hex}"
+            os.replace(config.palace_path, backup)
+        try:
+            os.replace(stage, config.palace_path)
+        except OSError:
+            if backup is not None and not config.palace_path.exists():
+                os.replace(backup, config.palace_path)
+                backup = None
+                recovery_status = "restored-to-live-palace"
+            elif backup is not None:
+                recovery_status = "backup-preserved"
+            raise
+    except (OSError, Refusal) as exc:
+        receipt = _provider_receipt(
+            config,
+            provider_version=version,
+            operation="sync-provider",
+            artifact_hash=None,
+            argv=argv,
+            outcome="failed",
+            detail=str(exc),
+            projection_hash=projection_hash,
+            backup_path=backup,
+            recovery_status=recovery_status,
+        )
+        raise Refusal(
+            f"provider synchronization failed; receipt={receipt}: {exc}"
+        ) from exc
+    finally:
+        shutil.rmtree(projection, ignore_errors=True)
+        if stage.exists() and stage != config.palace_path:
+            shutil.rmtree(stage, ignore_errors=True)
+    receipt = _provider_receipt(
+        config,
+        provider_version=version,
+        operation="sync-provider",
+        artifact_hash=None,
+        argv=argv,
+        outcome="success",
+        detail=f"reconciled {len(records)} accepted/current records",
+        projection_hash=projection_hash,
+        backup_path=backup,
+    )
+    try:
+        removed_backups = _prune_provider_backups(parent, backup)
+    except OSError as exc:
+        raise Refusal(
+            "provider synchronized but backup retention failed; "
+            f"receipt={receipt}: {exc}"
+        ) from exc
+    plan.update(
+        {
+            "status": "synchronized",
+            "backup_path": str(backup) if backup else None,
+            "removed_backups": removed_backups,
+            "receipt": str(receipt),
+        }
+    )
+    print(json.dumps(plan))
+    return 0
 
 
 def _run_hook(event: str, config: Config, payload: bytes) -> int:
     if not config.auto_capture:
         print("{}")
         return 0
-    config.project_slug
-    result = _run_mempalace(
-        config,
-        ["hook", "run", "--hook", event, "--harness", "claude-code"],
-        input_bytes=payload,
-        timeout=_hook_timeout(event),
-    )
-    if result.stdout:
-        _write_stdout(result.stdout)
-    else:
-        print("{}")
-    return 0
-
-
-def _queue_hook(event: str, config: Config, payload: bytes) -> int:
-    if not config.auto_capture:
-        print("{}")
-        return 0
-    config.project_slug
-    pending_dir = config.home / "pending" / config.project_slug
-    pending_dir.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        dir=pending_dir,
-        prefix=f"{event}-",
-        suffix=".json",
-        delete=False,
-    ) as handle:
-        handle.write(payload)
-        pending = Path(handle.name)
-    os.chmod(pending, 0o600)
-    log_dir = config.home / "logs"
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_path = log_dir / f"{config.project_slug}-hooks.log"
-    worker_env = os.environ.copy()
-    worker_env.update(
-        {
-            "CONTEXT_KIT_MEMORY_PROVIDER": config.provider,
-            "CONTEXT_KIT_MEMORY_HOME": str(config.home),
-            "CONTEXT_KIT_MEMORY_PROJECT": config.project or "",
-            "CONTEXT_KIT_MEMORY_AUTO_CAPTURE": "true",
-        }
-    )
-    with log_path.open("ab") as log:
-        subprocess.Popen(
-            [
-                sys.executable,
-                str(Path(__file__).resolve()),
-                "hook-worker",
-                event,
-                str(pending),
-            ],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=log,
-            close_fds=True,
-            start_new_session=True,
-            env=worker_env,
-        )
-    print("{}")
-    return 0
-
-
-def _hook_worker(event: str, pending: Path, config: Config) -> int:
     try:
-        payload = pending.read_bytes()
-        return _run_hook(event, config, payload)
-    finally:
-        pending.unlink(missing_ok=True)
+        decoded = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Refusal(f"hook payload must be valid JSON: {exc}") from exc
+    if not isinstance(decoded, dict):
+        raise Refusal("hook payload must be a JSON object")
+    pending_dir = config.home / "pending-hooks" / config.project_slug
+    pending = _new_write_once_path(pending_dir, f"-{event}.json")
+    if _write_once(pending, payload) != "created":
+        raise Refusal(f"refusing to reuse a generated hook payload path: {pending}")
+    print(
+        json.dumps(
+            {
+                "status": "queued-for-review",
+                "event": event,
+                "pending": str(pending),
+                "provider_invoked": False,
+            }
+        )
+    )
+    return 0
 
 
 def _add_config_args(parser: argparse.ArgumentParser) -> None:
@@ -857,6 +1717,11 @@ def _parser() -> argparse.ArgumentParser:
     search = sub.add_parser("search")
     search.add_argument("query")
     search.add_argument("--results", type=int, default=8)
+    search.add_argument(
+        "--include-inactive",
+        action="store_true",
+        help="Audit local proposed, rejected, stale, superseded, and revoked records.",
+    )
     _add_config_args(search)
 
     wake = sub.add_parser("wake")
@@ -866,16 +1731,31 @@ def _parser() -> argparse.ArgumentParser:
     _add_config_args(doctor)
 
     review = sub.add_parser("review")
+    review.add_argument(
+        "--include-inactive",
+        action="store_true",
+        help="Explicitly document audit intent; review already reports all records.",
+    )
     _add_config_args(review)
+
+    state = sub.add_parser("record-state")
+    state.add_argument("record_id")
+    state.add_argument("--review", choices=sorted(REVIEW_STATES))
+    state.add_argument("--freshness", choices=sorted(FRESHNESS_STATES))
+    state.add_argument("--reason", required=True)
+    _add_config_args(state)
+
+    sync = sub.add_parser("sync-provider")
+    sync.add_argument(
+        "--apply",
+        action="store_true",
+        help="Build, validate, back up, and replace the project-isolated active palace.",
+    )
+    _add_config_args(sync)
 
     hook = sub.add_parser("hook")
     hook.add_argument("event", choices=("stop", "precompact", "session-end"))
-    hook.add_argument("--detach", action="store_true")
     _add_config_args(hook)
-
-    worker = sub.add_parser("hook-worker", help=argparse.SUPPRESS)
-    worker.add_argument("event", choices=("stop", "precompact", "session-end"))
-    worker.add_argument("pending")
     return parser
 
 
@@ -902,13 +1782,13 @@ def main(argv: list[str] | None = None) -> int:
             return _doctor(config)
         if args.command == "review":
             return _record_review(config)
+        if args.command == "record-state":
+            return _record_state(args, config)
+        if args.command == "sync-provider":
+            return _sync_provider(args, config)
         if args.command == "hook":
             payload = sys.stdin.buffer.read()
-            if args.detach:
-                return _queue_hook(args.event, config, payload)
             return _run_hook(args.event, config, payload)
-        if args.command == "hook-worker":
-            return _hook_worker(args.event, Path(args.pending), config)
     except (OSError, Refusal) as exc:
         print(json.dumps({"status": "refused", "error": str(exc)}), file=sys.stderr)
         return 2

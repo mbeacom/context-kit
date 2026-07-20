@@ -28,5 +28,9 @@ capture multiple unrelated claims.
    ```
 
 7. Report the persisted artifact path, provider archival state, project scope,
-   and review/freshness state. A provider refusal is not a successful archive;
-   the local persisted record may still be reported separately.
+   and effective review/freshness state. Proposed or inactive records are
+   locally persisted but must visibly report provider archival as skipped; they
+   are never success-shaped archives. After evidence review, use `record-state`
+   with a non-empty reason rather than editing the immutable artifact. An
+   accepted/current capture is provider-eligible but still pending: run
+   `sync-provider --apply` explicitly before provider-backed recall.

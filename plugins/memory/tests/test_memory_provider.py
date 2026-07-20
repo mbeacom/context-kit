@@ -38,7 +38,12 @@ class MemoryProviderTests(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def write_record(
-        self, *, cues: list[str] | None = None, source_hash: str | None = None
+        self,
+        *,
+        cues: list[str] | None = None,
+        source_hash: str | None = None,
+        review: str = "accepted",
+        freshness: str = "current",
     ):
         cues = ["retry policy", "billing backoff"] if cues is None else cues
         cue_text = "\n".join(f"- {cue}" for cue in cues) if cues else "- None."
@@ -56,8 +61,8 @@ class MemoryProviderTests(unittest.TestCase):
                     "head: abcdef0123456789",
                     "observed_at: 2026-07-19T12:00:00-04:00",
                     "captured_at: 2026-07-19T12:05:00-04:00",
-                    "freshness: current",
-                    "review: accepted",
+                    f"freshness: {freshness}",
+                    f"review: {review}",
                     f"source: {self.source}",
                     f"source_hash: {digest}",
                     "---",
@@ -322,6 +327,342 @@ class MemoryProviderTests(unittest.TestCase):
         record = json.loads(stdout)["records"][0]
         self.assertEqual("drifted", record["source_state"])
 
+    def test_state_events_preserve_artifact_and_control_active_recall(self) -> None:
+        self.write_record(review="proposed")
+        original = self.record.read_bytes()
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+
+        inactive, inactive_stdout, _ = self.invoke(
+            ["search", "billing backoff", "--provider", "none", *self.base_args()]
+        )
+        transition, transition_stdout, _ = self.invoke(
+            [
+                "record-state",
+                "retry-policy",
+                "--review",
+                "accepted",
+                "--reason",
+                "Reviewed source evidence.",
+                "--provider",
+                "none",
+                *self.base_args(),
+            ]
+        )
+        active, active_stdout, _ = self.invoke(
+            ["search", "billing backoff", "--provider", "none", *self.base_args()]
+        )
+
+        self.assertEqual(0, inactive)
+        self.assertEqual([], json.loads(inactive_stdout)["records"])
+        self.assertEqual(0, transition)
+        event = Path(json.loads(transition_stdout)["event"])
+        self.assertTrue(event.is_file())
+        self.assertEqual(original, self.record.read_bytes())
+        saved = self.home / "records" / self.project_slug() / "retry-policy.md"
+        self.assertEqual(original, saved.read_bytes())
+        self.assertEqual(0, active)
+        self.assertEqual("retry-policy", json.loads(active_stdout)["records"][0]["id"])
+
+    def test_state_event_rejects_mismatched_record_hash(self) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        event_dir = self.home / "states" / self.project_slug() / "retry-policy"
+        event_dir.mkdir(parents=True)
+        (event_dir / "bad.json").write_text(
+            json.dumps(
+                {
+                    "schema": memory_provider.STATE_SCHEMA,
+                    "event_id": "bad",
+                    "record_id": "retry-policy",
+                    "record_hash": "0" * 64,
+                    "project": "mbeacom/context-kit",
+                    "project_key": self.project_slug(),
+                    "timestamp": "2026-07-19T13:00:00-04:00",
+                    "prior_review": "accepted",
+                    "prior_freshness": "current",
+                    "effective_review": "rejected",
+                    "effective_freshness": "current",
+                    "reason": "Bad binding.",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result, stdout, _ = self.invoke(["review", *self.base_args()])
+
+        self.assertEqual(0, result)
+        self.assertIn("does not bind", json.loads(stdout)["records"][0]["error"])
+
+    def test_record_state_rejects_oversized_reason_before_writing(self) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+
+        result, _, stderr = self.invoke(
+            [
+                "record-state",
+                "retry-policy",
+                "--review",
+                "rejected",
+                "--reason",
+                "x" * (memory_provider.MAX_STATE_REASON_CHARS + 1),
+                "--provider",
+                "none",
+                *self.base_args(),
+            ]
+        )
+
+        events = self.home / "states" / self.project_slug() / "retry-policy"
+        self.assertEqual(2, result)
+        self.assertIn("must not exceed", stderr)
+        self.assertEqual([], list(events.glob("*.json")) if events.exists() else [])
+
+    def test_utc_timestamp_uses_a_zero_offset(self) -> None:
+        self.assertTrue(memory_provider._utc_timestamp().endswith("+00:00"))
+
+    def test_concurrent_state_transitions_remain_a_valid_chain(self) -> None:
+        self.write_record(review="proposed")
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        config = memory_provider.Config(
+            provider="none",
+            home=self.home,
+            project="mbeacom/context-kit",
+            auto_capture=False,
+        )
+        accept = type(
+            "Args",
+            (),
+            {
+                "record_id": "retry-policy",
+                "review": "accepted",
+                "freshness": None,
+                "reason": "Evidence review.",
+            },
+        )()
+        stale = type(
+            "Args",
+            (),
+            {
+                "record_id": "retry-policy",
+                "review": None,
+                "freshness": "stale",
+                "reason": "Source changed.",
+            },
+        )()
+        with (
+            patch("builtins.print"),
+            ThreadPoolExecutor(max_workers=2) as executor,
+        ):
+            list(
+                executor.map(
+                    lambda args: memory_provider._record_state(args, config),
+                    (accept, stale),
+                )
+            )
+
+        metadata, state = memory_provider._load_record(
+            self.home / "records" / self.project_slug() / "retry-policy.md",
+            config,
+        )
+        self.assertEqual("retry-policy", metadata["id"])
+        self.assertEqual({"review": "accepted", "freshness": "stale"}, state)
+        self.assertEqual(
+            2,
+            len(
+                list(
+                    (self.home / "states" / self.project_slug() / "retry-policy").glob(
+                        "*.json"
+                    )
+                )
+            ),
+        )
+
+    def test_audit_search_includes_inactive_records(self) -> None:
+        self.write_record(review="proposed")
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+
+        result, stdout, _ = self.invoke(
+            [
+                "search",
+                "billing backoff",
+                "--include-inactive",
+                "--provider",
+                "none",
+                *self.base_args(),
+            ]
+        )
+
+        self.assertEqual(0, result)
+        self.assertEqual("proposed", json.loads(stdout)["records"][0]["review"])
+
+    def test_sequenced_events_replay_when_wall_clock_moves_backward(self) -> None:
+        self.write_record(review="proposed")
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        with patch.object(
+            memory_provider, "_utc_timestamp", return_value="2026-07-19T13:00:00Z"
+        ):
+            accepted, _, _ = self.invoke(
+                [
+                    "record-state",
+                    "retry-policy",
+                    "--review",
+                    "accepted",
+                    "--reason",
+                    "Evidence reviewed.",
+                    "--provider",
+                    "none",
+                    *self.base_args(),
+                ]
+            )
+        with patch.object(
+            memory_provider, "_utc_timestamp", return_value="2026-07-19T12:00:00Z"
+        ):
+            stale, _, _ = self.invoke(
+                [
+                    "record-state",
+                    "retry-policy",
+                    "--freshness",
+                    "stale",
+                    "--reason",
+                    "Source changed.",
+                    "--provider",
+                    "none",
+                    *self.base_args(),
+                ]
+            )
+
+        config = memory_provider.Config(
+            provider="none",
+            home=self.home,
+            project="mbeacom/context-kit",
+            auto_capture=False,
+        )
+        _, state = memory_provider._load_record(
+            self.home / "records" / self.project_slug() / "retry-policy.md", config
+        )
+        names = sorted(
+            path.name
+            for path in (
+                self.home / "states" / self.project_slug() / "retry-policy"
+            ).glob("*.json")
+        )
+        self.assertEqual(0, accepted)
+        self.assertEqual(0, stale)
+        self.assertTrue(names[0].startswith("00000000000000000001-"))
+        self.assertTrue(names[1].startswith("00000000000000000002-"))
+        self.assertEqual({"review": "accepted", "freshness": "stale"}, state)
+
+    def test_stale_state_lock_is_reclaimed_but_live_lock_is_refused(self) -> None:
+        self.write_record(review="proposed")
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        lock = self.home / "states" / self.project_slug() / "retry-policy" / ".lock"
+        lock.mkdir(parents=True)
+        (lock / "owner.json").write_text(
+            json.dumps(
+                {"pid": 999999, "token": "dead", "acquired_at": "2026-01-01T00:00:00Z"}
+            ),
+            encoding="utf-8",
+        )
+        with patch.object(memory_provider.os, "kill", side_effect=ProcessLookupError):
+            recovered, _, _ = self.invoke(
+                [
+                    "record-state",
+                    "retry-policy",
+                    "--review",
+                    "accepted",
+                    "--reason",
+                    "Recovered stale lock.",
+                    "--provider",
+                    "none",
+                    *self.base_args(),
+                ]
+            )
+        lock.mkdir()
+        (lock / "owner.json").write_text(
+            json.dumps(
+                {
+                    "pid": os.getpid(),
+                    "token": "live",
+                    "acquired_at": "2026-01-01T00:00:00Z",
+                }
+            ),
+            encoding="utf-8",
+        )
+        with patch.object(memory_provider, "STATE_LOCK_TIMEOUT_SECONDS", 0):
+            refused, _, stderr = self.invoke(
+                [
+                    "record-state",
+                    "retry-policy",
+                    "--freshness",
+                    "stale",
+                    "--reason",
+                    "Should not steal lock.",
+                    "--provider",
+                    "none",
+                    *self.base_args(),
+                ]
+            )
+
+        self.assertEqual(0, recovered)
+        self.assertEqual(2, refused)
+        self.assertIn("busy", stderr)
+
+    def test_owner_write_failure_cleans_up_new_lock(self) -> None:
+        self.write_record(review="proposed")
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        real_write_once = memory_provider._write_once
+
+        def fail_owner(destination, raw):
+            if destination.name == "owner.json":
+                raise OSError("simulated owner metadata failure")
+            return real_write_once(destination, raw)
+
+        with patch.object(memory_provider, "_write_once", side_effect=fail_owner):
+            failed, _, _ = self.invoke(
+                [
+                    "record-state",
+                    "retry-policy",
+                    "--review",
+                    "accepted",
+                    "--reason",
+                    "Injected failure.",
+                    "--provider",
+                    "none",
+                    *self.base_args(),
+                ]
+            )
+        lock = self.home / "states" / self.project_slug() / "retry-policy" / ".lock"
+        recovered, _, _ = self.invoke(
+            [
+                "record-state",
+                "retry-policy",
+                "--review",
+                "accepted",
+                "--reason",
+                "Lock was cleaned up.",
+                "--provider",
+                "none",
+                *self.base_args(),
+            ]
+        )
+
+        self.assertEqual(2, failed)
+        self.assertFalse(lock.exists())
+        self.assertEqual(0, recovered)
+
     def test_capture_rejects_repository_project_mismatch(self) -> None:
         result, _, stderr = self.invoke(
             [
@@ -350,6 +691,133 @@ class MemoryProviderTests(unittest.TestCase):
 
         self.assertEqual(2, result)
         self.assertIn("not installed", stderr)
+
+    def test_proposed_provider_capture_skips_archival_with_receipt(self) -> None:
+        self.write_record(review="proposed")
+
+        result, stdout, _ = self.invoke(
+            [
+                "capture",
+                str(self.record),
+                "--provider",
+                "mempalace",
+                *self.base_args(),
+            ]
+        )
+
+        self.assertEqual(0, result)
+        report = json.loads(stdout)
+        self.assertFalse(report["provider_archived"])
+        self.assertIn("not provider eligible", report["provider_archive"]["reason"])
+        receipt = json.loads(
+            Path(report["provider_archive"]["receipt"]).read_text(encoding="utf-8")
+        )
+        self.assertEqual("skipped", receipt["outcome"])
+        self.assertEqual("not-invoked", receipt["provider_version"])
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_reports_compatibility_for_tested_mempalace_version(self) -> None:
+        executable, calls = self.fake_mempalace()
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, _ = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result)
+        report = json.loads(stdout)
+        self.assertEqual("ready", report["status"])
+        compatibility = report["compatibility"]
+        self.assertEqual("3.6.0", compatibility["parsed_version"])
+        self.assertEqual("tested", compatibility["version_status"])
+        self.assertEqual("3.6.x", compatibility["tested_release_line"])
+        self.assertEqual("3.6.0", compatibility["tested_version"])
+        self.assertEqual(str(executable), compatibility["executable"])
+        self.assertIn(self.project_slug(), compatibility["palace_path"])
+        capability_names = {
+            c["name"]: c["status"] for c in compatibility["capabilities"]
+        }
+        self.assertEqual(
+            {"capture": "ok", "search": "ok", "wake": "ok"},
+            capability_names,
+        )
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_refuses_clearly_when_capability_is_missing(self) -> None:
+        executable, _ = self.fake_mempalace(
+            help_overrides={"mine": "usage: mempalace mine DIR\n"}
+        )
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, _, stderr = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(2, result)
+        self.assertIn("missing required capabilities", stderr)
+        self.assertIn("capture", stderr)
+        self.assertIn("--wing", stderr)
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_refuses_clearly_when_subcommand_is_absent(self) -> None:
+        executable, _ = self.fake_mempalace(exit_overrides={"wake-up --help": 2})
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, _, stderr = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(2, result)
+        self.assertIn("wake", stderr)
+        self.assertIn("exited 2", stderr)
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_reports_older_version_without_hard_block(self) -> None:
+        executable, _ = self.fake_mempalace(version_output="mempalace 3.5.4\n")
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, _ = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result)
+        compatibility = json.loads(stdout)["compatibility"]
+        self.assertEqual("older-than-tested", compatibility["version_status"])
+        self.assertEqual("3.5.4", compatibility["parsed_version"])
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_reports_newer_version_without_hard_block(self) -> None:
+        executable, _ = self.fake_mempalace(version_output="mempalace 3.7.1\n")
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, _ = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result)
+        compatibility = json.loads(stdout)["compatibility"]
+        self.assertEqual("newer-than-tested", compatibility["version_status"])
+        self.assertEqual("3.7.1", compatibility["parsed_version"])
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_reports_unknown_version_when_unparseable(self) -> None:
+        executable, _ = self.fake_mempalace(version_output="mempalace-dev-build\n")
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, _ = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result)
+        compatibility = json.loads(stdout)["compatibility"]
+        self.assertEqual("unknown", compatibility["version_status"])
+        self.assertIsNone(compatibility["parsed_version"])
 
     def test_portable_environment_precedes_claude_options(self) -> None:
         args = type("Args", (), {"provider": None, "home": None, "project": None})()
@@ -519,10 +987,12 @@ class MemoryProviderTests(unittest.TestCase):
 
         self.assertEqual(0, result)
         entry = json.loads(stdout)["records"][0]
-        self.assertEqual("invalid-or-stale", entry["source_state"])
+        self.assertEqual("drifted", entry["source_state"])
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
-    def test_provider_capture_uses_exact_scoped_argv(self) -> None:
+    def test_provider_capture_requires_explicit_sync_without_invoking_mine(
+        self,
+    ) -> None:
         executable, calls = self.fake_mempalace()
         with patch.dict(
             os.environ,
@@ -540,14 +1010,213 @@ class MemoryProviderTests(unittest.TestCase):
             )
 
         self.assertEqual(0, result)
-        self.assertTrue(json.loads(stdout)["provider_archived"])
-        call = json.loads(calls.read_text(encoding="utf-8").splitlines()[0])
-        self.assertEqual("mine", call["argv"][0])
-        self.assertEqual(["--wing", self.project_slug()], call["argv"][-2:])
-        self.assertIn(
-            f"providers/mempalace/{self.project_slug()}/palace",
-            call["palace"],
+        report = json.loads(stdout)
+        self.assertFalse(report["provider_archived"])
+        self.assertEqual("pending-sync", report["provider_archive"]["outcome"])
+        self.assertIn("sync-provider --apply", report["provider_reconciliation"])
+        provider_receipt = Path(json.loads(stdout)["provider_archive"]["receipt"])
+        self.assertTrue(provider_receipt.is_file())
+        self.assertFalse(calls.exists())
+        receipt = json.loads(provider_receipt.read_text(encoding="utf-8"))
+        self.assertEqual("pending-sync", receipt["outcome"])
+
+    @unittest.skipUnless(os.name == "posix", "safe directory swap requires POSIX")
+    def test_provider_sync_dry_run_and_apply_preserves_backup(self) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
         )
+        executable, calls = self.fake_mempalace()
+        palace = self.home / "providers" / "mempalace" / self.project_slug() / "palace"
+        palace.mkdir(parents=True)
+        (palace / "old.txt").write_text("old palace", encoding="utf-8")
+        stale_backups = [
+            palace.parent / "palace-backup-old-a",
+            palace.parent / "palace-backup-old-b",
+        ]
+        for stale in stale_backups:
+            stale.mkdir()
+            (stale / "stale.txt").write_text("stale backup", encoding="utf-8")
+        with patch.dict(
+            os.environ,
+            {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)},
+            clear=True,
+        ):
+            dry, dry_stdout, _ = self.invoke(
+                ["sync-provider", "--provider", "mempalace", *self.base_args()]
+            )
+            apply, apply_stdout, _ = self.invoke(
+                [
+                    "sync-provider",
+                    "--apply",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+
+        self.assertEqual(0, dry)
+        self.assertEqual("dry-run", json.loads(dry_stdout)["status"])
+        self.assertEqual(0, apply)
+        report = json.loads(apply_stdout)
+        backup = Path(report["backup_path"])
+        self.assertTrue(backup.is_dir())
+        self.assertEqual("old palace", (backup / "old.txt").read_text(encoding="utf-8"))
+        self.assertEqual(
+            sorted(str(path.resolve()) for path in stale_backups),
+            report["removed_backups"],
+        )
+        self.assertFalse(any(path.exists() for path in stale_backups))
+        self.assertTrue(Path(report["receipt"]).is_file())
+
+    @unittest.skipUnless(os.name == "posix", "safe directory swap requires POSIX")
+    def test_provider_marker_rejects_reverted_active_projection_until_resynced(
+        self,
+    ) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        second = self.root / "second.md"
+        second.write_text(
+            self.record.read_text(encoding="utf-8").replace(
+                "id: retry-policy", "id: second-policy"
+            ),
+            encoding="utf-8",
+        )
+        executable, calls = self.fake_mempalace()
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            first_sync, _, _ = self.invoke(
+                [
+                    "sync-provider",
+                    "--apply",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+            captured, capture_stdout, _ = self.invoke(
+                ["capture", str(second), "--provider", "mempalace", *self.base_args()]
+            )
+            mine_count_after_capture = sum(
+                json.loads(line)["argv"][0] == "mine"
+                for line in calls.read_text(encoding="utf-8").splitlines()
+            )
+            rejected, _, _ = self.invoke(
+                [
+                    "record-state",
+                    "second-policy",
+                    "--review",
+                    "rejected",
+                    "--reason",
+                    "Superseded by current policy.",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+            search, _, stderr = self.invoke(
+                [
+                    "search",
+                    "retry",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+
+        self.assertEqual(0, first_sync)
+        self.assertEqual(0, captured)
+        self.assertEqual(
+            "pending-sync", json.loads(capture_stdout)["provider_archive"]["outcome"]
+        )
+        self.assertEqual(1, mine_count_after_capture)
+        self.assertEqual(0, rejected)
+        self.assertEqual(2, search)
+        self.assertIn("sync-provider --apply", stderr)
+
+    @unittest.skipUnless(os.name == "posix", "safe directory swap requires POSIX")
+    def test_failed_swap_receipt_records_restored_live_palace(self) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        executable, _ = self.fake_mempalace()
+        palace = self.home / "providers" / "mempalace" / self.project_slug() / "palace"
+        palace.mkdir(parents=True)
+        (palace / "old.txt").write_text("old palace", encoding="utf-8")
+        real_replace = os.replace
+
+        def fail_stage_swap(source, target):
+            if Path(source).name.startswith(".palace-rebuild-"):
+                raise OSError("simulated stage swap failure")
+            return real_replace(source, target)
+
+        with (
+            patch.dict(
+                os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+            ),
+            patch.object(memory_provider.os, "replace", side_effect=fail_stage_swap),
+        ):
+            result, _, _ = self.invoke(
+                [
+                    "sync-provider",
+                    "--apply",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+
+        receipt = json.loads(
+            sorted((self.home / "receipts" / self.project_slug()).glob("*.json"))[
+                -1
+            ].read_text(encoding="utf-8")
+        )
+        self.assertEqual(2, result)
+        self.assertEqual("failed", receipt["outcome"])
+        self.assertIsNone(receipt["backup_path"])
+        self.assertEqual("restored-to-live-palace", receipt["recovery_status"])
+        self.assertEqual("old palace", (palace / "old.txt").read_text(encoding="utf-8"))
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_failed_sync_receipt_keeps_detected_provider_version(self) -> None:
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
+        executable, _ = self.fake_mempalace()
+
+        def fail_after_version(config, argv, **kwargs):
+            if argv == ["--version"]:
+                return type("Result", (), {"stdout": b"mempalace 3.6.0\n"})()
+            raise memory_provider.Refusal("simulated mine failure")
+
+        with (
+            patch.dict(
+                os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+            ),
+            patch.object(
+                memory_provider,
+                "_run_mempalace",
+                side_effect=fail_after_version,
+            ),
+        ):
+            result, _, _ = self.invoke(
+                [
+                    "sync-provider",
+                    "--apply",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+
+        receipt = json.loads(
+            sorted((self.home / "receipts" / self.project_slug()).glob("*.json"))[
+                -1
+            ].read_text(encoding="utf-8")
+        )
+        self.assertEqual(2, result)
+        self.assertEqual("mempalace 3.6.0", receipt["provider_version"])
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
     def test_search_forwards_exact_query_and_result_limit(self) -> None:
@@ -557,6 +1226,24 @@ class MemoryProviderTests(unittest.TestCase):
             {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)},
             clear=True,
         ):
+            capture, _, _ = self.invoke(
+                [
+                    "capture",
+                    str(self.record),
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+            sync, _, _ = self.invoke(
+                [
+                    "sync-provider",
+                    "--apply",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
             result, stdout, _ = self.invoke(
                 [
                     "search",
@@ -569,13 +1256,49 @@ class MemoryProviderTests(unittest.TestCase):
                 ]
             )
 
+        self.assertEqual(0, capture)
+        self.assertEqual(0, sync)
         self.assertEqual(0, result)
         self.assertEqual("remembered evidence\n", stdout)
-        call = json.loads(calls.read_text(encoding="utf-8").splitlines()[0])
+        call = [
+            json.loads(line)
+            for line in calls.read_text(encoding="utf-8").splitlines()
+            if json.loads(line)["argv"][0] == "search"
+        ][0]
         self.assertEqual(["search", "why retries", "--results", "4"], call["argv"])
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
-    def test_enabled_hook_forwards_payload_and_scopes_palace(self) -> None:
+    def test_provider_search_refuses_until_active_index_is_reconciled(self) -> None:
+        executable, _ = self.fake_mempalace()
+        with patch.dict(
+            os.environ,
+            {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)},
+            clear=True,
+        ):
+            self.invoke(
+                [
+                    "capture",
+                    str(self.record),
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+            result, _, stderr = self.invoke(
+                [
+                    "search",
+                    "billing backoff",
+                    "--provider",
+                    "mempalace",
+                    *self.base_args(),
+                ]
+            )
+
+        self.assertEqual(2, result)
+        self.assertIn("sync-provider --apply", stderr)
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_enabled_hook_queues_payload_without_invoking_provider(self) -> None:
         executable, calls = self.fake_mempalace(stdout="{}")
         payload = b'{"event":"stop","session_id":"abc"}'
         with patch.dict(
@@ -592,15 +1315,40 @@ class MemoryProviderTests(unittest.TestCase):
             result, stdout, _ = self.invoke(["hook", "stop"], payload)
 
         self.assertEqual(0, result)
-        self.assertEqual("{}", stdout)
-        call = json.loads(calls.read_text(encoding="utf-8").splitlines()[0])
-        self.assertEqual(
-            ["hook", "run", "--hook", "stop", "--harness", "claude-code"],
-            call["argv"],
-        )
-        self.assertEqual(payload.decode(), call["stdin"])
+        report = json.loads(stdout)
+        pending = Path(report["pending"])
+        self.assertEqual("queued-for-review", report["status"])
+        self.assertFalse(report["provider_invoked"])
+        self.assertEqual(payload, pending.read_bytes())
+        self.assertFalse(calls.exists())
 
-    def fake_mempalace(self, stdout: str = "") -> tuple[Path, Path]:
+    #: Default `--help` bodies that satisfy every required capability probe
+    #: in `memory_provider._required_mempalace_capabilities()` for the
+    #: MemPalace 3.6.0 release the adapter is tested against. Tests override
+    #: individual topics to model missing/incompatible upstream CLI surfaces.
+    DEFAULT_HELP_TOPICS = {
+        "mine": "usage: mempalace mine DIR --wing WING\n",
+        "search": "usage: mempalace search QUERY --results N\n",
+        "wake-up": "usage: mempalace wake-up\n",
+    }
+
+    def fake_mempalace(
+        self,
+        stdout: str = "",
+        *,
+        version_output: str = "mempalace 3.6.0\n",
+        help_overrides: dict[str, str] | None = None,
+        exit_overrides: dict[str, int] | None = None,
+    ) -> tuple[Path, Path]:
+        """Write a fake `mempalace` executable that logs every call.
+
+        By default it answers `--version` and `<topic> --help` with output
+        that satisfies every required capability probe, so tests only need to
+        override the specific topic(s) they want to model as missing,
+        incompatible, or drifted.
+        """
+        help_topics = dict(self.DEFAULT_HELP_TOPICS)
+        help_topics.update(help_overrides or {})
         executable = self.root / "mempalace"
         calls = self.root / "calls.jsonl"
         executable.write_text(
@@ -609,13 +1357,25 @@ class MemoryProviderTests(unittest.TestCase):
                     "#!/usr/bin/env python3",
                     "import json, os, sys",
                     f"calls = {str(calls)!r}",
+                    "argv = sys.argv[1:]",
                     "record = {",
-                    "  'argv': sys.argv[1:],",
+                    "  'argv': argv,",
                     "  'stdin': sys.stdin.read(),",
                     "  'palace': os.environ.get('MEMPALACE_PALACE_PATH'),",
                     "}",
                     "with open(calls, 'a', encoding='utf-8') as handle:",
                     "    handle.write(json.dumps(record) + '\\n')",
+                    f"help_topics = {help_topics!r}",
+                    f"exit_overrides = {(exit_overrides or {})!r}",
+                    "key = ' '.join(argv)",
+                    "if key in exit_overrides:",
+                    "    sys.exit(exit_overrides[key])",
+                    "if argv == ['--version']:",
+                    f"    sys.stdout.write({version_output!r})",
+                    "    sys.exit(0)",
+                    "if argv and argv[-1] == '--help':",
+                    "    sys.stdout.write(help_topics.get(argv[0], 'usage: mempalace\\n'))",
+                    "    sys.exit(0)",
                     f"sys.stdout.write({stdout!r})",
                 ]
             ),

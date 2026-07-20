@@ -73,7 +73,7 @@
     {
       "name": "memory",
       "source": "./plugins/memory",
-      "description": "Provenance-bound durable memory with reviewed records, recall-then-verify workflows, an optional MemPalace provider, and opt-in capture.",
+      "description": "Provenance-bound durable memory with immutable records, append-only review state, active-only recall, explicit MemPalace reconciliation, and opt-in capture.",
       "category": "continuity",
       "tags": ["memory", "mempalace", "rag", "retrieval", "provenance", "continuity"]
     },

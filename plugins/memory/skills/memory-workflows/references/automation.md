@@ -1,41 +1,39 @@
 # Opt-in Automation
 
 The memory plugin declares Claude `Stop`, `PreCompact`, and `SessionEnd` hooks,
-but the adapter exits without invoking a provider unless automatic capture is
+but the adapter exits without writing anything unless lifecycle queuing is
 explicitly enabled.
 
 ## Enable
 
 ```bash
-export CONTEXT_KIT_MEMORY_PROVIDER=mempalace
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
-python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
 ```
 
-All three settings are required. Missing provider or project configuration is a
-visible refusal rather than a silent global fallback.
+Both settings are required. A missing project is a visible refusal rather than a
+silent global fallback.
 
 ## Behavior
 
-- `Stop` forwards the hook payload in the foreground with a bounded timeout.
-- `PreCompact` forwards before context compression with a larger bounded timeout.
-- `SessionEnd` first saves the payload to a mode-0600 pending file, then starts a
-  detached worker so the host's short exit budget does not kill the final save.
-- Detached worker errors are appended under
-  `${CONTEXT_KIT_MEMORY_HOME}/logs/`.
-- The provider palace is isolated by explicit project.
+- Each hook writes the exact JSON payload to a mode-0600 file under
+  `${CONTEXT_KIT_MEMORY_HOME}/pending-hooks/<project-key>/`.
+- Queued payloads are unreviewed evidence. They are never searched, converted
+  into `memory-v1` records, or written to MemPalace automatically.
+- Review the payload manually, create a durable record, run explicit `capture`,
+  and then run `sync-provider --apply` if provider recall should change.
+- Delete queued payloads under an operator-defined retention policy after
+  review; they can contain sensitive session context.
 
-The adapter passes exact argv to a separately installed `mempalace` executable.
-It does not evaluate shell text, install dependencies, or discover transcript
-directories on its own.
+The adapter does not evaluate shell text, install dependencies, or invoke a
+provider from lifecycle hooks.
 
 ## Host boundaries
 
 Claude Code loads the plugin's `hooks/hooks.json`. GitHub Copilot and APM do not
-run Claude hooks, so their default remains explicit capture. Configure a host's
-native MemPalace integration only after applying the same opt-in, project
-isolation, retention, and privacy decisions.
+run Claude hooks, so their default remains explicit capture. Apply the same
+opt-in, project isolation, retention, and privacy decisions to any host-native
+lifecycle integration.
 
 Disable automation immediately with:
 
@@ -43,4 +41,4 @@ Disable automation immediately with:
 unset CONTEXT_KIT_MEMORY_AUTO_CAPTURE
 ```
 
-The local reviewed records remain available; only lifecycle forwarding stops.
+The local reviewed records remain available; only lifecycle queuing stops.

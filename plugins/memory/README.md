@@ -44,7 +44,10 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
 
 Records default to `~/.local/share/context-kit/memory`; override with
 `CONTEXT_KIT_MEMORY_HOME`. Local recall searches reviewed primary memories and
-cue anchors without requiring an external provider.
+cue anchors without requiring an external provider. Active recall uses only
+effective `accepted/current` records. Captured record files never change:
+`record-state <id> --reason ...` appends reviewed state transitions instead.
+Use `search --include-inactive` for a local audit of inactive history.
 
 ## Optional MemPalace provider
 
@@ -58,21 +61,25 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
 ```
 
 Each configured project gets an isolated MemPalace palace. The adapter uses
-exact argv with no shell, preserves records locally before archival, and never
-installs or imports MemPalace itself.
+exact argv with no shell, preserves records locally, and never installs or
+imports MemPalace itself. Only `sync-provider --apply` writes or rebuilds the
+provider palace. Eligible capture records a pending-sync receipt; run an
+explicit sync after eligible captures or state changes before provider-backed
+recall. Reconciliation preserves the immediately previous palace before replacement and
+removes older generated backups after the success receipt is durable.
 
-## Opt-in automatic capture
+## Opt-in lifecycle queue
 
 Claude hooks are inert until enabled:
 
 ```bash
-export CONTEXT_KIT_MEMORY_PROVIDER=mempalace
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
 ```
 
-GitHub Copilot and APM do not run Claude hooks. Use explicit commands or
-configure the host's native MemPalace integration separately.
+Enabled hooks queue exact payloads locally for explicit review; they never create
+memory records or mutate MemPalace. GitHub Copilot and APM do not run Claude
+hooks.
 
 ## Components
 
@@ -90,6 +97,14 @@ configure the host's native MemPalace integration separately.
 - New records start proposed and retain immutable evidence.
 - Recall results are leads, not proof.
 - Consolidation creates supersession history; it does not erase evidence.
-- Automatic capture is disabled by default.
+- Lifecycle payload queuing is disabled by default.
 - Project data never falls back to a global provider store.
 - MemPalace and Memora informed the design; this implementation is independent.
+
+## Supported providers
+
+Two provider modes are supported. MemPalace is the only optional external provider.
+Memora informed the memory contract design but is not a runtime provider today.
+See [`skills/memory-workflows/references/provider-qualification.md`](skills/memory-workflows/references/provider-qualification.md)
+for the full qualification policy and the current decision table with revisit
+triggers for Memora.

@@ -17,7 +17,9 @@ Recall durable memory for `$ARGUMENTS` without treating provider output as proof
    python3 "<memory-root>/scripts/memory-provider.py" search "$ARGUMENTS" --results 8
    ```
 
-4. Inspect candidate primary memories and cue matches. Local mode returns a JSON
+4. Active recall includes only accepted/current effective records. For a
+   deliberate historical audit, add `--include-inactive` in local mode. Inspect
+   candidate primary memories and cue matches. Local mode returns a JSON
    `records` array; provider mode returns the provider's labeled candidates. Open every source needed
    for the answer and compare source hash plus repository/branch/HEAD anchors.
 5. Mark each relied-on claim current, stale, superseded, revoked, conflicting, or

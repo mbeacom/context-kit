@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Python 3 is required for the bundled validator/provider adapter. MemPalace is optional and must be installed separately for provider-backed recall."
 metadata:
   author: Mark Beacom
-  version: "0.1.0"
+  version: "0.2.0"
 allowed-tools: Read Grep Glob Write Bash(python3:*) Bash(mempalace:*) Bash(git:*)
 ---
 
@@ -36,7 +36,8 @@ provider-neutral.
 3. Bind project memories to repository, branch, HEAD, observation time, source,
    and SHA-256 source hash.
 4. Mark new records `review: proposed`. Promote them to `accepted` only after
-   checking the evidence.
+   checking the evidence with the append-only `record-state` operation; never
+   edit an already captured artifact.
 5. Validate with `scripts/memory-provider.py validate`, then persist with
    `capture`. Provider archival is optional.
 
@@ -64,28 +65,32 @@ Run review before relying on old records. Consolidation is propose-only:
 - a changed abstraction becomes a new record with a `supersedes` edge;
 - evidence remains immutable;
 - conflicts stay visible until a reviewer accepts one account;
-- stale and revoked records remain auditable but do not drive actions.
+- proposed, stale, superseded, revoked, and rejected records remain auditable
+  but do not drive active recall or provider indexing.
 
 Never destructively rewrite the only evidence for a remembered claim.
 
-## Optional automatic capture
+## Optional lifecycle queue
 
-Claude hooks ship inert. They forward lifecycle payloads to MemPalace only when
-all of these are explicitly configured:
+Claude hooks ship inert. When explicitly enabled, they queue lifecycle payloads
+under the project-isolated memory home for manual review:
 
 ```bash
-export CONTEXT_KIT_MEMORY_PROVIDER=mempalace
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
 ```
 
-Run `doctor` first. GitHub Copilot and APM do not run Claude hooks; use the
-explicit commands or configure the host's native MemPalace integration.
+Hooks never create reviewed memory records or mutate a provider palace. Review a
+queued payload, create a `memory-v1` artifact, run explicit `capture`, and then
+run `sync-provider --apply` when provider recall should change. GitHub Copilot
+and APM do not run Claude hooks.
 
 ## Resources
 
 - **`references/memory-contract.md`** — record schema and evidence rules.
 - **`references/provider-mempalace.md`** — provider setup, isolation, and CLI.
+- **`references/provider-qualification.md`** — provider qualification criteria
+  and the current decision table for local records, MemPalace, and Memora.
 - **`references/retrieval-and-review.md`** — recall, freshness, cues, and
   consolidation.
 - **`references/automation.md`** — opt-in hook behavior and host boundaries.
