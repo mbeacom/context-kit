@@ -20,6 +20,7 @@ Review `$ARGUMENTS` using a propose-only workflow.
 5. For each proposed consolidation, show old/new primary memory, cues, all
    supporting/conflicting evidence, and the proposed `supersedes` links.
 6. Persist a replacement only after review. Keep prior evidence and records;
-   change their freshness state rather than deleting them.
+   record any review/freshness change with `record-state <id> --reason ...`
+   rather than editing the immutable record.
 7. Report accepted, rejected, stale, superseded, and unresolved records
-   separately.
+   separately. Review is an audit and reports inactive records by default.

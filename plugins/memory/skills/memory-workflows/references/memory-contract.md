@@ -2,7 +2,7 @@
 
 `context-kit/memory-v1` is a UTF-8 Markdown artifact with flat YAML frontmatter
 and five required level-two sections. The bundled validator limits a record to
-32 KiB and 220 lines.
+32 KiB and 220 lines. Once captured, its bytes are immutable.
 
 ## Three-layer record
 
@@ -37,6 +37,29 @@ Project records require a valid `owner/name`, Git branch, and 7–64 character
 hexadecimal commit, and the repository must exactly match the configured memory
 project. If those anchors are unavailable, retain the item as unresolved context
 rather than claiming a durable project memory.
+
+## Append-only state ledger
+
+The frontmatter `review` and `freshness` values are the immutable initial state,
+not fields to edit after capture. Later changes use:
+
+```bash
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
+  record-state retry-policy --review accepted \
+  --reason "Compared the saved evidence with the current retry policy."
+```
+
+State events are write-once JSON files under
+`${CONTEXT_KIT_MEMORY_HOME}/states/<project-key>/<record-id>/`. Each binds the
+exact SHA-256 of the record, exact project identity/key, timestamp, prior and
+effective review/freshness state, and a non-empty reason. The adapter rejects
+events for missing records, mismatched hashes/projects, invalid transition
+chains, and terminal freshness transitions.
+
+With no event, effective state is the immutable frontmatter. Active recall and
+provider eligibility require **both** `review: accepted` and
+`freshness: current`; all other records remain available to review and explicit
+local audit search (`search --include-inactive`).
 
 ## Required sections
 

@@ -14,6 +14,12 @@ procedure, preference, or episode and the exact wording/location is unknown.
 
 Memory answers **where to look**. Current evidence answers **what is true now**.
 
+Local active recall includes only records whose effective state is
+`review: accepted` and `freshness: current`. Use
+`search --include-inactive` only for an explicit audit of proposed, rejected,
+stale, superseded, or revoked history. Review always reports every local record
+and its effective append-only state; it is not filtered like active recall.
+
 ## Retrieval signals
 
 Memora's primary/cue separation and weighted rank fusion are useful design

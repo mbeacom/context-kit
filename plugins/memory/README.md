@@ -44,7 +44,10 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
 
 Records default to `~/.local/share/context-kit/memory`; override with
 `CONTEXT_KIT_MEMORY_HOME`. Local recall searches reviewed primary memories and
-cue anchors without requiring an external provider.
+cue anchors without requiring an external provider. Active recall uses only
+effective `accepted/current` records. Captured record files never change:
+`record-state <id> --reason ...` appends reviewed state transitions instead.
+Use `search --include-inactive` for a local audit of inactive history.
 
 ## Optional MemPalace provider
 
@@ -59,7 +62,10 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
 
 Each configured project gets an isolated MemPalace palace. The adapter uses
 exact argv with no shell, preserves records locally before archival, and never
-installs or imports MemPalace itself.
+installs or imports MemPalace itself. It archives only accepted/current records,
+writes immutable provider receipts, and offers `sync-provider` (dry-run) plus
+an explicit `sync-provider --apply` reconciliation that preserves a backup
+before replacing a project palace.
 
 ## Opt-in automatic capture
 

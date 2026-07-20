@@ -36,7 +36,8 @@ provider-neutral.
 3. Bind project memories to repository, branch, HEAD, observation time, source,
    and SHA-256 source hash.
 4. Mark new records `review: proposed`. Promote them to `accepted` only after
-   checking the evidence.
+   checking the evidence with the append-only `record-state` operation; never
+   edit an already captured artifact.
 5. Validate with `scripts/memory-provider.py validate`, then persist with
    `capture`. Provider archival is optional.
 
@@ -64,7 +65,8 @@ Run review before relying on old records. Consolidation is propose-only:
 - a changed abstraction becomes a new record with a `supersedes` edge;
 - evidence remains immutable;
 - conflicts stay visible until a reviewer accepts one account;
-- stale and revoked records remain auditable but do not drive actions.
+- proposed, stale, superseded, revoked, and rejected records remain auditable
+  but do not drive active recall or provider indexing.
 
 Never destructively rewrite the only evidence for a remembered claim.
 

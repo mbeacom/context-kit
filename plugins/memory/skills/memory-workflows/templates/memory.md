@@ -33,4 +33,5 @@ One concise, canonical fact, decision, procedure, constraint, or episode.
 
 ## Review Notes
 
-- Why this record is proposed, accepted, rejected, stale, or superseded.
+- Immutable capture rationale. Later review/freshness changes belong in
+  append-only `record-state` events.

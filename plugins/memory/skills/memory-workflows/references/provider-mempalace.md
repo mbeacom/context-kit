@@ -46,12 +46,39 @@ python3 "$MEMORY" capture record.md
 python3 "$MEMORY" search "why did we change retry policy" --results 8
 python3 "$MEMORY" wake
 python3 "$MEMORY" review
+python3 "$MEMORY" record-state retry-policy --review accepted \
+  --reason "Evidence was reviewed."
+python3 "$MEMORY" sync-provider            # safe dry-run plan
+python3 "$MEMORY" sync-provider --apply    # explicit rebuild and swap
 python3 "$MEMORY" archive-handoff .context-kit/handoff.md
 ```
 
 `capture` and `archive-handoff` always preserve an exact local copy first.
-When the provider is enabled, the adapter then invokes MemPalace with exact argv
-and no shell. Use `--local-only` to skip provider archival.
+Memory capture invokes MemPalace only for effective `accepted/current` records;
+a proposed capture reports an explicit skipped archival result. Handoffs remain
+local historical evidence and are not placed in the active memory provider.
+Use `--local-only` to skip provider archival.
+
+## Receipts and reconciliation
+
+Every provider archival attempt, skip, failure, and successful reconciliation
+writes an immutable receipt below:
+
+```text
+${CONTEXT_KIT_MEMORY_HOME}/receipts/<project-key>/
+```
+
+Receipts contain the provider/version, project key, palace path, operation,
+record or projection hash, timestamp, exact argv, outcome, and any backup path;
+they never contain provider credentials.
+
+`sync-provider` projects only accepted/current local records into a fresh
+project-isolated palace. Its default is dry-run. On POSIX, `--apply` waits for
+the staged MemPalace command to succeed, preserves the old palace as a visible
+backup, then swaps the staged palace into place. Unsupported platforms refuse
+apply rather than partially replacing a palace. After capture or a state
+transition, reconcile before provider-backed recall; the adapter refuses provider search
+until a successful receipt matches the current active projection.
 
 ## Boundaries
 

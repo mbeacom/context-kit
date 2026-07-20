@@ -21,7 +21,9 @@ Archive a handoff only as an explicit separate action.
    ```
 
 5. Report the exact preserved archive path, saved HEAD, project scope, and
-   provider archival state.
+   provider archival state. Handoffs are intentionally provider-skipped:
+   they remain local historical evidence rather than entering the active
+   accepted/current provider index.
 
 An archived handoff remains historical evidence, not authoritative current task
 state. Future resume still uses `context-handoff` freshness validation.
