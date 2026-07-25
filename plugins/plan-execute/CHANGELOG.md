@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.5 — 2026-07-25
+
+- Target the current model generation in `plan-execute-strategy`: name **Opus 5**
+  and **Sonnet 5** instead of 4.x examples wherever the skill specifies a model.
+  The capability-pairing bullet now states that an Opus 5 main accepts Fable or any
+  Opus 4.7-or-later advisor (Opus 5 included) and rejects Sonnet 5 / Opus 4.6, and
+  adds the Sonnet 5 main row (accepts Fable, Opus, or Sonnet 5; rejects Sonnet 4.6).
+- Note that the `opus` / `sonnet` aliases resolve to the latest version (Opus 5 /
+  Sonnet 5), so prefer them over pinning a 4.x model ID — for `/advisor`,
+  `CLAUDE_CODE_SUBAGENT_MODEL`, and `--model` alike. `/advisor opus` (the Fable
+  workaround) is now described as resolving to Opus 5.
+
 ## 0.1.4 — 2026-07-18
 
 - Lead the install section with GitHub Copilot, then APM (new block), then
