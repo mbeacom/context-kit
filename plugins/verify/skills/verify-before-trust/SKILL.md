@@ -26,16 +26,19 @@ author-grading-own-work bias.
 3. For each claim, decide the cheapest likely evidence source: code, config,
    tests, schema, migration, generated manifest, docs, or history surfaced by a
    retrieval pass.
-4. Search read-only with `Glob` and `Grep`, then use `Read` to inspect the
-   primary files directly.
+4. Search read-only with file-name and content search, then read the primary
+   files directly. Keep the search scope narrow before opening whole files.
 5. Assign one verdict per claim using the taxonomy in
    `references/verdicts.md`: confirmed, dubious, refuted, or unable-to-check.
-6. Summarize the counts and call out any follow-up that needs executable
-   verification.
+6. Summarize the counts and hand off any follow-up that needs executable
+   verification, naming the specific command or observation rather than saying
+   more testing is needed.
 
 ## Evidence standard
 
-- Cite `file:line` evidence for every confirmed or refuted verdict.
+- Cite `file:line` evidence for every confirmed or refuted verdict settled by
+  static inspection. `references/verdicts.md` defines the only other accepted
+  form, for verdicts reassessed from a supplied observation report.
 - Prefer primary evidence over secondary evidence. Code/config/tests beat
   comments/docs; comments/docs beat issue summaries or AI explanations.
 - Do not treat "I did not find it" as proof of falsehood. Use refuted only when
@@ -44,6 +47,26 @@ author-grading-own-work bias.
   proves the behavior, such as a test, route registration, or config branch.
   Otherwise mark it unable-to-check and name the command or observation that
   would settle it.
+
+## Escalating an unresolved runtime claim
+
+`unable-to-check` is a routing decision, not an ending. Keep the claim atomic and
+carry the static result forward as the reason execution is warranted.
+
+When the `runtime-evidence` plugin is installed, escalate with
+`/collect-runtime-evidence`, which runs only a pre-reviewed allowlist command ID.
+Return its report here and reassess the same claim under this taxonomy — the
+verdict stays owned by verification. Do not invent a runtime-specific verdict set
+and do not run the command as part of verification itself.
+
+When it is not installed, leave the verdict at `unable-to-check` and state the
+missing capability. When it is installed but no reviewed command ID matches, the
+claim can still route to that plugin's approved optional-tool path — a browser,
+debugger, or container observation, which exists precisely for claims no reviewed
+command can represent, and which returns the `tool=…@…` evidence source. Leave
+the verdict at `unable-to-check` only when neither a reviewed command ID nor an
+approved, available tool can collect the observation. That is a valid outcome;
+guessing is not.
 
 ## When to delegate
 

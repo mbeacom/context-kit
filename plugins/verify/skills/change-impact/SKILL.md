@@ -36,9 +36,45 @@ Keep the analysis prospective and non-mutating.
   services, apply migrations, or invoke commands that can change repository or
   environment state.
 - State executable checks as follow-up evidence needed; do not perform them as
-  part of this capability.
+  part of this capability. When an unknown hinges on runtime behavior and the
+  `runtime-evidence` plugin is installed, name `/collect-runtime-evidence` and
+  the claim it would settle, and leave the collection to that separate,
+  explicitly invoked workflow.
 - Treat a described future change, uncommitted diff, commit, PR, or design note
   as input evidence, not permission to modify the tree.
+
+### Tool boundary
+
+Everything below is a declaration of intent, not an enforcement mechanism. The
+catalog's boundary map in `docs/security.md` is explicit that host permissions
+and operator review govern what actually executes: a skill's `allowed-tools`
+pre-approves a surface, it does not deny the rest, and it is not a portable
+control across hosts. Say that plainly rather than implying a guarantee.
+
+- **Declared here.** File reading plus name and content search, with no command
+  grant. A prefix-matched command allowlist could not express "read-only"
+  anyway: `git diff`/`git show` accept `--output=<file>`, `git grep` accepts
+  `--open-files-in-pager=<cmd>`, and `yq -i` rewrites in place.
+- **Reached by delegation.** `retrieval-strategist` declares unrestricted
+  `Bash`; `code-search` declares `Bash(git:*)` and `Bash(yq:*)`. Their
+  non-mutating character is an instruction they follow, not a restriction their
+  grants impose.
+
+| Modality | Where it runs | What actually constrains it |
+| --- | --- | --- |
+| lexical, file reading | here | this skill's declaration plus host policy |
+| history, structured-data | `retrieval-strategist`, or `code-search` when installed | the delegate's instructions plus host policy |
+| code-intelligence, structural | `retrieval-strategist`, or `code-search` when installed | the delegate's instructions plus host policy |
+| factual claim checks | `verifier` | a subagent tool grant of Read/Grep/Glob |
+| runtime observation | `/collect-runtime-evidence` only | a reviewed allowlist ID, itself not side-effect proof |
+
+So: never treat delegation as a way around this skill's own declaration;
+constrain the worker to inspection and evidence gathering in the delegation
+prompt; and disclose in section 7 of the report contract both the modalities
+left unreached and any evidence gathered under a delegate's broader grants.
+
+When a caller needs an actual non-mutation guarantee, it has to come from host
+permissions, a restricted subagent, or a hook — not from this file.
 
 ## Analysis flow
 
@@ -50,8 +86,10 @@ Keep the analysis prospective and non-mutating.
    search for exact names, code intelligence for definitions and references,
    structural search for code shapes, structured-data search for manifests and
    config, and history search when compatibility intent or prior migrations
-   matter. Invoke the read-only `retrieval-strategist` when the repository is
-   unfamiliar or the right modality is unclear.
+   matter. Run lexical search and file reading here; reach every other modality
+   only by delegation, per the tool boundary above. Invoke `retrieval-strategist`
+   when the repository is unfamiliar or the right modality is unclear,
+   constraining it to inspection.
 3. **Trace direct dependents first.** Find imports, references, callers,
    implementers, registries, serializers, consumers, build/package edges, and
    generated-code sources that directly depend on each change anchor. Do not

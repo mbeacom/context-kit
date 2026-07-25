@@ -55,12 +55,55 @@ Each claim gets one of four verdicts, with evidence:
 | **confirmed** | Primary evidence supports the claim (`path:line` cited). |
 | **dubious** | Evidence is partial, ambiguous, or indirect. |
 | **refuted** | Primary evidence contradicts the claim. |
-| **unable-to-check** | No accessible evidence in the corpus. |
+| **unable-to-check** | Read-only inspection cannot settle it. States what would. |
 
-Change-impact is also read-only and prospective. It may inspect search,
-code-intelligence, structured data, and history, but does not edit files, generate
-artifacts, run tests, start services, or apply migrations. It separates observed
-repository coupling from inferred future risk and unknowns:
+`verify` owns the evidence slot as well as the taxonomy, and defines exactly
+three forms so dependents inherit them rather than inventing their own:
+
+| Form | When | Example |
+| --- | --- | --- |
+| **Repository** | any verdict settled by static inspection | `evidence (src/a.ts:12)` |
+| **Observation** | a claim reassessed from a caller-supplied [`runtime-evidence`](runtime-evidence.md) report, including an inconclusive one | `evidence (command-id=api-health; report=…/run-4213.json)` |
+| **None** | `dubious` or `unable-to-check` with no report to cite | `evidence (none)` |
+
+The observation source is `command-id=<allowlist key>` for the sanctioned
+runner, or `tool=<approved tool>@<target>` for an approved optional-tool
+observation where no reviewed command can represent the claim.
+
+One verdict cites one form. On reassessment the observation citation replaces
+the evidence slot rather than joining it, and any static context moves to the
+note.
+
+### Escalating an unresolved runtime claim
+
+!!! info "`unable-to-check` is a route, not a dead end"
+    A runtime claim that static evidence cannot settle must name the observation
+    that would settle it. When [`runtime-evidence`](runtime-evidence.md) is
+    installed, that observation can be escalated with
+    `/collect-runtime-evidence`, which runs only a pre-reviewed allowlist command
+    ID. The report comes back here, and the same claim is reassessed under this
+    taxonomy — verification keeps ownership of the verdict.
+
+    The escalation is optional. `verify` does not depend on `runtime-evidence`;
+    the dependency runs the other way. Without it, `unable-to-check` plus the
+    named missing capability is the correct final answer.
+
+Change-impact is prospective and intended to be non-mutating — an intent, not a
+guarantee. It declares a surface of file reading plus search with no command
+grant, since a prefix-matched allowlist cannot express "read-only" anyway
+(`git diff --output=`, `git grep --open-files-in-pager=`, `yq -i`). It reaches
+code-intelligence, structured-data, and history only by delegating, and those
+delegates declare broader grants.
+
+!!! warning "`allowed-tools` is not an enforcement control"
+    Omitting command grants avoids pre-approving them; it does not deny them,
+    and it is not portable across hosts. As the [boundary map](../security.md)
+    states, host permissions and operator review govern actual execution. A real
+    non-mutation guarantee has to come from host permissions, a restricted
+    subagent such as `verifier`, or a hook.
+
+It separates observed repository coupling from inferred future risk and
+unknowns:
 
 ```text
 /analyze-impact Change Account.id from an integer to a UUID

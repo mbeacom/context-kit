@@ -164,7 +164,8 @@
     "plugins/verify/agents/verifier.md": {
       "positive": [
         "Independently verify each claim in this migration note against the codebase.",
-        "Check this pull request summary and return evidence-backed verdicts per claim."
+        "Check this pull request summary and return evidence-backed verdicts per claim.",
+        "Reassess this claim now that I have the runtime observation report."
       ],
       "negative": [
         "Edit the code to fix every issue described in this review.",

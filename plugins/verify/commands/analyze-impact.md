@@ -15,11 +15,16 @@ and prospective:
 
 - do not edit files, generate artifacts, install dependencies, run tests, start
   services, or apply migrations;
-- use `retrieval-strategy` and, when useful, the read-only
-  `retrieval-strategist` to locate definitions, references, call sites, config,
-  schemas, tests, docs, and operational evidence;
+- use `retrieval-strategy` and, when useful, `retrieval-strategist` to locate
+  definitions, references, call sites, config, schemas, tests, docs, and
+  operational evidence — constraining it to inspection, and noting that a
+  delegate's non-mutating behavior is something it follows, not something its
+  grants impose;
 - use the existing `verifier` and its confirmed/dubious/refuted/unable-to-check
   taxonomy for factual claims that benefit from an independent pass;
+- when an unknown can only be settled by runtime observation and
+  `runtime-evidence` is installed, name `/collect-runtime-evidence` and the
+  claim it would settle as a follow-up; do not collect it during this analysis;
 - if `plan-execute` is installed and the repository is broad, optionally
   parallelize read-only evidence collection, but do not require it or permit
   workers to implement changes.

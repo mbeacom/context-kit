@@ -31,10 +31,16 @@ claim.
    the explicit absolute working directory.
 3. Inspect the user-owned allowlist config. Select an exact existing command ID
    whose reviewed argv reproduces the claim.
-4. Refuse to proceed when no reviewed command ID matches. Never invent an ID,
-   alter argv in memory, edit the config, or substitute direct shell execution.
-5. Invoke `scripts/run-evidence-command.py` with the config, command ID, claim,
-   environment label, cwd, artifact directory, and unique run ID.
+4. When no reviewed command ID matches, do not proceed down the runner path.
+   Never invent an ID, alter argv in memory, edit the config, or substitute
+   direct shell execution. Take the approved optional-tool path only when every
+   condition in `references/optional-tools.md` holds — the claim requires that
+   observation modality, the user approved the interaction and target
+   environment, and the host exposes the tool. Otherwise stop and report the
+   missing reviewed capability.
+5. On the runner path, invoke `scripts/run-evidence-command.py` with the config,
+   command ID, claim, environment label, cwd, artifact directory, and unique run
+   ID.
 6. Preserve the runner's exit status and JSON report. Treat timeout, output-limit
    termination, spawn failure, and child nonzero exit as observations rather
    than smoothing them into success.
@@ -85,8 +91,10 @@ metadata is available, and requires explicit locations instead of guessing.
 
 Use a browser, debugger, container inspector, or host-specific runtime tool only
 when the user has approved that observation path and the host exposes the tool.
-When it is unavailable, report the missing capability and leave the claim
-unsettled. Do not replace it with a newly invented command.
+This is the sanctioned branch when no reviewed command ID can represent the
+claim; it produces the same evidence fields with `tool=<approved tool>@<target>`
+as the observation source. When it is unavailable, report the missing capability
+and leave the claim unsettled. Do not replace it with a newly invented command.
 
 ## Output contract
 
@@ -94,7 +102,9 @@ Return these fields for every attempted collection:
 
 - **Claim** — the atomic runtime statement under test.
 - **Reproduction command ID** — the exact allowlist key; never a reconstructed
-  command string.
+  command string. For an approved optional-tool observation, report
+  `Observation source: tool=<approved tool>@<target>` in its place and keep
+  every other field.
 - **Environment** — label, cwd, platform, and interpreter metadata from the
   runner report.
 - **Observations** — exit code, termination reason, bounded stdout/stderr

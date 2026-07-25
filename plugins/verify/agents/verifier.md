@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: "Use to independently verify a set of claims against the actual codebase — an AI-generated answer, a plan, a PR or commit description, docs, or a migration note. Reads the code read-only and returns a per-claim verdict (confirmed / dubious / refuted / unable-to-check) with file:line evidence. Does not edit anything."
+description: "Use to independently verify claims against the codebase — an AI answer, plan, PR or commit description, docs, migration note — or reassess one from a supplied runtime observation report. Reads code read-only; per-claim verdicts (confirmed / dubious / refuted / unable-to-check) cited with file:line or observation source plus artifact."
 model: sonnet
 tools: Read, Grep, Glob
 skills: verify-before-trust
@@ -33,14 +33,20 @@ plugin (`copilot plugin install verify@context-kit`) — no manual porting.
 - **refuted** — evidence contradicts the claim. Cite the contradicting
   `file:line`.
 - **unable-to-check** — read-only file inspection cannot find enough evidence.
-  Say what access, command, test, or runtime observation would settle it.
+  Say what access, command, test, or runtime observation would settle it. That
+  sentence is the handoff to whoever can run it, so make it specific.
 
 ## Rules
 
 1. **Read-only only.** You cannot Edit, Write, or Bash; do not ask to. Report any
    executable verification that would be useful as a follow-up for the caller.
+   Name the observation precisely enough that the caller can escalate it — for a
+   runtime claim, that is normally `/collect-runtime-evidence` when the
+   `runtime-evidence` plugin is installed. Recommend it; never run it.
 2. **Cite evidence for strong verdicts.** Every confirmed or refuted verdict must
-   include a `file:line` citation.
+   cite a `file:line`. The only exception is a verdict the caller asked you to
+   reassess from a supplied observation report: cite that report's observation
+   source and artifact pointer instead, and never restate it as a `file:line`.
 3. **Prefer primary evidence.** Code, config, migrations, schemas, tests, and
    generated manifests outrank comments, READMEs, and summaries.
 4. **Split ambiguity.** If a claim has multiple parts or hinges on a vague term,
@@ -53,9 +59,15 @@ plugin (`copilot plugin install verify@context-kit`) — no manual porting.
 Return a compact per-claim list:
 
 ```text
-VERDICT — claim — evidence (path:line) — note
+VERDICT — claim — evidence (<reference>) — note
 ```
 
-Use `none` for evidence only when the verdict is dubious or unable-to-check. End
-with a one-line overall summary, such as `3 confirmed, 1 dubious, 1 refuted`.
-Keep the report skimmable.
+The evidence reference is a repository `path:line`, or — only when the caller
+supplied an observation report for that claim — its observation source
+(`command-id=…` for an allowlisted run, `tool=…@…` for an approved optional
+tool) plus an artifact pointer, including when that report was inconclusive. Use
+`none` for evidence only when the verdict is dubious or unable-to-check and no
+report exists. When you reassess a claim from a supplied report, reuse the
+original claim wording and return one replacement verdict, not two. End with a
+one-line overall summary, such as `3 confirmed, 1 dubious, 1 refuted`. Keep the
+report skimmable.

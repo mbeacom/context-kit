@@ -37,6 +37,13 @@ Use the detailed rules in
 `../../verify-before-trust/references/verdicts.md`. Reserve `refuted` for
 contradiction, not an unsuccessful search.
 
+This report never uses the observation evidence form: change-impact is
+static-only. `confirmed` and `refuted` cite repository `path:line`; `dubious`
+cites the partial repository evidence it has; `unable-to-check` may use
+`evidence (none)`. When a claim can be settled only by observation, keep it
+`unable-to-check` and record the escalation in section 6 rather than borrowing
+the observation form or inventing a citation.
+
 ### Risk priority
 
 - **high** - Likely contract break, data loss/corruption, security boundary
@@ -137,7 +144,10 @@ Separate:
 - executable checks that would settle unknowns.
 
 Name commands only as recommended follow-ups. Do not run them during a
-read-only impact analysis.
+read-only impact analysis. When an unknown depends on runtime behavior and the
+`runtime-evidence` plugin is installed, name `/collect-runtime-evidence` plus
+the atomic claim it would settle, so the unknown routes somewhere instead of
+ending here.
 
 ### 7. Unknowns and search limits
 
@@ -148,7 +158,9 @@ For every material unknown, state:
 - the minimum evidence needed next.
 
 Also summarize corpus boundaries, excluded/generated/vendor paths, unavailable
-tools or services, and search modalities used.
+tools or services, and search modalities used. Name any modality left unreached
+because delegating it would have exceeded this skill's declared tool surface,
+and flag any evidence that was gathered under a delegate's broader grants.
 
 ### 8. Conclusion
 
