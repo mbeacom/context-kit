@@ -61,7 +61,7 @@ Choose an entry plugin:
 | Search a corpus semantically | `local-rag` | uv, Ollama, embedding model |
 | Narrow an Obsidian vault, then rerank | `obsidian` + `local-rag` | Obsidian CLI or `rg`/`fd` |
 | Verify repository claims | `verify` | — |
-| Verify, then observe runtime behavior | `runtime-evidence` | Python 3, POSIX, reviewed allowlist |
+| Verify, then observe runtime behavior | `runtime-evidence` | Python 3, POSIX, reviewed allowlist (or an approved optional tool) |
 | Verify, then hand off | `context-handoff` | Python 3 |
 | Recall durable project memory | `memory` | Python 3; MemPalace optional |
 | Plan, then delegate execution | `plan-execute` | A host with the required workflow/subagent support |
@@ -112,7 +112,8 @@ command has no side effects.
     `runtime-evidence` and `context-handoff` require Python 3. Both use only the
     standard library. The runtime runner requires POSIX and refuses Windows
     before execution; the handoff validator is cross-platform. Runtime evidence
-    also requires a user-owned exact-ID JSON allowlist; handoffs default to
+    also requires a user-owned exact-ID JSON allowlist for its runner path, or
+    an approved host tool for its optional-tool path; handoffs default to
     `.context-kit/handoff.md`.
 
 -   :material-head-cog-outline:{ .lg .middle } **memory**

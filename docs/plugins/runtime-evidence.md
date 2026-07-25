@@ -2,8 +2,9 @@
 
 !!! abstract "Controlled runtime evidence"
     Escalate an `unable-to-check` runtime claim only after static verification
-    cannot settle it. Run one exact, pre-reviewed command ID and return bounded
-    artifacts to `verify` for the verdict.
+    cannot settle it. Run one exact, pre-reviewed command ID — or an approved
+    optional-tool observation when no reviewed command can represent the claim —
+    and return bounded artifacts to `verify` for the verdict.
 
 `runtime-evidence` depends on [`verify`](verify.md), which transitively pulls the
 [`retrieval-core`](retrieval-core.md) spine. Python 3 is required; the runner uses
@@ -37,10 +38,26 @@ before config access or process creation.
 
 | Component | What it is |
 | --- | --- |
-| **`runtime-evidence`** skill | Static-verification escalation workflow for one unresolved runtime claim. |
-| **`runtime-investigator`** subagent | Selects an existing reviewed command ID and returns verdict-ready evidence. |
+| **`runtime-evidence`** skill | Static-verification escalation workflow for one unresolved runtime claim, covering both collection paths. |
+| **`runtime-investigator`** subagent | Selects an existing reviewed command ID and returns verdict-ready evidence. Command-only. |
 | **`/collect-runtime-evidence`** command | Starts a focused collection only after a static `unable-to-check` result. |
 | **`run-evidence-command.py`** | Standard-library Python runner for exact allowlisted argv and bounded artifacts. |
+
+## Two collection paths
+
+| | Runner path | Optional-tool path |
+| --- | --- | --- |
+| When | a reviewed command ID reproduces the claim | no reviewed command can represent it |
+| Runs in | the `runtime-investigator` subagent | the main agent |
+| Bounded by | the allowlist, timeout, and output cap | user approval only — see [security](../security.md) |
+| Observation source | `command-id=<allowlist key>` | `tool=<approved tool>@<target>` |
+| Artifacts | runner-written report, stdout, stderr | whatever the tool produces |
+
+The plugin ships a runner for the first path only. For the second it supplies
+approval conditions and a recording contract, not a mechanism: a subagent's tool
+grant is fixed, so a host-exposed browser or debugger is reachable only from the
+main agent. If the host exposes no suitable tool, that path is unavailable and
+the claim stays unsettled.
 
 ## Exact-ID allowlist boundary
 

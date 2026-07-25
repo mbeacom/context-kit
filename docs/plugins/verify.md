@@ -80,8 +80,9 @@ note.
     A runtime claim that static evidence cannot settle must name the observation
     that would settle it. When [`runtime-evidence`](runtime-evidence.md) is
     installed, that observation can be escalated with
-    `/collect-runtime-evidence`, which runs only a pre-reviewed allowlist command
-    ID. The report comes back here, and the same claim is reassessed under this
+    `/collect-runtime-evidence`, which runs a pre-reviewed allowlist command ID
+    — or an approved browser/debugger observation when no command fits. The
+    report comes back here, and the same claim is reassessed under this
     taxonomy — verification keeps ownership of the verdict.
 
     The escalation is optional. `verify` does not depend on `runtime-evidence`;

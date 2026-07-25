@@ -54,7 +54,9 @@ author-grading-own-work bias.
 carry the static result forward as the reason execution is warranted.
 
 When the `runtime-evidence` plugin is installed, escalate with
-`/collect-runtime-evidence`, which runs only a pre-reviewed allowlist command ID.
+`/collect-runtime-evidence`, which runs a pre-reviewed allowlist command ID, or
+an approved browser/debugger observation when no reviewed command can represent
+the claim.
 Return its report here and reassess the same claim under this taxonomy — the
 verdict stays owned by verification. Do not invent a runtime-specific verdict set
 and do not run the command as part of verification itself.

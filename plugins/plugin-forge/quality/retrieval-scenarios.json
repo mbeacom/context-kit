@@ -70,7 +70,7 @@
     "runtime-evidence": {
       "kind": "non-retrieval",
       "plugin": "runtime-evidence",
-      "tools": ["run-evidence-command.py"]
+      "tools": ["run-evidence-command.py", "approved optional tool"]
     }
   },
   "compositions": {
@@ -361,6 +361,24 @@
           "query": "Verify whether the documented default matches the checked-in configuration.",
           "expected_route": "verify-before-trust",
           "reason": "A repository claim should be settled statically before runtime escalation."
+        }
+      ]
+    },
+    {
+      "id": "runtime-evidence-approved-optional-tool",
+      "query": "No allowlisted command can reproduce this rendering claim; observe it in the approved browser session instead.",
+      "corpus_cues": ["verdict is unable-to-check", "no reviewed command ID fits the claim", "user approved a browser observation"],
+      "expected": {
+        "route": "runtime-evidence",
+        "plugins": ["runtime-evidence"],
+        "tools": ["approved optional tool"]
+      },
+      "rationale": "The optional-tool path exists precisely for claims no reviewed command can represent, and it runs in the main agent because a subagent tool grant cannot reach host-exposed tooling.",
+      "near_misses": [
+        {
+          "query": "Check whether the component's snapshot test already asserts this rendering behavior.",
+          "expected_route": "verify-before-trust",
+          "reason": "A committed test settles the claim statically, so no observation path is justified."
         }
       ]
     },

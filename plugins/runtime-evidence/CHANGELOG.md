@@ -25,6 +25,9 @@
 - Update the skill, agent, and manifest descriptions so both paths are
   discoverable and the install metadata no longer says the plugin runs only
   pre-reviewed command IDs. Adds an optional-tool discovery fixture.
+- Document the optional-tool path as the weaker boundary wherever the catalog
+  describes this plugin, including the security boundary map. It is bounded by
+  the user's approval and the host, not by anything this plugin enforces.
 
 ## 0.1.0 - 2026-07-18
 

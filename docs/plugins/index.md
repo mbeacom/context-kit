@@ -81,7 +81,8 @@ evidence, cross-session handoff, and authoring.
     ---
 
     Controlled runtime observation after static verification cannot settle a
-    claim, using exact allowlisted command IDs and bounded artifacts.
+    claim, using exact allowlisted command IDs — or an approved optional tool
+    when no command fits — and bounded artifacts.
 
     `verification` · shipped
 
