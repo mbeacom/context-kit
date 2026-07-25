@@ -63,12 +63,15 @@ three forms so dependents inherit them rather than inventing their own:
 | Form | When | Example |
 | --- | --- | --- |
 | **Repository** | any verdict settled by static inspection | `evidence (src/a.ts:12)` |
-| **Observation** | a claim reassessed from a caller-supplied [`runtime-evidence`](runtime-evidence.md) report, including an inconclusive one | `evidence (command-id=api-health; report=…/run-4213.json)` |
-| **None** | `dubious` or `unable-to-check` with no report to cite | `evidence (none)` |
+| **Observation** | a claim reassessed from a caller-supplied [`runtime-evidence`](runtime-evidence.md) report that retained a durable artifact, including an inconclusive one | `evidence (command-id=api-health; report=…/run-4213.json)` |
+| **None** | `dubious` or `unable-to-check` with nothing citable — no report, or a report that retained no artifact | `evidence (none)` |
 
 The observation source is `command-id=<allowlist key>` for the sanctioned
 runner, or `tool=<approved tool>@<target>` for an approved optional-tool
-observation where no reviewed command can represent the claim.
+observation where no reviewed command can represent the claim. An artifact
+pointer is required either way: an observation nobody else can inspect is not
+citable, so a no-artifact attempt uses `evidence (none)` and names the attempted
+source and the missing artifact in the note.
 
 One verdict cites one form. On reassessment the observation citation replaces
 the evidence slot rather than joining it, and any static context moves to the
