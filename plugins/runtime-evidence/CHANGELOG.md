@@ -7,15 +7,24 @@
   source plus an artifact pointer — requires reusing the original claim wording
   so the reassessed verdict replaces the earlier `unable-to-check`, and forbids
   restating an observation as a repository `path:line`.
-- Make the approved optional-tool path reachable. The skill flow, the
-  `runtime-investigator` method, and `/collect-runtime-evidence` previously
-  stopped at "no reviewed command ID" before the optional-tool branch could run,
-  so the browser/debugger/container observations that `optional-tools.md`
-  allows precisely for claims no reviewed command can represent could never be
-  produced. Each entry point now branches explicitly, gated on every
-  `optional-tools.md` condition, and reports
-  `Observation source: tool=<approved tool>@<target>` in place of the command
-  ID. Allowlist selection on the runner path is unchanged.
+- Make the approved optional-tool path reachable, and honest about where it can
+  run. The skill flow, the `runtime-investigator` method, and
+  `/collect-runtime-evidence` previously stopped at "no reviewed command ID"
+  before the optional-tool branch could run, so the browser/debugger/container
+  observations that `optional-tools.md` allows precisely for claims no reviewed
+  command can represent could never be produced. That path now runs in the main
+  agent, not the subagent — a subagent's tool grant is fixed, so a host-exposed
+  browser or debugger is not reachable inside it — and the skill documents both
+  collection paths side by side. Allowlist selection on the runner path is
+  unchanged.
+- Give the optional-tool path its own field set instead of claiming it can
+  "keep every other field". Process exit data, runner-report environment
+  metadata, and the config digest do not exist for a browser or debugger
+  observation; the contract now defines observed-state, artifact, and
+  `not-applicable` handling per field.
+- Update the skill, agent, and manifest descriptions so both paths are
+  discoverable and the install metadata no longer says the plugin runs only
+  pre-reviewed command IDs. Adds an optional-tool discovery fixture.
 
 ## 0.1.0 - 2026-07-18
 

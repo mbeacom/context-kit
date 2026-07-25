@@ -29,8 +29,11 @@ summaries.
 
 For an approved optional-tool observation, where no reviewed command can
 represent the claim, substitute a stable tool identity for the command ID —
-`Observation source: tool=<approved tool>@<target>` — and keep every other field
-unchanged. `references/optional-tools.md` governs when that path is allowed.
+`Observation source: tool=<approved tool>@<target>` — and use that path's field
+set from the skill's output contract: observed state instead of process exit
+data, whatever artifacts the tool produced, and `not-applicable` for the config
+digest. `references/optional-tools.md` governs when that path is allowed, and it
+runs in the main agent rather than the `runtime-investigator` subagent.
 
 ## Interpretation
 

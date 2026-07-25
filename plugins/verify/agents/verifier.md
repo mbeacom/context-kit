@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: "Use to independently verify claims against the codebase — an AI answer, plan, PR or commit description, docs, migration note — or reassess one from a supplied runtime observation report. Reads code read-only; per-claim verdicts (confirmed / dubious / refuted / unable-to-check) cited with file:line or observation source plus artifact."
+description: "Use to independently verify claims against the codebase — an AI answer, plan, PR, docs, or migration note — or reassess one from a supplied runtime observation report. Reads code read-only; per-claim verdicts (confirmed / dubious / refuted / unable-to-check) with file:line or observation-source evidence."
 model: sonnet
 tools: Read, Grep, Glob
 skills: verify-before-trust

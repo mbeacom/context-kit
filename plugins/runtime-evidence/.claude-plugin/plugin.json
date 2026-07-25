@@ -3,7 +3,7 @@
   "name": "runtime-evidence",
   "displayName": "Runtime Evidence",
   "version": "0.1.1",
-  "description": "Controlled dynamic evidence collection for runtime claims that static verification cannot settle. Runs only pre-reviewed command IDs from a user-owned allowlist and emits bounded, verdict-ready artifacts.",
+  "description": "Controlled dynamic evidence collection for runtime claims that static verification cannot settle. Runs pre-reviewed command IDs from a user-owned allowlist, or an approved browser/debugger observation when no command fits, and emits bounded, verdict-ready artifacts.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",

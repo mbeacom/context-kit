@@ -66,7 +66,7 @@ control across hosts. Say that plainly rather than implying a guarantee.
 | history, structured-data | `retrieval-strategist`, or `code-search` when installed | the delegate's instructions plus host policy |
 | code-intelligence, structural | `retrieval-strategist`, or `code-search` when installed | the delegate's instructions plus host policy |
 | factual claim checks | `verifier` | a subagent tool grant of Read/Grep/Glob |
-| runtime observation | `/collect-runtime-evidence` only | a reviewed allowlist ID, itself not side-effect proof |
+| runtime observation | `/collect-runtime-evidence` only, never here | a reviewed allowlist ID, or an approved optional tool when no ID can represent the claim |
 
 So: never treat delegation as a way around this skill's own declaration;
 constrain the worker to inspection and evidence gathering in the delegation
