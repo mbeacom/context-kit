@@ -2,7 +2,7 @@
 name: runtime-evidence
 description: "Use when a runtime claim is unable-to-check statically and needs a dynamic observation: a bounded reviewed command ID, or an approved browser observation."
 license: MIT
-compatibility: "Requires Python 3 on a POSIX platform. Windows is refused before execution because bounded non-blocking pipe capture is unavailable."
+compatibility: "The bundled runner requires Python 3 on a POSIX platform and refuses Windows before execution. The optional-tool path ships no runner and has no such requirement; it needs an approved, host-exposed observation tool."
 metadata:
   author: Mark Beacom
   version: "0.1.0"
@@ -17,7 +17,10 @@ produce a controlled observation package that lets the verifier confirm, refute,
 qualify, or retain that verdict.
 
 Run the deterministic wrapper only on POSIX platforms. On Windows it returns a
-structured refusal before reading the allowlist or spawning a command.
+structured refusal before reading the allowlist or spawning a command. That
+constraint belongs to the runner, not the plugin: the optional-tool path ships
+no runner and depends only on an approved, host-exposed tool, so it remains
+available where the wrapper is not.
 
 Treat execution as an escalation, not a default search technique. Prefer code,
 config, tests, and other static primary evidence when those sources settle the

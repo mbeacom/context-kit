@@ -21,6 +21,15 @@
 - Scope "bounded" to the runner. The skill, agent, and manifest descriptions
   applied the runner's timeout and output caps to browser observations, which
   the plugin does not bound at all.
+- Scope prerequisites to the path that has them. The skill `compatibility`
+  field, the plugin README, and the docs stated Python 3, POSIX, and Windows
+  refusal as unconditional, but those belong to the bundled runner. The
+  optional-tool path ships no runner and needs only an approved, host-exposed
+  tool, so it remains available where the wrapper is not — including on Windows.
+- Stop requiring an allowlist config before the optional-tool branch is
+  reachable. `/collect-runtime-evidence` demanded a config up front, so the
+  branch for claims no reviewed command can represent was gated on the very
+  thing it exists to work without.
 - Document both collection paths side by side, and describe the optional-tool
   path as the weaker boundary wherever the catalog covers this plugin —
   including the security boundary map, where allowlist-only wording understated

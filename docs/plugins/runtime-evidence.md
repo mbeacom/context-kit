@@ -8,9 +8,11 @@
     for the verdict.
 
 `runtime-evidence` depends on [`verify`](verify.md), which transitively pulls the
-[`retrieval-core`](retrieval-core.md) spine. Python 3 is required; the runner uses
-only the standard library and requires a POSIX platform. Windows is refused
-before config access or process creation.
+[`retrieval-core`](retrieval-core.md) spine. Prerequisites differ by path: the
+bundled runner needs Python 3 (standard library only) on a POSIX platform and
+refuses Windows before config access or process creation, while the
+optional-tool path ships no runner and needs only an approved, host-exposed
+observation tool.
 
 ## Install
 

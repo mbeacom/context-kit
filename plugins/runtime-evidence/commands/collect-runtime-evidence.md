@@ -15,20 +15,19 @@ If `$ARGUMENTS` is empty, request one runtime claim and stop.
 Apply the `runtime-evidence` skill. Begin only after static verification has
 explained why the claim remains `unable-to-check`.
 
-Require a user-supplied, pre-reviewed allowlist config and select an exact command
-ID already present in it. Do not invent a command, alter configured argv, edit the
-config, or use direct shell execution as a fallback.
+Prefer the runner path. When a user-supplied, pre-reviewed allowlist config is
+available, select an exact command ID already present in it and delegate the
+collection to the `runtime-investigator` agent. Do not invent a command, alter
+configured argv, edit the config, or use direct shell execution as a fallback.
 
-When a reviewed command ID matches, delegate the collection to the
-`runtime-investigator` agent.
-
-When none matches, the skill's approved optional-tool path is the only
-alternative, and only when every condition in its `references/optional-tools.md`
-holds — the claim requires that modality, the user approved the interaction and
-target environment, and the host exposes the tool. Run that path here rather
-than delegating it: a subagent's tool grant is fixed, so a host-exposed browser,
-debugger, or container tool is not reachable inside `runtime-investigator`. If
-no suitable tool is exposed, stop and report the missing reviewed capability.
+When no config exists, or none of its command IDs matches, the skill's approved
+optional-tool path is the only alternative, and only when every condition in its
+`references/optional-tools.md` holds — the claim requires that modality, the user
+approved the interaction and target environment, and the host exposes the tool.
+Run that path here rather than delegating it: a subagent's tool grant is fixed,
+so a host-exposed browser, debugger, or container tool is not reachable inside
+`runtime-investigator`. If no suitable tool is exposed, stop and report the
+missing reviewed capability.
 
 Return the claim, observation source — the reproduction command ID, or
 `tool=<approved tool>@<target>` on the optional-tool path — environment,
