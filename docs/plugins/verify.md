@@ -66,6 +66,10 @@ three forms so dependents inherit them rather than inventing their own:
 | **Observation** | a claim reassessed from a caller-supplied [`runtime-evidence`](runtime-evidence.md) report, including an inconclusive one | `evidence (command-id=api-health; report=…/run-4213.json)` |
 | **None** | `dubious` or `unable-to-check` with no report to cite | `evidence (none)` |
 
+The observation source is `command-id=<allowlist key>` for the sanctioned
+runner, or `tool=<approved tool>@<target>` for an approved optional-tool
+observation where no reviewed command can represent the claim.
+
 One verdict cites one form. On reassessment the observation citation replaces
 the evidence slot rather than joining it, and any static context moves to the
 note.

@@ -27,6 +27,11 @@ Keep the exact command ID rather than reconstructing a command line. The config
 and digest are the reproduction source of truth and avoid leaking arguments into
 summaries.
 
+For an approved optional-tool observation, where no reviewed command can
+represent the claim, substitute a stable tool identity for the command ID —
+`Observation source: tool=<approved tool>@<target>` — and keep every other field
+unchanged. `references/optional-tools.md` governs when that path is allowed.
+
 ## Interpretation
 
 - Treat exit `0` as evidence that the configured process completed, not automatic
@@ -48,8 +53,10 @@ Pass the resulting facts to `verify` and use its existing `confirmed`, `dubious`
 verdict set.
 
 Cite the observation evidence form that `verify` defines in
-`verify-before-trust/references/verdicts.md`: the exact command ID plus the
-report artifact pointer, for example
-`evidence (command-id=<id>; report=<path>)`. Reuse the original claim wording so
-the reassessed verdict replaces the earlier `unable-to-check` instead of adding
-a second entry. Never convert an observation into a repository `path:line`.
+`verify-before-trust/references/verdicts.md`: the observation source plus an
+artifact pointer, for example `evidence (command-id=<id>; report=<path>)` for an
+allowlisted run, or `evidence (tool=<approved tool>@<target>; <artifact>=<path>)`
+for an approved optional-tool observation per `references/optional-tools.md`.
+Reuse the original claim wording so the reassessed verdict replaces the earlier
+`unable-to-check` instead of adding a second entry. Never convert an observation
+into a repository `path:line`.

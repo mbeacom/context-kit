@@ -17,13 +17,20 @@ of these three forms; do not invent another.
 - **Repository evidence** — `path:line`. The required form for any verdict
   settled by static inspection. Use multiple citations when one line is not
   enough, such as `evidence (src/a.ts:12; src/b.ts:40)`.
-- **Observation evidence** — a named command or observation plus its artifact
-  pointer, such as
-  `evidence (command-id=api-health; report=${CONTEXT_KIT_DATA}/runtime-evidence/run-4213.json)`.
-  Use it only when the caller supplied an observed result — normally a
-  `runtime-evidence` collection. Keep the exact reproduction command ID rather
-  than a reconstructed command line, and never rewrite an observation as a
-  `path:line`.
+- **Observation evidence** — an observation source plus at least one artifact
+  pointer. The source is `command-id=<exact allowlist key>` for the sanctioned
+  `runtime-evidence` runner, or `tool=<approved tool>@<target>` for an approved
+  optional tool (browser, debugger, container, device) used when no reviewed
+  command can represent the claim:
+
+  ```text
+  evidence (command-id=api-health; report=${CONTEXT_KIT_DATA}/runtime-evidence/run-4213.json)
+  evidence (tool=browser@https://staging.example/health; trace=${CONTEXT_KIT_DATA}/runtime-evidence/run-4219-trace.zip)
+  ```
+
+  Use it only when the caller supplied an observed result. Keep the exact source
+  identity rather than a reconstructed command line, and never rewrite an
+  observation as a `path:line`.
 - **No evidence** — `evidence (none)`. Allowed only for `dubious` and
   `unable-to-check`. An `unable-to-check` verdict that follows an inconclusive
   collection should cite the observation form instead, so the failed attempt is
@@ -99,6 +106,7 @@ same atomic claim, replace the verdict instead of emitting a second one:
 unable-to-check — "The health endpoint reports degraded when the cache is down." — evidence (none) — requires running the service; no static assertion covers it.
 confirmed — "The health endpoint reports degraded when the cache is down." — evidence (command-id=health-cache-down; report=${CONTEXT_KIT_DATA}/runtime-evidence/run-4213.json) — exit 0; response body contained a degraded status.
 unable-to-check — "The health endpoint reports degraded when the cache is down." — evidence (command-id=health-cache-down; report=${CONTEXT_KIT_DATA}/runtime-evidence/run-4217.json) — terminated at the 30s timeout before responding; raise the timeout or use a narrower reviewed command.
+dubious — "The settings page renders without hydration warnings." — evidence (tool=browser@https://staging.example/settings; console=${CONTEXT_KIT_DATA}/runtime-evidence/run-4219-console.log) — no warnings at the observed viewport; other viewports and routes were not exercised.
 ```
 
 Never restate an observation as repository evidence, and never imply that a

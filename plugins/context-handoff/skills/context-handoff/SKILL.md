@@ -86,8 +86,8 @@ usable.
 ## Keep boundaries explicit
 
 - Preserve atomic facts with `file:line` evidence, or — for a result actually
-  observed — the exact command ID plus its artifact pointer. A bare command name
-  is not evidence.
+  observed — the observation source plus its artifact pointer. A bare command
+  name is not evidence.
 - Record decisions separately from facts; a decision can remain valid even when
   its original evidence becomes stale, but its rationale must stay visible.
 - List changed files with status and purpose, not pasted diffs.

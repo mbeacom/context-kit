@@ -75,8 +75,8 @@ local audit search (`search --include-inactive`).
 2. `## Cue Anchors` — at most three bullets; `- None.` is valid.
 3. `## Evidence` — non-empty source pointer and relevance. Use the evidence
    forms `verify` defines: a repository `path:line`, or — for a result actually
-   observed — the exact command ID plus its artifact pointer. A bare command
-   name is not a source pointer.
+   observed — the observation source (`command-id=…` or `tool=…@…`) plus its
+   artifact pointer. A bare command name is not a source pointer.
 4. `## Supersedes` — prior IDs or `- None.`.
 5. `## Review Notes` — review rationale and conflict/freshness notes.
 

@@ -74,13 +74,17 @@ This plugin never assigns a verdict. It hands the collected facts back to
 [`verify`](verify.md), which reassesses the *same* atomic claim under its
 existing `confirmed` / `dubious` / `refuted` / `unable-to-check` taxonomy.
 
-The returned verdict cites verify's observation evidence form — the exact
-command ID plus the report artifact pointer — rather than a repository
-`path:line`:
+The returned verdict cites verify's observation evidence form — the observation
+source plus an artifact pointer — rather than a repository `path:line`:
 
 ```text
 evidence (command-id=health-cache-down; report=${CONTEXT_KIT_DATA}/runtime-evidence/run-4213.json)
+evidence (tool=browser@https://staging.example/health; trace=${CONTEXT_KIT_DATA}/runtime-evidence/run-4219-trace.zip)
 ```
+
+The first form is the sanctioned runner. The second covers an approved
+optional-tool observation, allowed only when no reviewed command can represent
+the claim.
 
 Exit `0` means the configured process completed, not that the claim is true. A
 timeout, output-cap termination, spawn failure, or an observation the claim does

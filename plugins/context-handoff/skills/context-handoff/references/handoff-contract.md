@@ -52,11 +52,14 @@ Use the `verify` plugin's verdict taxonomy and its evidence forms. `verify` owns
 both; do not widen them here.
 
 ```text
-- confirmed — <atomic claim> — evidence (<path:line, or command-id + artifact pointer>) — <note>
-- dubious — <atomic claim> — evidence (<path:line, command-id + artifact pointer, or none>) — <caveat>
-- refuted — <atomic claim> — evidence (<path:line, or command-id + artifact pointer>) — <contradiction>
-- unable-to-check — <atomic claim> — evidence (none, or command-id + artifact pointer when a collection was attempted and proved inconclusive) — <what would settle it>
+- confirmed — <atomic claim> — evidence (<path:line, or observation source + artifact pointer>) — <note>
+- dubious — <atomic claim> — evidence (<path:line, observation source + artifact pointer, or none>) — <caveat>
+- refuted — <atomic claim> — evidence (<path:line, or observation source + artifact pointer>) — <contradiction>
+- unable-to-check — <atomic claim> — evidence (none, or observation source + artifact pointer when a collection was attempted and proved inconclusive) — <what would settle it>
 ```
+
+The observation source is `command-id=<allowlist key>` or
+`tool=<approved tool>@<target>`, per `verify`'s evidence forms.
 
 Use the observation form only for a fact whose result was actually observed, such
 as a recorded `runtime-evidence` collection. A statically verified fact keeps its
