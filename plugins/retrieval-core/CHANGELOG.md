@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.2 — 2026-07-25
+
+- Update the "verify then observe" composition in both the
+  `retrieval-strategist` agent and the `retrieval-strategy` skill: an
+  unresolved runtime claim can escalate through `runtime-evidence`'s approved
+  optional-tool path as well as its exact-ID allowlisted runner. Routing
+  components described the runner as the only escalation, which could suppress
+  the second path.
+
 ## 0.4.1 — 2026-07-19
 
 - Document the deterministic retrieval contract corpus, its complete

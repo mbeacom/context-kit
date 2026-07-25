@@ -41,8 +41,9 @@ porting.
      when the compact result is insufficient.
    - **Verify then observe** — `verify-before-trust` first; only an
      `unable-to-check` runtime claim escalates through `runtime-evidence`'s
-     exact-ID allowlisted runner, then returns bounded observations for a final
-     verdict.
+     exact-ID allowlisted runner, or its approved optional-tool path when no
+     reviewed command can represent the claim, then returns the recorded
+     observations for a final verdict.
    - **Verify then hand off** — `verify-before-trust` establishes
      provenance-backed facts before `context-handoff` compiles proven task state.
    - For hybrid retrieval, emit candidate file paths (lexical/graph) and pipe to `rag query --allowlist -`.

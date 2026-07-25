@@ -30,14 +30,15 @@ claim.
 
 1. State one atomic runtime claim and preserve the static verification result
    that explains why execution is necessary.
-2. Identify the environment whose behavior matters. Record a concise label and
-   the explicit absolute working directory.
-3. Inspect the user-owned allowlist config. Select an exact existing command ID
-   whose reviewed argv reproduces the claim.
+2. Identify the environment whose behavior matters. Record a concise label, and
+   the explicit absolute working directory when a command will run.
+3. Inspect the user-owned allowlist config when one is available, and select an
+   exact existing command ID whose reviewed argv reproduces the claim.
 4. When a reviewed command ID matches, take the runner path (steps 5-6). When
-   none matches, never invent an ID, alter argv in memory, edit the config, or
-   substitute direct shell execution — either take the optional-tool path
-   (step 7) or stop and report the missing reviewed capability.
+   no config exists or none of its IDs matches, never invent an ID, alter argv
+   in memory, edit the config, or substitute direct shell execution — either
+   take the optional-tool path (step 7) or stop and report the missing reviewed
+   capability.
 5. Invoke `scripts/run-evidence-command.py` with the config, command ID, claim,
    environment label, cwd, artifact directory, and unique run ID.
 6. Preserve the runner's exit status and JSON report. Treat timeout, output-limit

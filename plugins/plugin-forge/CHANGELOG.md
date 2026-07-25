@@ -3,11 +3,10 @@
 ## 0.5.1 — 2026-07-25
 
 - Extend the shipped quality corpus for `runtime-evidence`'s second collection
-  path. The `runtime-evidence` route now declares both tools, and a new
+  path. The `runtime-evidence` route now declares both tools, a new
   `runtime-evidence-approved-optional-tool` scenario covers the case where no
-  reviewed command can represent the claim, with a static near miss.
-- Add a `verifier` discovery fixture for reassessing a claim from a supplied
-  runtime observation report.
+  reviewed command can represent the claim (with a static near miss), and the
+  skill gains a positive discovery fixture for an approved browser observation.
 
 ## 0.5.0 — 2026-07-19
 
