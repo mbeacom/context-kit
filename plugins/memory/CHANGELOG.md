@@ -5,7 +5,8 @@
 - Adopt the evidence forms `verify` now defines for the `## Evidence` section,
   so provenance stays citable across the `verify` → `context-handoff` → `memory`
   chain. A bare command name is no longer an accepted source pointer; an
-  observed result needs its exact command ID plus artifact pointer.
+  observed result needs its observation source — `command-id=<allowlist key>` or
+  `tool=<approved tool>@<target>` — plus an artifact pointer.
 
 ## 0.2.0 — 2026-07-19
 

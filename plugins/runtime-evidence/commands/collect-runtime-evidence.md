@@ -20,6 +20,13 @@ Require a user-supplied, pre-reviewed allowlist config and select an exact comma
 ID already present in it. Do not invent a command, alter configured argv, edit the
 config, or use direct shell execution as a fallback.
 
-Return the claim, reproduction command ID, environment, observations,
+When no reviewed command ID can represent the claim, the skill's approved
+optional-tool path is the only alternative, and only when every condition in its
+`references/optional-tools.md` holds — the claim requires that modality, the user
+approved the interaction and target environment, and the host exposes the tool.
+Otherwise stop and report the missing reviewed capability.
+
+Return the claim, reproduction command ID — or `tool=<approved tool>@<target>` as
+the observation source on that path — environment, observations,
 artifact/output pointers, verdict-ready evidence, limitations, and cleanup
 status. Then pass those facts to `verify` for its existing verdict taxonomy.

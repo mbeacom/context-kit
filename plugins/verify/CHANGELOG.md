@@ -3,9 +3,10 @@
 ## 0.3.0 - 2026-07-25
 
 - Define the evidence forms `verify` owns: repository `path:line`, an
-  observation form (exact command ID plus artifact pointer) for a claim
-  reassessed from a supplied report, and `none`. Dependents inherit these
-  instead of widening the slot themselves.
+  observation form (an observation source plus an artifact pointer, where the
+  source is `command-id=<allowlist key>` for the sanctioned runner or
+  `tool=<approved tool>@<target>` for an approved optional-tool observation),
+  and `none`. Dependents inherit these instead of widening the slot themselves.
 - Close the `unable-to-check` dead end. `verify-before-trust`, the verifier, the
   checklist, and the change-impact report contract now name
   `/collect-runtime-evidence` as the escalation for an unresolved runtime claim

@@ -25,5 +25,5 @@ it recommends.
 For a runtime claim, the follow-up has a defined destination: escalate it with
 `/collect-runtime-evidence` when the `runtime-evidence` plugin is installed, then
 bring the returned report back and reassess the same claim under this taxonomy.
-Leaving the verdict at `unable-to-check` is correct when no reviewed command ID
-covers the claim.
+Leaving the verdict at `unable-to-check` is correct when neither a reviewed
+command ID nor an approved, available observation tool can settle the claim.

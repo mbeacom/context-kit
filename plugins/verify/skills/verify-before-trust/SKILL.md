@@ -59,8 +59,13 @@ Return its report here and reassess the same claim under this taxonomy — the
 verdict stays owned by verification. Do not invent a runtime-specific verdict set
 and do not run the command as part of verification itself.
 
-When it is not installed, or no reviewed command ID matches, leave the verdict at
-`unable-to-check` and state the missing capability. That is a valid outcome;
+When it is not installed, leave the verdict at `unable-to-check` and state the
+missing capability. When it is installed but no reviewed command ID matches, the
+claim can still route to that plugin's approved optional-tool path — a browser,
+debugger, or container observation, which exists precisely for claims no reviewed
+command can represent, and which returns the `tool=…@…` evidence source. Leave
+the verdict at `unable-to-check` only when neither a reviewed command ID nor an
+approved, available tool can collect the observation. That is a valid outcome;
 guessing is not.
 
 ## When to delegate

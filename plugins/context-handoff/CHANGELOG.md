@@ -4,9 +4,10 @@
 
 - Align the verified-fact evidence slot with the forms `verify` now defines,
   instead of independently widening it to `path:line or command`. The
-  observation form requires the exact command ID plus its artifact pointer and
-  is reserved for a result that was actually observed; a bare command name is
-  no longer accepted in the skill, the contract, or the artifact template.
+  observation form requires an observation source — `command-id=<allowlist key>`
+  or `tool=<approved tool>@<target>` — plus its artifact pointer, and is
+  reserved for a result that was actually observed; a bare command name is no
+  longer accepted in the skill, the contract, or the artifact template.
 - Require a runtime claim to be recorded as `unable-to-check` with the
   observation that would settle it, or cited from a real `runtime-evidence`
   collection.
