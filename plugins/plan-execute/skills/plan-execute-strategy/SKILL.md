@@ -53,9 +53,8 @@ independent: `--model` / `/model` picks the driver,
 **How the subagent model resolves** (first match wins):
 
 1. `CLAUDE_CODE_SUBAGENT_MODEL` env var (alias — `sonnet` / `opus` / `haiku` /
-   `fable` — or a full model ID). Aliases resolve to the **latest** version of that
-   model (`sonnet` → Sonnet 5, `opus` → Opus 5), so prefer the alias over pinning a
-   4.x ID unless you need a specific older version.
+   `fable` — or a full model ID). Aliases track **your provider's** recommended
+   version, not necessarily the newest one — see the alias caveat below.
 2. The per-invocation `model` passed when the subagent is spawned.
 3. The subagent definition's `model:` frontmatter.
 4. Otherwise `inherit` (same model as the main conversation). As of v2.1.196,
@@ -63,6 +62,23 @@ independent: `--model` / `/model` picks the driver,
 
 Subagents also inherit the main conversation's extended-thinking setting
 (v2.1.198+).
+
+**Alias caveat — `sonnet` / `opus` are provider-scoped.** They resolve to the
+recommended version *for your provider*, which is not always the newest one:
+
+| Provider | `opus` | `sonnet` |
+| --- | --- | --- |
+| Anthropic API | Opus 5 | Sonnet 5 |
+| Claude Platform on AWS | Opus 5 | Sonnet 4.6 |
+| Amazon Bedrock, Google Cloud's Agent Platform | Opus 5 | Sonnet 4.5 |
+| Microsoft Foundry | Opus 4.6 | Sonnet 4.5 |
+
+So an alias is the right default on the Anthropic API, but off it — exactly the
+runtimes where delegation is your only option, since the advisor can't reach them —
+`sonnet` can silently mean Sonnet 4.5. To force the current generation anywhere,
+pin the full model name (`claude-opus-5`, `claude-sonnet-5`) or set
+`ANTHROPIC_DEFAULT_OPUS_MODEL` / `ANTHROPIC_DEFAULT_SONNET_MODEL`. Opus 5 needs
+Claude Code v2.1.219+; Sonnet 5 needs v2.1.197+.
 
 **Where to put the delegation instruction** — pick one, don't stack them:
 
@@ -93,10 +109,11 @@ the work is still unfolding.
 
 For interactive delegation of a *single* scoped unit, hand it to the
 `execution-worker` subagent this plugin ships — a Sonnet-by-default worker (its
-`model: sonnet` frontmatter resolves to Sonnet 5: cheaper than an Opus 5 / Fable 5
-planner, capable enough to edit) that does one task and reports back. Override its
-model with `CLAUDE_CODE_SUBAGENT_MODEL` (for example `haiku` for read-only
-investigation).
+`model: sonnet` frontmatter is cheaper than an Opus 5 / Fable 5 planner, capable
+enough to edit) that does one task and reports back. Override its model with
+`CLAUDE_CODE_SUBAGENT_MODEL` — `haiku` for read-only investigation, or
+`claude-sonnet-5` to guarantee Sonnet 5 on a provider whose `sonnet` alias still
+points at 4.x.
 
 > Deferred by design: if a workload ever needs a *guaranteed* read-only lane — e.g.
 > many workers on a shared tree — a dedicated `investigation-worker` (tools:
@@ -117,10 +134,12 @@ model advises rather than leads. What to know before picking it:
   (executor) model — a weak main + strong advisor is the point. An Opus 5 main
   accepts Fable or any Opus 4.7-or-later advisor (Opus 5 included); a Sonnet 5 or
   Opus 4.6 advisor is rejected. A Sonnet 5 main accepts Fable, Opus, or Sonnet 5 —
-  a Sonnet 4.6 advisor is rejected. Prefer the `opus` / `sonnet` aliases, which
-  resolve to the latest version (Opus 5 / Sonnet 5), over pinning a 4.x model ID.
-  An equal-tier advisor (e.g. Opus 5 main + Opus 5 advisor) is **not** a no-op —
-  it's a legitimate independent second read, just not a *stronger* opinion.
+  a Sonnet 4.6 advisor is rejected. The advisor is Anthropic-API-only, so there the
+  `opus` / `sonnet` aliases do resolve to Opus 5 / Sonnet 5 (unlike the
+  provider-scoped delegation case above); pass a full ID like `claude-opus-5` only
+  when you need to pin a version. An equal-tier advisor (e.g. Opus 5 main + Opus 5
+  advisor) is **not** a no-op — it's a legitimate independent second read, just not
+  a *stronger* opinion.
 - **Fable 5 as the advisor is turned off right now** — a deliberate,
   remotely-controlled rollout, not a billing gate. As of Claude Code v2.1.210+ the
   [advisor doc](https://code.claude.com/docs/en/advisor) says so: the `/advisor`

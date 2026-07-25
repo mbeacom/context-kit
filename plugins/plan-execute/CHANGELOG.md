@@ -7,10 +7,17 @@
   The capability-pairing bullet now states that an Opus 5 main accepts Fable or any
   Opus 4.7-or-later advisor (Opus 5 included) and rejects Sonnet 5 / Opus 4.6, and
   adds the Sonnet 5 main row (accepts Fable, Opus, or Sonnet 5; rejects Sonnet 4.6).
-- Note that the `opus` / `sonnet` aliases resolve to the latest version (Opus 5 /
-  Sonnet 5), so prefer them over pinning a 4.x model ID — for `/advisor`,
-  `CLAUDE_CODE_SUBAGENT_MODEL`, and `--model` alike. `/advisor opus` (the Fable
-  workaround) is now described as resolving to Opus 5.
+  The advisor is Anthropic-API-only, so `/advisor opus` there resolves to Opus 5 —
+  the documented workaround while Fable-as-advisor is rolled back.
+- Add the provider-scoped alias caveat for **delegation**: `opus` / `sonnet` track
+  the recommended version *for your provider*, not the newest model. On the
+  Anthropic API they are Opus 5 / Sonnet 5, but `sonnet` is Sonnet 4.6 on Claude
+  Platform on AWS and Sonnet 4.5 on Amazon Bedrock / Google Cloud, and Microsoft
+  Foundry resolves `opus` to Opus 4.6 — precisely the runtimes where delegation is
+  the only option, since the advisor can't reach them. Pin `claude-opus-5` /
+  `claude-sonnet-5` or set `ANTHROPIC_DEFAULT_{OPUS,SONNET}_MODEL` to force the
+  current generation, and note the client floors (Opus 5 needs v2.1.219+, Sonnet 5
+  needs v2.1.197+).
 
 ## 0.1.4 — 2026-07-18
 
