@@ -21,12 +21,15 @@
   `retrieval-strategist` or `code-search`.
 - Make `verify-before-trust` prose host-neutral by describing read-only search
   and reading by capability instead of Claude-specific tool names.
-- Distinguish the enforced boundary (this skill's own grant) from the instructed
-  one (anything reached by delegation). `retrieval-strategist` holds
-  unrestricted `Bash` and `code-search` holds `Bash(git:*)`/`Bash(yq:*)`, so
-  delegation is documented as a capability decision rather than a safety
-  mechanism, must carry an inspection-only constraint, and must be disclosed in
-  the report's search limits.
+- Stop implying that `change-impact` enforces a read-only boundary. Neither its
+  own `allowed-tools` declaration nor delegation is an enforcement control:
+  `allowed-tools` pre-approves a surface rather than denying the rest and is not
+  portable across hosts, while `retrieval-strategist` declares unrestricted
+  `Bash` and `code-search` declares `Bash(git:*)`/`Bash(yq:*)`. The skill now
+  describes what is declared versus what is reached, points at the boundary map
+  in `docs/security.md` for what actually governs execution, requires an
+  inspection-only constraint on any delegation, and requires unreached
+  modalities and delegate-gathered evidence to be disclosed in the report.
 
 ## 0.2.0 - 2026-07-18
 

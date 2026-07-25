@@ -77,15 +77,22 @@ dependents inherit them rather than inventing their own.
     the dependency runs the other way. Without it, `unable-to-check` plus the
     named missing capability is the correct final answer.
 
-Change-impact is also read-only and prospective. Its own tool surface is file
-reading plus search — it holds no command grant, since a prefix-matched
-allowlist cannot express "read-only" (`git diff --output=`, `git grep
---open-files-in-pager=`, `yq -i`). It reaches code-intelligence, structured-data,
-and history only by delegating, and it treats that as a capability decision
-rather than a safety one: a delegate runs under its own broader grants, so its
-non-mutating behavior is instructed, not enforced. When an enforced guarantee
-matters, the modality is reported as a search limit instead. It separates
-observed repository coupling from inferred future risk and unknowns:
+Change-impact is prospective and intended to be non-mutating — an intent, not a
+guarantee. It declares a surface of file reading plus search with no command
+grant, since a prefix-matched allowlist cannot express "read-only" anyway
+(`git diff --output=`, `git grep --open-files-in-pager=`, `yq -i`). It reaches
+code-intelligence, structured-data, and history only by delegating, and those
+delegates declare broader grants.
+
+!!! warning "`allowed-tools` is not an enforcement control"
+    Omitting command grants avoids pre-approving them; it does not deny them,
+    and it is not portable across hosts. As the [boundary map](../security.md)
+    states, host permissions and operator review govern actual execution. A real
+    non-mutation guarantee has to come from host permissions, a restricted
+    subagent such as `verifier`, or a hook.
+
+It separates observed repository coupling from inferred future risk and
+unknowns:
 
 ```text
 /analyze-impact Change Account.id from an integer to a UUID

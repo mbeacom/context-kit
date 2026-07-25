@@ -45,36 +45,36 @@ Keep the analysis prospective and non-mutating.
 
 ### Tool boundary
 
-Two boundaries apply here and they are not equally strong. Never present the
-weaker one as the stronger one.
+Everything below is a declaration of intent, not an enforcement mechanism. The
+catalog's boundary map in `docs/security.md` is explicit that host permissions
+and operator review govern what actually executes: a skill's `allowed-tools`
+pre-approves a surface, it does not deny the rest, and it is not a portable
+control across hosts. Say that plainly rather than implying a guarantee.
 
-**Enforced — this skill's own surface.** File reading plus name and content
-search. It holds no command grant, deliberately: a prefix-matched command
-allowlist cannot express "read-only", because `git diff`/`git show` accept
-`--output=<file>`, `git grep` accepts `--open-files-in-pager=<cmd>`, and
-`yq -i` rewrites in place.
+- **Declared here.** File reading plus name and content search, with no command
+  grant. A prefix-matched command allowlist could not express "read-only"
+  anyway: `git diff`/`git show` accept `--output=<file>`, `git grep` accepts
+  `--open-files-in-pager=<cmd>`, and `yq -i` rewrites in place.
+- **Reached by delegation.** `retrieval-strategist` declares unrestricted
+  `Bash`; `code-search` declares `Bash(git:*)` and `Bash(yq:*)`. Their
+  non-mutating character is an instruction they follow, not a restriction their
+  grants impose.
 
-**Instructed — anything reached by delegation.** Delegation does not extend the
-enforced boundary; the delegate runs under its own, broader grants.
-`retrieval-strategist` holds unrestricted `Bash`, and `code-search` holds
-`Bash(git:*)` and `Bash(yq:*)` — the same vectors named above. Their read-only
-character is an instruction those components follow, not a restriction their
-grants impose. So delegation is a capability decision, never a safety mechanism
-and never a route around this skill's own restriction.
-
-| Modality | Where it can run | Boundary you get |
+| Modality | Where it runs | What actually constrains it |
 | --- | --- | --- |
-| lexical, file reading | here | enforced |
-| history, structured-data | `retrieval-strategist`, or `code-search` when installed | instructed |
-| code-intelligence, structural | `retrieval-strategist`, or `code-search` when installed | instructed |
-| runtime observation | `/collect-runtime-evidence` only, never here | allowlisted command ID |
+| lexical, file reading | here | this skill's declaration plus host policy |
+| history, structured-data | `retrieval-strategist`, or `code-search` when installed | the delegate's instructions plus host policy |
+| code-intelligence, structural | `retrieval-strategist`, or `code-search` when installed | the delegate's instructions plus host policy |
+| factual claim checks | `verifier` | a subagent tool grant of Read/Grep/Glob |
+| runtime observation | `/collect-runtime-evidence` only | a reviewed allowlist ID, itself not side-effect proof |
 
-Choose deliberately. When the caller needs an enforced non-mutating guarantee,
-do not delegate — report the modality as a search limit in section 7 of the
-report contract and state what it would have settled. When you do delegate,
+So: never treat delegation as a way around this skill's own declaration;
 constrain the worker to inspection and evidence gathering in the delegation
-prompt, and disclose in section 7 that the evidence was gathered under a
-delegate's broader grants.
+prompt; and disclose in section 7 of the report contract both the modalities
+left unreached and any evidence gathered under a delegate's broader grants.
+
+When a caller needs an actual non-mutation guarantee, it has to come from host
+permissions, a restricted subagent, or a hook — not from this file.
 
 ## Analysis flow
 

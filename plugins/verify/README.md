@@ -46,14 +46,16 @@ The verifier cannot edit files, write files, or run shell commands. That makes i
 safe to use as an independent second read: it can confirm, question, or refute
 claims without mutating the tree or grading its own changes.
 
-Change-impact analysis is also non-mutating. Its own surface is file reading plus
-search, with no command grant. It reaches code-intelligence, structured-data, and
-history only by delegating to `retrieval-strategist` or `code-search`, whose
-broader grants make their non-mutating behavior instructed rather than enforced —
-so delegation is treated as a capability decision, and an unreached modality is
-reported as a search limit when an enforced guarantee matters. Its report
-separates observed repository coupling from inferred future risk and from
-unknowns that need runtime or external evidence.
+Change-impact analysis is likewise meant to be non-mutating, and states that as
+an intent rather than a guarantee. It declares a surface of file reading plus
+search with no command grant, and reaches code-intelligence, structured-data,
+and history only by delegating to `retrieval-strategist` or `code-search`, whose
+declared grants are broader. Per the
+[boundary map](https://github.com/mbeacom/context-kit/blob/main/docs/security.md),
+host permissions and operator review — not a skill's `allowed-tools` — govern
+what actually executes. Its report separates observed repository coupling from
+inferred future risk and from unknowns that need runtime or external evidence,
+and records modalities left unreached.
 
 When a runtime claim stays `unable-to-check`, the verdict names the observation
 that would settle it. If the separate `runtime-evidence` plugin is installed,
