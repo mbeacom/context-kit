@@ -112,7 +112,8 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
 - **Verify then observe** — repository evidence produces a verdict; only an
   unresolved runtime claim can escalate through `runtime-evidence`'s exact-ID
   allowlisted runner, or its approved optional-tool path when no reviewed
-  command can represent the claim, and the bounded artifacts return to `verify`.
+  command can represent the claim, and the recorded observations return to
+  `verify`.
 - **Verify then hand off** — `context-handoff` compiles bounded task state with
   repository provenance; resume rejects identity mismatches and reverifies stale
   claims before acting.

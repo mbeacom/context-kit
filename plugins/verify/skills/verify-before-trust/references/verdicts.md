@@ -30,7 +30,9 @@ of these three forms; do not invent another.
 
   Use it only when the caller supplied an observed result. Keep the exact source
   identity rather than a reconstructed command line, and never rewrite an
-  observation as a `path:line`.
+  observation as a `path:line`. An observation with no artifact pointer is not
+  citable here — it stays `unable-to-check`, naming what would need to be
+  captured.
 - **No evidence** — `evidence (none)`. Allowed only for `dubious` and
   `unable-to-check`. An `unable-to-check` verdict that follows an inconclusive
   collection should cite the observation form instead, so the failed attempt is

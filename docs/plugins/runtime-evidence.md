@@ -2,9 +2,10 @@
 
 !!! abstract "Controlled runtime evidence"
     Escalate an `unable-to-check` runtime claim only after static verification
-    cannot settle it. Run one exact, pre-reviewed command ID — or an approved
-    optional-tool observation when no reviewed command can represent the claim —
-    and return bounded artifacts to `verify` for the verdict.
+    cannot settle it. Run one exact, pre-reviewed command ID for bounded
+    artifacts — or an approved optional-tool observation when no reviewed
+    command can represent the claim — and return the evidence record to `verify`
+    for the verdict.
 
 `runtime-evidence` depends on [`verify`](verify.md), which transitively pulls the
 [`retrieval-core`](retrieval-core.md) spine. Python 3 is required; the runner uses
@@ -51,7 +52,7 @@ before config access or process creation.
 | Runs in | the `runtime-investigator` subagent | the main agent |
 | Bounded by | the allowlist, timeout, and output cap | user approval only — see [security](../security.md) |
 | Observation source | `command-id=<allowlist key>` | `tool=<approved tool>@<target>` |
-| Artifacts | runner-written report, stdout, stderr | whatever the tool produces |
+| Artifacts | runner-written report, stdout, stderr | at least one durable artifact the tool produced |
 
 The plugin ships a runner for the first path only. For the second it supplies
 approval conditions and a recording contract, not a mechanism: a subagent's tool

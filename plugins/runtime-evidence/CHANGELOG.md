@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.2 - 2026-07-25
+
+- Run the approved optional-tool path in the main agent instead of the
+  `runtime-investigator` subagent. A subagent's tool grant is fixed, so a
+  host-exposed browser, debugger, or container tool is not reachable inside it;
+  routing the branch there made it no more executable than before. The subagent
+  returns to command-only and says why when it reports `blocked`, and
+  `/collect-runtime-evidence` delegates only the runner path.
+- Give the optional-tool path its own field set instead of reusing the runner's.
+  Process exit data, runner-report environment metadata, and the config digest
+  do not exist for a browser observation, so the contract now defines
+  observed-state and `not-applicable` handling per field — including
+  `Reproduction command ID: not-applicable` on a `blocked` result, which by
+  definition has no matching ID.
+- Require at least one durable artifact on the optional-tool path. `verify`'s
+  observation evidence form needs a pointer, so an observation nobody can
+  inspect is not citable: it now stays `unable-to-check` naming what would need
+  to be captured, rather than being recorded as weaker evidence.
+- Scope "bounded" to the runner. The skill, agent, and manifest descriptions
+  applied the runner's timeout and output caps to browser observations, which
+  the plugin does not bound at all.
+- Document both collection paths side by side, and describe the optional-tool
+  path as the weaker boundary wherever the catalog covers this plugin —
+  including the security boundary map, where allowlist-only wording understated
+  the surface.
+
 ## 0.1.1 - 2026-07-25
 
 - Specify the return leg of the handoff. `references/evidence-report.md` now

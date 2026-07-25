@@ -101,7 +101,7 @@ controlled runtime evidence, cross-session handoff, and authoring quality.
     `runtime-evidence` runs exact, pre-reviewed command IDs from a user-owned
     allowlist when static verification cannot settle a runtime claim — or an
     approved browser/debugger observation when no command fits — then returns
-    bounded artifacts to `verify`.
+    the recorded observations to `verify`.
 
     [:octicons-arrow-right-24: runtime-evidence](plugins/runtime-evidence.md)
 

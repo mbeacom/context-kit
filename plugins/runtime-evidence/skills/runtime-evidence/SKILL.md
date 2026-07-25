@@ -1,6 +1,6 @@
 ---
 name: runtime-evidence
-description: "Use when a runtime claim is unable-to-check statically and bounded dynamic evidence can be collected by a reviewed command ID or an approved browser observation."
+description: "Use when a runtime claim is unable-to-check statically and needs a dynamic observation: a bounded reviewed command ID, or an approved browser observation."
 license: MIT
 compatibility: "Requires Python 3 on a POSIX platform. Windows is refused before execution because bounded non-blocking pipe capture is unavailable."
 metadata:
@@ -56,7 +56,7 @@ claim.
 | Runs in | `runtime-investigator` subagent | the main agent |
 | Bounded by | the allowlist, timeout, and output cap | user approval plus `references/optional-tools.md` |
 | Observation source | `command-id=<allowlist key>` | `tool=<approved tool>@<target>` |
-| Artifacts | runner-written report, stdout, stderr | whatever the tool produces |
+| Artifacts | runner-written report, stdout, stderr | at least one durable artifact the tool produced |
 
 This plugin ships a runner for the first path only. It supplies no collection
 mechanism for the second — just the approval conditions and the recording
@@ -134,9 +134,12 @@ path; the rest are identical.
   or log findings when relevant. State the observation window and write
   `not-applicable` for process-exit fields rather than inventing an exit code.
 - **Artifact/output pointers** — runner path: report, stdout, stderr, and config
-  digest/path. Optional-tool path: whatever the tool produced (screenshot,
-  trace, HAR, recording, log export). Write `none retained` when the tool
-  produced no durable artifact, and treat that observation as weaker evidence.
+  digest/path. Optional-tool path: at least one durable artifact the tool
+  produced (screenshot, trace, HAR, recording, log export). Capture one before
+  ending the interaction; an observation nobody else can inspect is not
+  evidence, and `verify`'s observation form requires a pointer. When nothing
+  durable was retained, report the observation as `not-collected` and leave the
+  claim `unable-to-check`, naming the artifact that would need to be captured.
   There is no config digest on this path; write `not-applicable`.
 - **Verdict-ready evidence** — concise facts suitable for the `verify` verdict
   taxonomy without assigning a new taxonomy here.

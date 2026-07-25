@@ -58,5 +58,7 @@ Cleanup status: ...
 ```
 
 Include every required field even on timeout, output-limit termination, spawn
-failure, child nonzero exit, or a `blocked` result. Never report process
-termination as reversal of command side effects.
+failure, child nonzero exit, or a `blocked` result. Write `not-applicable` for a
+field the outcome leaves undefined — on `blocked` there is no matching command
+ID, so report `Reproduction command ID: not-applicable` rather than inventing
+one. Never report process termination as reversal of command side effects.

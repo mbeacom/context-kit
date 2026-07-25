@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 - 2026-07-25
+
+- Require an artifact pointer for observation evidence. An observation with no
+  durable artifact cannot be cited and stays `unable-to-check`, naming what
+  would need to be captured — evidence has to be independently inspectable.
+- Correct the escalation description in `verify-before-trust`, which said
+  `/collect-runtime-evidence` runs only a pre-reviewed allowlist command ID a
+  few lines above the escalation path it documents.
+- Complete the `change-impact` runtime-observation row, which still described
+  the escalation as allowlist-only.
+
 ## 0.3.0 - 2026-07-25
 
 - Define the evidence forms `verify` owns: repository `path:line`, an
