@@ -629,6 +629,32 @@
       ]
     },
     {
+      "id": "verify-then-observe-optional-tool",
+      "query": "Verify the hydration claim statically, then observe it in the approved browser since no allowlisted command covers rendering, and return it for a final verdict.",
+      "corpus_cues": ["rendering behavior claim", "static verdict may be unable-to-check", "no reviewed command represents the claim"],
+      "expected": {
+        "route": "verify-before-trust",
+        "plugins": ["verify", "runtime-evidence"],
+        "tools": ["verify-before-trust", "approved optional tool"],
+        "composition": {
+          "name": "verify-then-observe",
+          "steps": [
+            "verify-before-trust",
+            "runtime-evidence",
+            "verify-before-trust"
+          ]
+        }
+      },
+      "rationale": "The escalation shape is unchanged when no reviewed command fits; only the collection mechanism and its bounds differ, and the verdict still returns to verification.",
+      "near_misses": [
+        {
+          "query": "Read the hydration warning suppression list committed in the app config.",
+          "expected_route": "structured-data",
+          "reason": "A committed config file is inspected directly rather than observed at runtime."
+        }
+      ]
+    },
+    {
       "id": "verify-then-hand-off-state",
       "query": "Verify the migration facts, then compile only the bounded proven state into a resumable handoff.",
       "corpus_cues": ["cross-session continuation", "handoff facts require repository provenance"],
