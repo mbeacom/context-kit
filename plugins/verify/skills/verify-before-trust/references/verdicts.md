@@ -34,9 +34,13 @@ of these three forms; do not invent another.
   citable here — it stays `unable-to-check`, naming what would need to be
   captured.
 - **No evidence** — `evidence (none)`. Allowed only for `dubious` and
-  `unable-to-check`. An `unable-to-check` verdict that follows an inconclusive
-  collection should cite the observation form instead, so the failed attempt is
-  recorded rather than blindly repeated.
+  `unable-to-check`, in two cases: no observation was attempted, or one was
+  attempted and retained nothing citable. An `unable-to-check` verdict following
+  an inconclusive collection that *did* retain an artifact must cite the
+  observation form instead, so the failed attempt is recorded rather than
+  blindly repeated. When nothing was retained, name the attempted source and the
+  missing artifact in the note — `evidence (none)` records that citable evidence
+  is absent, not that the attempt never happened.
 
 One verdict cites one form. On reassessment the observation citation *replaces*
 the evidence slot rather than joining it — keep any static context that still

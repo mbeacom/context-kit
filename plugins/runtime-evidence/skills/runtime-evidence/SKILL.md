@@ -142,7 +142,8 @@ path; the rest are identical.
   ending the interaction; an observation nobody else can inspect is not
   evidence, and `verify`'s observation form requires a pointer. When nothing
   durable was retained, report the observation as `not-collected` and leave the
-  claim `unable-to-check`, naming the artifact that would need to be captured.
+  claim `unable-to-check` with `evidence (none)`, naming the attempted source
+  and the artifact that would need to be captured.
   There is no config digest on this path; write `not-applicable`.
 - **Verdict-ready evidence** — concise facts suitable for the `verify` verdict
   taxonomy without assigning a new taxonomy here.

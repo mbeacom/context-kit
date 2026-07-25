@@ -66,8 +66,10 @@ The evidence reference is a repository `path:line`, or — only when the caller
 supplied an observation report for that claim — its observation source
 (`command-id=…` for an allowlisted run, `tool=…@…` for an approved optional
 tool) plus an artifact pointer, including when that report was inconclusive. Use
-`none` for evidence only when the verdict is dubious or unable-to-check and no
-report exists. When you reassess a claim from a supplied report, reuse the
-original claim wording and return one replacement verdict, not two. End with a
-one-line overall summary, such as `3 confirmed, 1 dubious, 1 refuted`. Keep the
+`none` for evidence only when the verdict is dubious or unable-to-check and
+either no report exists or the report retained nothing citable; in the latter
+case name the attempted source and the missing artifact in the note. When you
+reassess a claim from a supplied report, reuse the original claim wording and
+return one replacement verdict, not two. End with a one-line overall summary,
+such as `3 confirmed, 1 dubious, 1 refuted`. Keep the
 report skimmable.
