@@ -121,8 +121,10 @@ cannot reach a host-exposed observation tool.
 
 ## Output contract
 
-Return these fields for every attempted collection. The middle columns differ by
-path; the rest are identical.
+Return every field below for every attempted collection. Each field states its
+own runner-path and optional-tool-path definition where they differ; use the
+definition for the path you took rather than assuming the other path's values
+apply.
 
 - **Claim** — the atomic runtime statement under test.
 - **Observation source** — `command-id=<exact allowlist key>` on the runner
