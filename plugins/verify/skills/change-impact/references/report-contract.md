@@ -37,10 +37,12 @@ Use the detailed rules in
 `../../verify-before-trust/references/verdicts.md`. Reserve `refuted` for
 contradiction, not an unsuccessful search.
 
-Change-impact is static-only, so every verdict here cites repository evidence.
-When a claim can be settled only by observation, keep it `unable-to-check` and
-record the escalation in section 6 rather than borrowing the observation
-evidence form.
+This report never uses the observation evidence form: change-impact is
+static-only. `confirmed` and `refuted` cite repository `path:line`; `dubious`
+cites the partial repository evidence it has; `unable-to-check` may use
+`evidence (none)`. When a claim can be settled only by observation, keep it
+`unable-to-check` and record the escalation in section 6 rather than borrowing
+the observation form or inventing a citation.
 
 ### Risk priority
 

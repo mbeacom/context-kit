@@ -25,11 +25,14 @@ of these three forms; do not invent another.
   than a reconstructed command line, and never rewrite an observation as a
   `path:line`.
 - **No evidence** — `evidence (none)`. Allowed only for `dubious` and
-  `unable-to-check`.
+  `unable-to-check`. An `unable-to-check` verdict that follows an inconclusive
+  collection should cite the observation form instead, so the failed attempt is
+  recorded rather than blindly repeated.
 
-One verdict cites one form. If a claim rests on both static and observed
-support, it is not atomic — split it, and give each part its own verdict and
-its own form.
+One verdict cites one form. On reassessment the observation citation *replaces*
+the evidence slot rather than joining it — keep any static context that still
+matters in the note. Do not merge forms, and do not split the claim to
+accommodate both; the claim wording stays fixed.
 
 ## Confirmed
 
@@ -89,11 +92,13 @@ same atomic claim, replace the verdict instead of emitting a second one:
    evidence form.
 4. Keep `unable-to-check` when the run timed out, hit an output cap, failed to
    spawn, or observed something the claim does not depend on. Name the
-   limitation that blocked it.
+   limitation that blocked it, and still cite the observation form — an
+   inconclusive attempt is provenance worth carrying forward.
 
 ```text
 unable-to-check — "The health endpoint reports degraded when the cache is down." — evidence (none) — requires running the service; no static assertion covers it.
 confirmed — "The health endpoint reports degraded when the cache is down." — evidence (command-id=health-cache-down; report=${CONTEXT_KIT_DATA}/runtime-evidence/run-4213.json) — exit 0; response body contained a degraded status.
+unable-to-check — "The health endpoint reports degraded when the cache is down." — evidence (command-id=health-cache-down; report=${CONTEXT_KIT_DATA}/runtime-evidence/run-4217.json) — terminated at the 30s timeout before responding; raise the timeout or use a narrower reviewed command.
 ```
 
 Never restate an observation as repository evidence, and never imply that a

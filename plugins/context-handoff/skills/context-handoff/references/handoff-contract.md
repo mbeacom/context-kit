@@ -55,7 +55,7 @@ both; do not widen them here.
 - confirmed — <atomic claim> — evidence (<path:line, or command-id + artifact pointer>) — <note>
 - dubious — <atomic claim> — evidence (<path:line, command-id + artifact pointer, or none>) — <caveat>
 - refuted — <atomic claim> — evidence (<path:line, or command-id + artifact pointer>) — <contradiction>
-- unable-to-check — <atomic claim> — evidence (none) — <what would settle it>
+- unable-to-check — <atomic claim> — evidence (none, or command-id + artifact pointer when a collection was attempted and proved inconclusive) — <what would settle it>
 ```
 
 Use the observation form only for a fact whose result was actually observed, such
