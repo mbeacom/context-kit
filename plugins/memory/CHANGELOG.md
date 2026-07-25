@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 — 2026-07-25
+
+- Adopt the evidence forms `verify` now defines for the `## Evidence` section,
+  so provenance stays citable across the `verify` → `context-handoff` → `memory`
+  chain. A bare command name is no longer an accepted source pointer; an
+  observed result needs its exact command ID plus artifact pointer.
+
 ## 0.2.0 — 2026-07-19
 
 - Add append-only review and freshness events over immutable memory records,

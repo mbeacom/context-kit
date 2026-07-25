@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.1 - 2026-07-25
+
+- Specify the return leg of the handoff. `references/evidence-report.md` now
+  names the observation evidence form defined by `verify`
+  (`evidence (command-id=<id>; report=<path>)`), requires reusing the original
+  claim wording so the reassessed verdict replaces the earlier
+  `unable-to-check`, and forbids restating an observation as a repository
+  `path:line`.
+
 ## 0.1.0 - 2026-07-18
 
 - Add the `runtime-evidence` skill and progressive-disclosure references.

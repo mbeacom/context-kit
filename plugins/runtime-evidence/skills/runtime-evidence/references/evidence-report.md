@@ -46,3 +46,10 @@ summaries.
 Pass the resulting facts to `verify` and use its existing `confirmed`, `dubious`,
 `refuted`, or `unable-to-check` taxonomy. Do not create a runtime-specific
 verdict set.
+
+Cite the observation evidence form that `verify` defines in
+`verify-before-trust/references/verdicts.md`: the exact command ID plus the
+report artifact pointer, for example
+`evidence (command-id=<id>; report=<path>)`. Reuse the original claim wording so
+the reassessed verdict replaces the earlier `unable-to-check` instead of adding
+a second entry. Never convert an observation into a repository `path:line`.

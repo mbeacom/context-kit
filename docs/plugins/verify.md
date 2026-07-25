@@ -55,7 +55,27 @@ Each claim gets one of four verdicts, with evidence:
 | **confirmed** | Primary evidence supports the claim (`path:line` cited). |
 | **dubious** | Evidence is partial, ambiguous, or indirect. |
 | **refuted** | Primary evidence contradicts the claim. |
-| **unable-to-check** | No accessible evidence in the corpus. |
+| **unable-to-check** | Read-only inspection cannot settle it. States what would. |
+
+Evidence is a repository `path:line`. The one exception is a claim reassessed
+from an observation the caller supplied — normally a
+[`runtime-evidence`](runtime-evidence.md) collection — which cites the exact
+command ID plus its report artifact instead. `verify` owns both forms, so
+dependents inherit them rather than inventing their own.
+
+### Escalating an unresolved runtime claim
+
+!!! info "`unable-to-check` is a route, not a dead end"
+    A runtime claim that static evidence cannot settle must name the observation
+    that would settle it. When [`runtime-evidence`](runtime-evidence.md) is
+    installed, that observation can be escalated with
+    `/collect-runtime-evidence`, which runs only a pre-reviewed allowlist command
+    ID. The report comes back here, and the same claim is reassessed under this
+    taxonomy — verification keeps ownership of the verdict.
+
+    The escalation is optional. `verify` does not depend on `runtime-evidence`;
+    the dependency runs the other way. Without it, `unable-to-check` plus the
+    named missing capability is the correct final answer.
 
 Change-impact is also read-only and prospective. It may inspect search,
 code-intelligence, structured data, and history, but does not edit files, generate

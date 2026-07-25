@@ -20,6 +20,9 @@ and prospective:
   schemas, tests, docs, and operational evidence;
 - use the existing `verifier` and its confirmed/dubious/refuted/unable-to-check
   taxonomy for factual claims that benefit from an independent pass;
+- when an unknown can only be settled by runtime observation and
+  `runtime-evidence` is installed, name `/collect-runtime-evidence` and the
+  claim it would settle as a follow-up; do not collect it during this analysis;
 - if `plan-execute` is installed and the repository is broad, optionally
   parallelize read-only evidence collection, but do not require it or permit
   workers to implement changes.

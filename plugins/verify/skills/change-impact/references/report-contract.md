@@ -37,6 +37,11 @@ Use the detailed rules in
 `../../verify-before-trust/references/verdicts.md`. Reserve `refuted` for
 contradiction, not an unsuccessful search.
 
+Change-impact is static-only, so every verdict here cites repository evidence.
+When a claim can be settled only by observation, keep it `unable-to-check` and
+record the escalation in section 6 rather than borrowing the observation
+evidence form.
+
 ### Risk priority
 
 - **high** - Likely contract break, data loss/corruption, security boundary
@@ -137,7 +142,10 @@ Separate:
 - executable checks that would settle unknowns.
 
 Name commands only as recommended follow-ups. Do not run them during a
-read-only impact analysis.
+read-only impact analysis. When an unknown depends on runtime behavior and the
+`runtime-evidence` plugin is installed, name `/collect-runtime-evidence` plus
+the atomic claim it would settle, so the unknown routes somewhere instead of
+ending here.
 
 ### 7. Unknowns and search limits
 

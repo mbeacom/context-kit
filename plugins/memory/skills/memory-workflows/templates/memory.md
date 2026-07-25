@@ -25,7 +25,7 @@ One concise, canonical fact, decision, procedure, constraint, or episode.
 
 ## Evidence
 
-- `path:line` or named command result — verbatim evidence and relevance.
+- `path:line`, or a command ID plus its artifact pointer — verbatim evidence and relevance.
 
 ## Supersedes
 

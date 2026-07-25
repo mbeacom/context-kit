@@ -18,7 +18,7 @@ worktree_state: "{{clean_or_dirty}}"
 
 ## Verified Facts
 
-- {{VERIFY_VERDICT}} — {{ATOMIC_CLAIM}} — evidence ({{PATH_LINE_OR_COMMAND}}) — {{NOTE}}
+- {{VERIFY_VERDICT}} — {{ATOMIC_CLAIM}} — evidence ({{PATH_LINE_OR_OBSERVATION}}) — {{NOTE}}
 
 ## Decisions
 

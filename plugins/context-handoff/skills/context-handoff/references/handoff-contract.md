@@ -48,14 +48,19 @@ important statement under unresolved items and state what would verify it.
 
 ## Verified fact format
 
-Use the `verify` plugin's verdict taxonomy:
+Use the `verify` plugin's verdict taxonomy and its evidence forms. `verify` owns
+both; do not widen them here.
 
 ```text
-- confirmed — <atomic claim> — evidence (<path:line or command>) — <note>
-- dubious — <atomic claim> — evidence (<path:line, command, or none>) — <caveat>
-- refuted — <atomic claim> — evidence (<path:line or command>) — <contradiction>
+- confirmed — <atomic claim> — evidence (<path:line, or command-id + artifact pointer>) — <note>
+- dubious — <atomic claim> — evidence (<path:line, command-id + artifact pointer, or none>) — <caveat>
+- refuted — <atomic claim> — evidence (<path:line, or command-id + artifact pointer>) — <contradiction>
 - unable-to-check — <atomic claim> — evidence (none) — <what would settle it>
 ```
+
+Use the observation form only for a fact whose result was actually observed, such
+as a recorded `runtime-evidence` collection. A statically verified fact keeps its
+`path:line`. See `verify-before-trust/references/verdicts.md` for the full rules.
 
 Only `confirmed` facts should normally drive resume behavior without another
 check, and only when provenance is still current.

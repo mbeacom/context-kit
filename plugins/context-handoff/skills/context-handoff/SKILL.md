@@ -85,14 +85,18 @@ usable.
 
 ## Keep boundaries explicit
 
-- Preserve atomic facts with `file:line` evidence or a named command result.
+- Preserve atomic facts with `file:line` evidence, or — for a result actually
+  observed — the exact command ID plus its artifact pointer. A bare command name
+  is not evidence.
 - Record decisions separately from facts; a decision can remain valid even when
   its original evidence becomes stale, but its rationale must stay visible.
 - List changed files with status and purpose, not pasted diffs.
 - Describe validation as commands plus outcomes. Use `not run` or `blocked`
   explicitly where applicable.
 - Include only actionable unresolved items and ordered next steps.
-- Never claim runtime behavior was verified from static inspection alone.
+- Never claim runtime behavior was verified from static inspection alone. Record
+  it as `unable-to-check` with the observation that would settle it, or cite an
+  observation actually collected through `runtime-evidence`.
 - Never add `PreCompact`, `SessionEnd`, or `SessionStart` hooks to this handoff
   workflow. Manual commands are the source of authority. Optional lifecycle
   capture belongs to the separate `memory` plugin and cannot change handoff

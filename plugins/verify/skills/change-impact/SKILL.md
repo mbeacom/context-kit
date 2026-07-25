@@ -36,9 +36,31 @@ Keep the analysis prospective and non-mutating.
   services, apply migrations, or invoke commands that can change repository or
   environment state.
 - State executable checks as follow-up evidence needed; do not perform them as
-  part of this capability.
+  part of this capability. When an unknown hinges on runtime behavior and the
+  `runtime-evidence` plugin is installed, name `/collect-runtime-evidence` and
+  the claim it would settle, and leave the collection to that separate,
+  explicitly invoked workflow.
 - Treat a described future change, uncommitted diff, commit, PR, or design note
   as input evidence, not permission to modify the tree.
+
+### Tool boundary
+
+This skill's own tool surface is file reading plus name and content search. It
+holds no command grant, deliberately: a prefix-matched command allowlist cannot
+express "read-only" — `git diff`/`git show` accept `--output=<file>`, `git grep`
+accepts `--open-files-in-pager=<cmd>`, and `yq -i` rewrites in place.
+
+So run every other modality through the component that already owns it:
+
+| Modality | Where it runs |
+| --- | --- |
+| lexical, file reading | here |
+| history, structured-data | `retrieval-strategist`, or `code-search` when installed |
+| code-intelligence, structural | `retrieval-strategist`, or `code-search` when installed |
+| runtime observation | `/collect-runtime-evidence`, never here |
+
+Delegate rather than widening this skill's grants. Report a modality you could
+not reach as a search limit in section 7 of the report contract.
 
 ## Analysis flow
 
@@ -50,8 +72,10 @@ Keep the analysis prospective and non-mutating.
    search for exact names, code intelligence for definitions and references,
    structural search for code shapes, structured-data search for manifests and
    config, and history search when compatibility intent or prior migrations
-   matter. Invoke the read-only `retrieval-strategist` when the repository is
-   unfamiliar or the right modality is unclear.
+   matter. Run lexical search and file reading here; route every other modality
+   through `retrieval-strategist`, or `code-search` when installed, per the tool
+   boundary above. Invoke the read-only `retrieval-strategist` when the
+   repository is unfamiliar or the right modality is unclear.
 3. **Trace direct dependents first.** Find imports, references, callers,
    implementers, registries, serializers, consumers, build/package edges, and
    generated-code sources that directly depend on each change anchor. Do not

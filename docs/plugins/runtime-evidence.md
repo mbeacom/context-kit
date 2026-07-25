@@ -68,6 +68,24 @@ use `CLAUDE_PLUGIN_ROOT` as the plugin-root fallback.
     credentials or networks, or start descendants. Host-level command policy is a
     separate layer; this plugin does not claim universal host-level enforcement.
 
+## Returning evidence to verify
+
+This plugin never assigns a verdict. It hands the collected facts back to
+[`verify`](verify.md), which reassesses the *same* atomic claim under its
+existing `confirmed` / `dubious` / `refuted` / `unable-to-check` taxonomy.
+
+The returned verdict cites verify's observation evidence form — the exact
+command ID plus the report artifact pointer — rather than a repository
+`path:line`:
+
+```text
+evidence (command-id=health-cache-down; report=${CONTEXT_KIT_DATA}/runtime-evidence/run-4213.json)
+```
+
+Exit `0` means the configured process completed, not that the claim is true. A
+timeout, output-cap termination, spawn failure, or an observation the claim does
+not depend on leaves the verdict at `unable-to-check` with the limitation named.
+
 ## Integration boundary
 
 The [continuity integration test](../ARCHITECTURE.md#tested-verification-to-continuity-boundary)

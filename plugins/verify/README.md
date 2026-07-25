@@ -52,6 +52,13 @@ tests, start services, generate artifacts, or apply migrations. Its report
 separates observed repository coupling from inferred future risk and from
 unknowns that need runtime or external evidence.
 
+When a runtime claim stays `unable-to-check`, the verdict names the observation
+that would settle it. If the separate `runtime-evidence` plugin is installed,
+that observation can be escalated with `/collect-runtime-evidence`, and its
+report returns here to be reassessed under the same taxonomy. `verify` does not
+depend on `runtime-evidence`; the dependency runs the other way, so
+`unable-to-check` plus a named missing capability stays a valid final answer.
+
 ## Retrieval-core composition
 
 `verify` depends on `retrieval-core`. Use the `retrieval-strategy` decision flow
