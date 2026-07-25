@@ -88,9 +88,9 @@ may be used instead. Understand how it differs before approving one:
 | | Allowlisted runner | Optional tool |
 | --- | --- | --- |
 | What is pre-reviewed | exact argv, by ID | the interaction and target, by the user at approval time |
-| Bounded by | the runner: timeout, per-stream output cap, no shell | nothing the plugin enforces |
+| Bounded by | the runner: timeout, per-stream output cap, no shell | operator approval plus host policy; nothing the plugin enforces |
 | Runs in | `runtime-investigator`, instructed to invoke only the runner | the main agent, using host-exposed tooling |
-| Artifacts | written by the runner, digest-anchored | whatever the tool happens to produce |
+| Artifacts | written by the runner, digest-anchored | at least one durable artifact the tool retained; a no-artifact attempt is not citable and leaves the claim `unable-to-check` |
 
 The enforcing boundary on the first path is `run-evidence-command.py`, not the
 subagent that calls it. `runtime-investigator` declares `Bash`, so its

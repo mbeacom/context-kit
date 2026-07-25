@@ -52,9 +52,9 @@ observation tool.
 | --- | --- | --- |
 | When | a reviewed command ID reproduces the claim | no reviewed command can represent it |
 | Runs in | the `runtime-investigator` subagent | the main agent |
-| Bounded by | the allowlist, timeout, and output cap | user approval only — see [security](../security.md) |
+| Bounded by | the allowlist, timeout, and output cap | operator approval plus host policy; nothing the plugin enforces — see [security](../security.md) |
 | Observation source | `command-id=<allowlist key>` | `tool=<approved tool>@<target>` |
-| Artifacts | runner-written report, stdout, stderr | at least one durable artifact the tool produced |
+| Artifacts | runner-written report, stdout, stderr | at least one durable artifact, or the claim stays `unable-to-check` |
 
 The plugin ships a runner for the first path only. For the second it supplies
 approval conditions and a recording contract, not a mechanism: a subagent's tool

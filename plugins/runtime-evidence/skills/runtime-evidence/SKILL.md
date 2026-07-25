@@ -58,9 +58,9 @@ claim.
 | --- | --- | --- |
 | When | a reviewed command ID reproduces the claim | no reviewed command can represent it |
 | Runs in | `runtime-investigator` subagent | the main agent |
-| Bounded by | the allowlist, timeout, and output cap | user approval plus `references/optional-tools.md` |
+| Bounded by | the runner: allowlist, timeout, and output cap | operator approval plus host policy; nothing the plugin enforces |
 | Observation source | `command-id=<allowlist key>` | `tool=<approved tool>@<target>` |
-| Artifacts | runner-written report, stdout, stderr | at least one durable artifact the tool produced |
+| Artifacts | runner-written report, stdout, stderr | at least one durable artifact, or the claim stays `unable-to-check` |
 
 This plugin ships a runner for the first path only. It supplies no collection
 mechanism for the second — just the approval conditions and the recording
