@@ -130,7 +130,9 @@ listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
 `plugins/code-search/scripts/check-tools.sh` from a clone to see the gaps.
 Python 3 is required for the stdlib `runtime-evidence` runner and
 `context-handoff` validator. The runtime runner requires POSIX and refuses
-Windows before execution; the handoff validator is cross-platform.
+Windows before execution; the handoff validator is cross-platform. Runtime
+evidence's optional-tool path ships no runner, so it needs neither Python nor
+POSIX — only an approved, host-exposed observation tool.
 The `memory` adapter also uses Python 3; MemPalace is a separately installed
 optional provider. APM does not execute Claude hooks, so memory capture remains
 explicit unless the target host is configured separately.
