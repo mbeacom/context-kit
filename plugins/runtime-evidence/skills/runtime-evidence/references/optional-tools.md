@@ -11,8 +11,10 @@ Use an optional tool only when all conditions hold:
 1. The claim requires that observation modality.
 2. The user has approved the intended interaction and target environment.
 3. The current host exposes the tool.
-4. The observation can be recorded with the same evidence fields: claim,
-   environment, observations, artifact pointers, limitations, and cleanup.
+4. The observation can be recorded with the same evidence categories: claim,
+   environment, observations, artifact pointers, limitations, and cleanup —
+   using this path's own field definitions in the skill's output contract,
+   since process exit data and the config digest do not exist here.
 
 ## Graceful degradation
 

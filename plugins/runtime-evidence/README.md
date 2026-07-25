@@ -5,7 +5,8 @@ verification cannot settle. The plugin turns a pre-reviewed command ID into
 bounded stdout/stderr artifacts and a structured evidence record that can be
 handed back to `verify` for a verdict. When no reviewed command can represent
 the claim, an approved optional-tool observation records the same evidence
-fields instead.
+categories using that path's own field definitions — observed state instead of
+process exit data, and no config digest.
 
 ## Install
 

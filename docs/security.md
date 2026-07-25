@@ -88,9 +88,15 @@ may be used instead. Understand how it differs before approving one:
 | | Allowlisted runner | Optional tool |
 | --- | --- | --- |
 | What is pre-reviewed | exact argv, by ID | the interaction and target, by the user at approval time |
-| Bounded by | timeout, per-stream output cap, no shell | nothing the plugin enforces |
-| Runs in | a restricted subagent | the main agent, using host-exposed tooling |
+| Bounded by | the runner: timeout, per-stream output cap, no shell | nothing the plugin enforces |
+| Runs in | `runtime-investigator`, instructed to invoke only the runner | the main agent, using host-exposed tooling |
 | Artifacts | written by the runner, digest-anchored | whatever the tool happens to produce |
+
+The enforcing boundary on the first path is `run-evidence-command.py`, not the
+subagent that calls it. `runtime-investigator` declares `Bash`, so its
+command-only behavior is an instruction it follows, not a restriction its grant
+imposes — host command policy governs that grant, as it does everywhere else in
+this catalog.
 
 This plugin ships **no collection mechanism** for the second path — only the
 approval conditions and a recording contract. Enforcement is entirely the
