@@ -97,9 +97,9 @@ The runner never silently substitutes another command, cwd, config, or evidence
 path. When no reviewed command can represent the claim, the approved
 optional-tool path runs in the main agent — a browser, debugger, or container
 observation the user has approved for a specific target. That path is bounded by
-the approval and the host, not by this plugin, so treat it as the more
-consequential decision; unavailable tooling is reported as a limitation rather
-than replaced with an unreviewed shell command.
+operator approval plus host policy, with nothing enforced by this plugin, so
+treat it as the more consequential decision; unavailable tooling is reported as
+a limitation rather than replaced with an unreviewed shell command.
 
 See `skills/runtime-evidence/references/runner-contract.md` for the complete
 config and exit-code contract.

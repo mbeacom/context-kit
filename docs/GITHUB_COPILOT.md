@@ -117,7 +117,8 @@ skills expect:
   Python nor POSIX — only an approved, host-exposed observation tool.
   Copilot does not provide universal host-level command enforcement; runtime
   collection on the runner path remains bound to the plugin's reviewed exact-ID
-  allowlist, while the optional-tool path is bound only by the user's approval.
+  allowlist, while the optional-tool path is bound by operator approval plus
+  host policy, with nothing enforced by the plugin.
 - Optional for `obsidian-rag-bridge`: the official `obsidian` CLI with Obsidian
   running; otherwise use the `rg`/`fd` fallback over vault files.
 - Required for local `memory` records: Python 3. Optional provider recall uses a
