@@ -21,6 +21,12 @@
   `retrieval-strategist` or `code-search`.
 - Make `verify-before-trust` prose host-neutral by describing read-only search
   and reading by capability instead of Claude-specific tool names.
+- Distinguish the enforced boundary (this skill's own grant) from the instructed
+  one (anything reached by delegation). `retrieval-strategist` holds
+  unrestricted `Bash` and `code-search` holds `Bash(git:*)`/`Bash(yq:*)`, so
+  delegation is documented as a capability decision rather than a safety
+  mechanism, must carry an inspection-only constraint, and must be disclosed in
+  the report's search limits.
 
 ## 0.2.0 - 2026-07-18
 

@@ -46,9 +46,12 @@ The verifier cannot edit files, write files, or run shell commands. That makes i
 safe to use as an independent second read: it can confirm, question, or refute
 claims without mutating the tree or grading its own changes.
 
-Change-impact analysis is also non-mutating. It may use read-only search,
-code-intelligence, structured-data, and history inspection, but it does not run
-tests, start services, generate artifacts, or apply migrations. Its report
+Change-impact analysis is also non-mutating. Its own surface is file reading plus
+search, with no command grant. It reaches code-intelligence, structured-data, and
+history only by delegating to `retrieval-strategist` or `code-search`, whose
+broader grants make their non-mutating behavior instructed rather than enforced —
+so delegation is treated as a capability decision, and an unreached modality is
+reported as a search limit when an enforced guarantee matters. Its report
 separates observed repository coupling from inferred future risk and from
 unknowns that need runtime or external evidence.
 

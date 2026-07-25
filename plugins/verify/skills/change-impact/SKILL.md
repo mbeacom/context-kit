@@ -45,22 +45,36 @@ Keep the analysis prospective and non-mutating.
 
 ### Tool boundary
 
-This skill's own tool surface is file reading plus name and content search. It
-holds no command grant, deliberately: a prefix-matched command allowlist cannot
-express "read-only" — `git diff`/`git show` accept `--output=<file>`, `git grep`
-accepts `--open-files-in-pager=<cmd>`, and `yq -i` rewrites in place.
+Two boundaries apply here and they are not equally strong. Never present the
+weaker one as the stronger one.
 
-So run every other modality through the component that already owns it:
+**Enforced — this skill's own surface.** File reading plus name and content
+search. It holds no command grant, deliberately: a prefix-matched command
+allowlist cannot express "read-only", because `git diff`/`git show` accept
+`--output=<file>`, `git grep` accepts `--open-files-in-pager=<cmd>`, and
+`yq -i` rewrites in place.
 
-| Modality | Where it runs |
-| --- | --- |
-| lexical, file reading | here |
-| history, structured-data | `retrieval-strategist`, or `code-search` when installed |
-| code-intelligence, structural | `retrieval-strategist`, or `code-search` when installed |
-| runtime observation | `/collect-runtime-evidence`, never here |
+**Instructed — anything reached by delegation.** Delegation does not extend the
+enforced boundary; the delegate runs under its own, broader grants.
+`retrieval-strategist` holds unrestricted `Bash`, and `code-search` holds
+`Bash(git:*)` and `Bash(yq:*)` — the same vectors named above. Their read-only
+character is an instruction those components follow, not a restriction their
+grants impose. So delegation is a capability decision, never a safety mechanism
+and never a route around this skill's own restriction.
 
-Delegate rather than widening this skill's grants. Report a modality you could
-not reach as a search limit in section 7 of the report contract.
+| Modality | Where it can run | Boundary you get |
+| --- | --- | --- |
+| lexical, file reading | here | enforced |
+| history, structured-data | `retrieval-strategist`, or `code-search` when installed | instructed |
+| code-intelligence, structural | `retrieval-strategist`, or `code-search` when installed | instructed |
+| runtime observation | `/collect-runtime-evidence` only, never here | allowlisted command ID |
+
+Choose deliberately. When the caller needs an enforced non-mutating guarantee,
+do not delegate — report the modality as a search limit in section 7 of the
+report contract and state what it would have settled. When you do delegate,
+constrain the worker to inspection and evidence gathering in the delegation
+prompt, and disclose in section 7 that the evidence was gathered under a
+delegate's broader grants.
 
 ## Analysis flow
 
@@ -72,10 +86,10 @@ not reach as a search limit in section 7 of the report contract.
    search for exact names, code intelligence for definitions and references,
    structural search for code shapes, structured-data search for manifests and
    config, and history search when compatibility intent or prior migrations
-   matter. Run lexical search and file reading here; route every other modality
-   through `retrieval-strategist`, or `code-search` when installed, per the tool
-   boundary above. Invoke the read-only `retrieval-strategist` when the
-   repository is unfamiliar or the right modality is unclear.
+   matter. Run lexical search and file reading here; reach every other modality
+   only by delegation, per the tool boundary above. Invoke `retrieval-strategist`
+   when the repository is unfamiliar or the right modality is unclear,
+   constraining it to inspection.
 3. **Trace direct dependents first.** Find imports, references, callers,
    implementers, registries, serializers, consumers, build/package edges, and
    generated-code sources that directly depend on each change anchor. Do not

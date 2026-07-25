@@ -158,7 +158,9 @@ For every material unknown, state:
 - the minimum evidence needed next.
 
 Also summarize corpus boundaries, excluded/generated/vendor paths, unavailable
-tools or services, and search modalities used.
+tools or services, and search modalities used. Name any modality left unreached
+because delegating it would have exceeded the enforced read-only surface, and
+flag any evidence that was gathered under a delegate's broader grants.
 
 ### 8. Conclusion
 

@@ -15,9 +15,11 @@ and prospective:
 
 - do not edit files, generate artifacts, install dependencies, run tests, start
   services, or apply migrations;
-- use `retrieval-strategy` and, when useful, the read-only
-  `retrieval-strategist` to locate definitions, references, call sites, config,
-  schemas, tests, docs, and operational evidence;
+- use `retrieval-strategy` and, when useful, `retrieval-strategist` to locate
+  definitions, references, call sites, config, schemas, tests, docs, and
+  operational evidence — constraining it to inspection, and noting that a
+  delegate's non-mutating behavior is instructed rather than enforced by its
+  grants;
 - use the existing `verifier` and its confirmed/dubious/refuted/unable-to-check
   taxonomy for factual claims that benefit from an independent pass;
 - when an unknown can only be settled by runtime observation and
