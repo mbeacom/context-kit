@@ -26,7 +26,7 @@ covered at the end so you pick the right one.
 
 - The task splits into independent, token-heavy sub-tasks (multi-file audits,
   broad research sweeps, large log/document review).
-- You want a strong model (Opus, Fable) to plan and synthesize, but the reading
+- You want a strong model (Opus 5, Fable 5) to plan and synthesize, but the reading
   and mechanical edits don't need that tier.
 - The advisor can't help here — a **Fable 5 main runs without any advisor today**
   (see below), you're off the Anthropic API (Bedrock, Google Cloud, Foundry), or your
@@ -46,13 +46,15 @@ progress; self-judged exceptions are allowed."
 ```
 
 Set the main model separately with `/model` (in-session) or `--model` (e.g.
-`--model claude-fable-5`). The two knobs are independent: `--model` / `/model`
-picks the driver, `CLAUDE_CODE_SUBAGENT_MODEL` picks the workers.
+`--model claude-opus-5` or `--model claude-fable-5`). The two knobs are
+independent: `--model` / `/model` picks the driver,
+`CLAUDE_CODE_SUBAGENT_MODEL` picks the workers.
 
 **How the subagent model resolves** (first match wins):
 
 1. `CLAUDE_CODE_SUBAGENT_MODEL` env var (alias — `sonnet` / `opus` / `haiku` /
-   `fable` — or a full model ID).
+   `fable` — or a full model ID). Aliases track **your provider's** recommended
+   version, not necessarily the newest one — see the alias caveat below.
 2. The per-invocation `model` passed when the subagent is spawned.
 3. The subagent definition's `model:` frontmatter.
 4. Otherwise `inherit` (same model as the main conversation). As of v2.1.196,
@@ -60,6 +62,23 @@ picks the driver, `CLAUDE_CODE_SUBAGENT_MODEL` picks the workers.
 
 Subagents also inherit the main conversation's extended-thinking setting
 (v2.1.198+).
+
+**Alias caveat — `sonnet` / `opus` are provider-scoped.** They resolve to the
+recommended version *for your provider*, which is not always the newest one:
+
+| Provider | `opus` | `sonnet` |
+| --- | --- | --- |
+| Anthropic API | Opus 5 | Sonnet 5 |
+| Claude Platform on AWS | Opus 5 | Sonnet 4.6 |
+| Amazon Bedrock, Google Cloud's Agent Platform | Opus 5 | Sonnet 4.5 |
+| Microsoft Foundry | Opus 4.6 | Sonnet 4.5 |
+
+So an alias is the right default on the Anthropic API, but off it — exactly the
+runtimes where delegation is your only option, since the advisor can't reach them —
+`sonnet` can silently mean Sonnet 4.5. To force the current generation anywhere,
+pin the full model name (`claude-opus-5`, `claude-sonnet-5`) or set
+`ANTHROPIC_DEFAULT_OPUS_MODEL` / `ANTHROPIC_DEFAULT_SONNET_MODEL`. Opus 5 needs
+Claude Code v2.1.219+; Sonnet 5 needs v2.1.197+.
 
 **Where to put the delegation instruction** — pick one, don't stack them:
 
@@ -89,10 +108,12 @@ of workers, or a barrier before synthesis; prefer interactive when the shape of
 the work is still unfolding.
 
 For interactive delegation of a *single* scoped unit, hand it to the
-`execution-worker` subagent this plugin ships — a Sonnet-by-default worker (cheaper
-than an Opus/Fable planner, capable enough to edit) that does one task and reports
-back. Override its model with `CLAUDE_CODE_SUBAGENT_MODEL` (for example `haiku` for
-read-only investigation).
+`execution-worker` subagent this plugin ships — a Sonnet-by-default worker (its
+`model: sonnet` frontmatter is cheaper than an Opus 5 / Fable 5 planner, capable
+enough to edit) that does one task and reports back. Override its model with
+`CLAUDE_CODE_SUBAGENT_MODEL` — `haiku` for read-only investigation, or
+`claude-sonnet-5` to guarantee Sonnet 5 on a provider whose `sonnet` alias still
+points at 4.x.
 
 > Deferred by design: if a workload ever needs a *guaranteed* read-only lane — e.g.
 > many workers on a shared tree — a dedicated `investigation-worker` (tools:
@@ -110,10 +131,15 @@ correction, then keeps executing. It is the inverse of delegation — the strong
 model advises rather than leads. What to know before picking it:
 
 - **Capability pairing.** The advisor must be **at least as capable as** the main
-  (executor) model — a weak main + strong advisor is the point. An Opus 4.8 main
-  accepts Fable, Opus 4.7, or Opus 4.8; a Sonnet 5 or Opus 4.6 advisor is rejected.
-  An equal-tier advisor (e.g. Opus main + Opus advisor) is **not** a no-op — it's a
-  legitimate independent second read, just not a *stronger* opinion.
+  (executor) model — a weak main + strong advisor is the point. An Opus 5 main
+  accepts Fable or any Opus 4.7-or-later advisor (Opus 5 included); a Sonnet 5 or
+  Opus 4.6 advisor is rejected. A Sonnet 5 main accepts Fable, Opus, or Sonnet 5 —
+  a Sonnet 4.6 advisor is rejected. The advisor is Anthropic-API-only, so there the
+  `opus` / `sonnet` aliases do resolve to Opus 5 / Sonnet 5 (unlike the
+  provider-scoped delegation case above); pass a full ID like `claude-opus-5` only
+  when you need to pin a version. An equal-tier advisor (e.g. Opus 5 main + Opus 5
+  advisor) is **not** a no-op — it's a legitimate independent second read, just not
+  a *stronger* opinion.
 - **Fable 5 as the advisor is turned off right now** — a deliberate,
   remotely-controlled rollout, not a billing gate. As of Claude Code v2.1.210+ the
   [advisor doc](https://code.claude.com/docs/en/advisor) says so: the `/advisor`
@@ -122,8 +148,8 @@ model advises rather than leads. What to know before picking it:
   [#76199](https://github.com/anthropics/claude-code/issues/76199) — `advisorModel:
   fable` plus *any* prior `tool_use` in the transcript deterministically returns
   `unavailable` (the executor model is irrelevant, an Opus advisor is immune, and it
-  is not a context-size issue). **Use `/advisor opus` instead** — Opus 4.7/4.8 as the
-  advisor works today.
+  is not a context-size issue). **Use `/advisor opus` instead** — the alias resolves
+  to Opus 5, which works as the advisor today.
 - **A Fable 5 main session has no advisor at all.** A Fable main accepts only a
   Fable advisor, and Fable isn't offered, so a Fable 5 session runs advisor-less
   until the rollout returns it. That gap is exactly what delegation (this skill)
@@ -140,8 +166,8 @@ Hardening notes (these bite CI and gateway users):
   `--advisor` is accepted but inert — existing scripts won't error. Clean when you want
   delegation to be the only orchestration in play.
 - **Subagents inherit the advisor** and re-check the pairing against their *own* model,
-  so a Sonnet subagent under an Opus main can still consult the advisor even where the
-  parent pairing couldn't — useful when you combine delegation with an advisor.
+  so a Sonnet 5 subagent under an Opus 5 main can still consult the advisor even where
+  the parent pairing couldn't — useful when you combine delegation with an advisor.
 
 Rule of thumb: **cheap main that occasionally needs a smart second opinion →
 advisor. Strong main that should offload volume → delegation** (this skill).
