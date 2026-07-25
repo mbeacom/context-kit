@@ -57,11 +57,18 @@ Each claim gets one of four verdicts, with evidence:
 | **refuted** | Primary evidence contradicts the claim. |
 | **unable-to-check** | Read-only inspection cannot settle it. States what would. |
 
-Evidence is a repository `path:line`. The one exception is a claim reassessed
-from an observation the caller supplied — normally a
-[`runtime-evidence`](runtime-evidence.md) collection — which cites the exact
-command ID plus its report artifact instead. `verify` owns both forms, so
-dependents inherit them rather than inventing their own.
+`verify` owns the evidence slot as well as the taxonomy, and defines exactly
+three forms so dependents inherit them rather than inventing their own:
+
+| Form | When | Example |
+| --- | --- | --- |
+| **Repository** | any verdict settled by static inspection | `evidence (src/a.ts:12)` |
+| **Observation** | a claim reassessed from a caller-supplied [`runtime-evidence`](runtime-evidence.md) report, including an inconclusive one | `evidence (command-id=api-health; report=…/run-4213.json)` |
+| **None** | `dubious` or `unable-to-check` with no report to cite | `evidence (none)` |
+
+One verdict cites one form. On reassessment the observation citation replaces
+the evidence slot rather than joining it, and any static context moves to the
+note.
 
 ### Escalating an unresolved runtime claim
 

@@ -18,8 +18,8 @@ and prospective:
 - use `retrieval-strategy` and, when useful, `retrieval-strategist` to locate
   definitions, references, call sites, config, schemas, tests, docs, and
   operational evidence — constraining it to inspection, and noting that a
-  delegate's non-mutating behavior is instructed rather than enforced by its
-  grants;
+  delegate's non-mutating behavior is something it follows, not something its
+  grants impose;
 - use the existing `verifier` and its confirmed/dubious/refuted/unable-to-check
   taxonomy for factual claims that benefit from an independent pass;
 - when an unknown can only be settled by runtime observation and
