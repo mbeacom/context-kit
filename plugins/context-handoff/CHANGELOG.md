@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2 — 2026-07-25
+
+- Record the `evidence (none)` case for an observation attempt that retained
+  nothing citable, matching `verify` 0.3.1. The handoff contract previously
+  implied every attempted collection could cite an observation source, leaving
+  a no-artifact attempt with no valid form.
+
 ## 0.2.1 — 2026-07-25
 
 - Align the verified-fact evidence slot with the forms `verify` now defines,

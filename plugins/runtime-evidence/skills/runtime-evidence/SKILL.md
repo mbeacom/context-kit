@@ -1,8 +1,8 @@
 ---
 name: runtime-evidence
-description: "Use when a runtime claim remains unable-to-check after static verification and a reviewed command ID can collect bounded dynamic evidence."
+description: "Use when a runtime claim is unable-to-check statically and needs a dynamic observation: a bounded reviewed command ID, or an approved browser observation."
 license: MIT
-compatibility: "Requires Python 3 on a POSIX platform. Windows is refused before execution because bounded non-blocking pipe capture is unavailable."
+compatibility: "The bundled runner requires Python 3 on a POSIX platform and refuses Windows before execution. The optional-tool path ships no runner and has no such requirement; it needs an approved, host-exposed observation tool."
 metadata:
   author: Mark Beacom
   version: "0.1.0"
@@ -17,7 +17,10 @@ produce a controlled observation package that lets the verifier confirm, refute,
 qualify, or retain that verdict.
 
 Run the deterministic wrapper only on POSIX platforms. On Windows it returns a
-structured refusal before reading the allowlist or spawning a command.
+structured refusal before reading the allowlist or spawning a command. That
+constraint belongs to the runner, not the plugin: the optional-tool path ships
+no runner and depends only on an approved, host-exposed tool, so it remains
+available where the wrapper is not.
 
 Treat execution as an escalation, not a default search technique. Prefer code,
 config, tests, and other static primary evidence when those sources settle the
@@ -27,25 +30,42 @@ claim.
 
 1. State one atomic runtime claim and preserve the static verification result
    that explains why execution is necessary.
-2. Identify the environment whose behavior matters. Record a concise label and
-   the explicit absolute working directory.
-3. Inspect the user-owned allowlist config. Select an exact existing command ID
-   whose reviewed argv reproduces the claim.
-4. When no reviewed command ID matches, do not proceed down the runner path.
-   Never invent an ID, alter argv in memory, edit the config, or substitute
-   direct shell execution. Take the approved optional-tool path only when every
-   condition in `references/optional-tools.md` holds — the claim requires that
-   observation modality, the user approved the interaction and target
-   environment, and the host exposes the tool. Otherwise stop and report the
-   missing reviewed capability.
-5. On the runner path, invoke `scripts/run-evidence-command.py` with the config,
-   command ID, claim, environment label, cwd, artifact directory, and unique run
-   ID.
+2. Identify the environment whose behavior matters. Record a concise label, and
+   the explicit absolute working directory when a command will run.
+3. Inspect the user-owned allowlist config when one is available, and select an
+   exact existing command ID whose reviewed argv reproduces the claim.
+4. When a reviewed command ID matches, take the runner path (steps 5-6). When
+   no config exists or none of its IDs matches, never invent an ID, alter argv
+   in memory, edit the config, or substitute direct shell execution — either
+   take the optional-tool path (step 7) or stop and report the missing reviewed
+   capability.
+5. Invoke `scripts/run-evidence-command.py` with the config, command ID, claim,
+   environment label, cwd, artifact directory, and unique run ID.
 6. Preserve the runner's exit status and JSON report. Treat timeout, output-limit
    termination, spawn failure, and child nonzero exit as observations rather
    than smoothing them into success.
-7. Return the report to `verify` for the verdict. Do not create a parallel verdict
+7. Take the optional-tool path only when every condition in
+   `references/optional-tools.md` holds. Run it in the main agent, never in the
+   `runtime-investigator` subagent: a subagent carries a fixed tool grant, so a
+   browser, debugger, or container tool the host exposes is not reachable
+   inside it. Record the optional-tool field set in the output contract below.
+8. Return the report to `verify` for the verdict. Do not create a parallel verdict
    taxonomy or a bespoke Plan -> Execute -> Verify -> Synthesize workflow.
+
+## Two collection paths
+
+| | Runner path | Optional-tool path |
+| --- | --- | --- |
+| When | a reviewed command ID reproduces the claim | no reviewed command can represent it |
+| Runs in | `runtime-investigator` subagent | the main agent |
+| Bounded by | the runner: allowlist, timeout, and output cap | operator approval plus host policy; nothing the plugin enforces |
+| Observation source | `command-id=<allowlist key>` | `tool=<approved tool>@<target>` |
+| Artifacts | runner-written report, stdout, stderr | at least one durable artifact, or the claim stays `unable-to-check` |
+
+This plugin ships a runner for the first path only. It supplies no collection
+mechanism for the second — just the approval conditions and the recording
+contract. If the host exposes no suitable tool, that path is unavailable and the
+claim stays unsettled.
 
 ## Sanctioned execution path
 
@@ -92,30 +112,50 @@ metadata is available, and requires explicit locations instead of guessing.
 Use a browser, debugger, container inspector, or host-specific runtime tool only
 when the user has approved that observation path and the host exposes the tool.
 This is the sanctioned branch when no reviewed command ID can represent the
-claim; it produces the same evidence fields with `tool=<approved tool>@<target>`
-as the observation source. When it is unavailable, report the missing capability
-and leave the claim unsettled. Do not replace it with a newly invented command.
+claim, and it runs in the main agent — see the path table above. It records the
+optional-tool field set with `tool=<approved tool>@<target>` as the observation
+source. When no suitable tool is exposed, report the missing capability and
+leave the claim unsettled. Do not replace it with a newly invented command, and
+do not route it to the `runtime-investigator` subagent, whose fixed tool grant
+cannot reach a host-exposed observation tool.
 
 ## Output contract
 
-Return these fields for every attempted collection:
+Return every field below for every attempted collection. Each field states its
+own runner-path and optional-tool-path definition where they differ; use the
+definition for the path you took rather than assuming the other path's values
+apply.
 
 - **Claim** — the atomic runtime statement under test.
-- **Reproduction command ID** — the exact allowlist key; never a reconstructed
-  command string. For an approved optional-tool observation, report
-  `Observation source: tool=<approved tool>@<target>` in its place and keep
-  every other field.
-- **Environment** — label, cwd, platform, and interpreter metadata from the
-  runner report.
-- **Observations** — exit code, termination reason, bounded stdout/stderr
-  excerpts, byte counts, and truncation flags.
-- **Artifact/output pointers** — report, stdout, stderr, and config digest/path.
+- **Observation source** — `command-id=<exact allowlist key>` on the runner
+  path, never a reconstructed command string; `tool=<approved tool>@<target>` on
+  the optional-tool path.
+- **Environment** — runner path: label, cwd, platform, and interpreter metadata
+  from the runner report. Optional-tool path: label plus the target identity the
+  tool actually observed — URL/origin, container or process, device/viewport
+  assumptions, and build or deploy identifier when known.
+- **Observations** — runner path: exit code, termination reason, bounded
+  stdout/stderr excerpts, byte counts, and truncation flags. Optional-tool path:
+  the user-visible or instrument-visible state observed, plus console, network,
+  or log findings when relevant. State the observation window and write
+  `not-applicable` for process-exit fields rather than inventing an exit code.
+- **Artifact/output pointers** — runner path: report, stdout, stderr, and config
+  digest/path. Optional-tool path: at least one durable artifact the tool
+  produced (screenshot, trace, HAR, recording, log export). Capture one before
+  ending the interaction; an observation nobody else can inspect is not
+  evidence, and `verify`'s observation form requires a pointer. When nothing
+  durable was retained, report the observation as `not-collected` and leave the
+  claim `unable-to-check` with `evidence (none)`, naming the attempted source
+  and the artifact that would need to be captured.
+  There is no config digest on this path; write `not-applicable`.
 - **Verdict-ready evidence** — concise facts suitable for the `verify` verdict
   taxonomy without assigning a new taxonomy here.
 - **Limitations** — side-effect uncertainty, missing tools, environment gaps,
-  output truncation, timeout, or other constraints.
-- **Cleanup status** — whether no cleanup was needed or the process group was
-  terminated; never imply command side effects were reversed.
+  output truncation, timeout, or other constraints. On the optional-tool path,
+  state that no allowlist bounded the interaction and name what was not observed.
+- **Cleanup status** — runner path: whether no cleanup was needed or the process
+  group was terminated. Optional-tool path: session, tab, container, or fixture
+  state left behind. Never imply side effects were reversed on either path.
 
 Read `references/evidence-report.md` before formatting a handoff.
 

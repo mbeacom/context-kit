@@ -29,7 +29,7 @@ canonical component pages. Host-specific installation remains in
 | Skills and agents | Installed plugin content plus the current host | Can recommend tool calls or delegate work | Host permissions and operator review still govern actual execution |
 | Third-party CLIs | Executable resolved by the host environment | May read files, write files, use credentials, or access networks | Plugin installation does not audit or sandbox the executable |
 | `local-rag` | Chosen corpus, data directory, embedding model, and Ollama endpoint | Stores chunks, metadata, and vectors; sends text to the configured endpoint | "Local" assumes a trusted local endpoint; a configured remote host receives corpus chunks and queries |
-| `runtime-evidence` | User-owned allowlist mapping an exact ID to literal argv | Executes one selected process and writes bounded artifacts | Exact selection is not proof that the executable is safe or side-effect-free |
+| `runtime-evidence` | User-owned allowlist mapping an exact ID to literal argv, or a user-approved optional tool when no command fits | Executes one selected process and writes bounded artifacts, or performs an approved browser/debugger observation the plugin does not bound | Exact selection is not proof that the executable is safe or side-effect-free; the optional-tool path is bounded by operator approval plus host policy, with nothing enforced by the plugin |
 | `context-handoff` | Current repository identity and a validated artifact | Writes bounded task state with repository provenance | Saved claims must be rejected or reverified when identity or freshness anchors differ |
 | `memory` | Explicit project scope, reviewed records, and optional provider | Persists evidence-backed records and may forward opted-in Claude hook payloads | Recall is a lead, not current truth; provider behavior and retention remain separate |
 | APM | Project manifest, lockfile, policy, and deployed files | Resolves, deploys, hashes, and audits packages | Integrity and policy checks do not prove semantic safety or runtime harmlessness |
@@ -77,6 +77,37 @@ Review those effects before adding an ID. Keep the config outside the installed
 plugin, limit who can write it, and treat artifacts under
 `${CONTEXT_KIT_DATA}/runtime-evidence` as potentially sensitive command output.
 Host-level command policy is independent.
+
+### The optional-tool path has weaker bounds
+
+The allowlisted runner is not the plugin's only collection path. When no
+reviewed command can represent a claim, an **approved optional-tool
+observation** — browser, debugger, container inspector, or host-specific tool —
+may be used instead. Understand how it differs before approving one:
+
+| | Allowlisted runner | Optional tool |
+| --- | --- | --- |
+| What is pre-reviewed | exact argv, by ID | the interaction and target, by the user at approval time |
+| Bounded by | the runner: timeout, per-stream output cap, no shell | operator approval plus host policy; nothing the plugin enforces |
+| Runs in | `runtime-investigator`, instructed to invoke only the runner | the main agent, using host-exposed tooling |
+| Artifacts | written by the runner, digest-anchored | at least one durable artifact the tool retained; a no-artifact attempt is not citable and leaves the claim `unable-to-check` |
+
+The enforcing boundary on the first path is `run-evidence-command.py`, not the
+subagent that calls it. `runtime-investigator` declares `Bash`, so its
+command-only behavior is an instruction it follows, not a restriction its grant
+imposes — host command policy governs that grant, as it does everywhere else in
+this catalog.
+
+This plugin ships **no collection mechanism** for the second path — only the
+approval conditions and a recording contract. Enforcement is entirely the
+host's and the operator's.
+
+Treat it as the more consequential approval. A browser can mutate application
+state through navigation, form submission, cookies, storage, and API calls, and
+a debugger or container inspector can reach process memory, secrets, and live
+data. Approve a specific interaction against a specific target, prefer
+non-production environments, and expect no automatic cleanup: the plugin
+records what was left behind rather than reversing it.
 
 ## Handoffs: provenance before authority
 

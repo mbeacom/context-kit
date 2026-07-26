@@ -59,7 +59,9 @@ both; do not widen them here.
 ```
 
 The observation source is `command-id=<allowlist key>` or
-`tool=<approved tool>@<target>`, per `verify`'s evidence forms.
+`tool=<approved tool>@<target>`, per `verify`'s evidence forms. An attempt that
+retained no citable artifact uses `evidence (none)` and names the attempted
+source in the caveat.
 
 Use the observation form only for a fact whose result was actually observed, such
 as a recorded `runtime-evidence` collection. A statically verified fact keeps its

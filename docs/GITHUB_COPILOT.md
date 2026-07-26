@@ -113,8 +113,12 @@ skills expect:
 - Required for `runtime-evidence` and `context-handoff`: Python 3. Their runner
   and validator use only the standard library. The runtime runner requires POSIX
   and refuses Windows before execution; the handoff validator is cross-platform.
+  Runtime evidence's optional-tool path ships no runner, so it needs neither
+  Python nor POSIX — only an approved, host-exposed observation tool.
   Copilot does not provide universal host-level command enforcement; runtime
-  collection remains bound to the plugin's reviewed exact-ID allowlist.
+  collection on the runner path remains bound to the plugin's reviewed exact-ID
+  allowlist, while the optional-tool path is bound by operator approval plus
+  host policy, with nothing enforced by the plugin.
 - Optional for `obsidian-rag-bridge`: the official `obsidian` CLI with Obsidian
   running; otherwise use the `rg`/`fd` fallback over vault files.
 - Required for local `memory` records: Python 3. Optional provider recall uses a

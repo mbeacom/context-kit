@@ -48,7 +48,7 @@ the source and current repository evidence pin the claim.
 | `plan-execute`   | shipped  | Plan-big/execute-small orchestration: planner + cheap `execution-worker` |
 | `context-steering` | shipped | Skill-only: place guidance at the cheapest layer (memory/rules/skills/subagents/mcp/hooks) |
 | `verify`         | shipped  | Read-only claim verdicts + prospective change-impact analysis |
-| `runtime-evidence` | shipped | Exact-ID allowlisted runtime evidence after static verification cannot settle a claim |
+| `runtime-evidence` | shipped | Allowlisted-ID (or approved optional-tool) runtime evidence after static verification cannot settle a claim |
 | `context-handoff` | shipped | Manual bounded write/resume handoffs with provenance and freshness validation |
 | `memory`         | shipped  | Reviewed durable records + optional project-isolated MemPalace provider |
 | `plugin-forge`   | shipped  | Portable-plugin scaffold, validators, and deterministic catalog-quality gate |
@@ -111,7 +111,9 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
   when the compact result is insufficient.
 - **Verify then observe** — repository evidence produces a verdict; only an
   unresolved runtime claim can escalate through `runtime-evidence`'s exact-ID
-  allowlisted runner, and its bounded artifacts return to `verify`.
+  allowlisted runner, or its approved optional-tool path when no reviewed
+  command can represent the claim, and the recorded observations return to
+  `verify`.
 - **Verify then hand off** — `context-handoff` compiles bounded task state with
   repository provenance; resume rejects identity mismatches and reverifies stale
   claims before acting.

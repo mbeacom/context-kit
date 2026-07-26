@@ -2,13 +2,17 @@
 
 !!! abstract "Controlled runtime evidence"
     Escalate an `unable-to-check` runtime claim only after static verification
-    cannot settle it. Run one exact, pre-reviewed command ID and return bounded
-    artifacts to `verify` for the verdict.
+    cannot settle it. Run one exact, pre-reviewed command ID for bounded
+    artifacts — or an approved optional-tool observation when no reviewed
+    command can represent the claim — and return the evidence record to `verify`
+    for the verdict.
 
 `runtime-evidence` depends on [`verify`](verify.md), which transitively pulls the
-[`retrieval-core`](retrieval-core.md) spine. Python 3 is required; the runner uses
-only the standard library and requires a POSIX platform. Windows is refused
-before config access or process creation.
+[`retrieval-core`](retrieval-core.md) spine. Prerequisites differ by path: the
+bundled runner needs Python 3 (standard library only) on a POSIX platform and
+refuses Windows before config access or process creation, while the
+optional-tool path ships no runner and needs only an approved, host-exposed
+observation tool.
 
 ## Install
 
@@ -37,10 +41,26 @@ before config access or process creation.
 
 | Component | What it is |
 | --- | --- |
-| **`runtime-evidence`** skill | Static-verification escalation workflow for one unresolved runtime claim. |
-| **`runtime-investigator`** subagent | Selects an existing reviewed command ID and returns verdict-ready evidence. |
+| **`runtime-evidence`** skill | Static-verification escalation workflow for one unresolved runtime claim, covering both collection paths. |
+| **`runtime-investigator`** subagent | Selects an existing reviewed command ID and returns verdict-ready evidence. Command-only. |
 | **`/collect-runtime-evidence`** command | Starts a focused collection only after a static `unable-to-check` result. |
 | **`run-evidence-command.py`** | Standard-library Python runner for exact allowlisted argv and bounded artifacts. |
+
+## Two collection paths
+
+| | Runner path | Optional-tool path |
+| --- | --- | --- |
+| When | a reviewed command ID reproduces the claim | no reviewed command can represent it |
+| Runs in | the `runtime-investigator` subagent | the main agent |
+| Bounded by | the allowlist, timeout, and output cap | operator approval plus host policy; nothing the plugin enforces — see [security](../security.md) |
+| Observation source | `command-id=<allowlist key>` | `tool=<approved tool>@<target>` |
+| Artifacts | runner-written report, stdout, stderr | at least one durable artifact, or the claim stays `unable-to-check` |
+
+The plugin ships a runner for the first path only. For the second it supplies
+approval conditions and a recording contract, not a mechanism: a subagent's tool
+grant is fixed, so a host-exposed browser or debugger is reachable only from the
+main agent. If the host exposes no suitable tool, that path is unavailable and
+the claim stays unsettled.
 
 ## Exact-ID allowlist boundary
 

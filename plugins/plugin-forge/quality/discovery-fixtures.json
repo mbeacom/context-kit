@@ -144,7 +144,8 @@
     "plugins/runtime-evidence/skills/runtime-evidence/SKILL.md": {
       "positive": [
         "Static verification cannot settle this runtime claim; collect controlled dynamic evidence.",
-        "Use a pre-reviewed command ID to capture verdict-ready runtime observations."
+        "Use a pre-reviewed command ID to capture verdict-ready runtime observations.",
+        "No allowlisted command fits, so observe this claim in an approved browser session."
       ],
       "negative": [
         "Run an unrestricted debugging command that is not in an allowlist.",

@@ -2,8 +2,8 @@
 # Keep name/version in sync with .claude-plugin/plugin.json; description is a
 # concise APM/CLI listing variant.
 name: runtime-evidence
-version: 0.1.1
-description: Controlled runtime evidence collection through a user-owned command allowlist.
+version: 0.1.2
+description: Controlled runtime evidence via a user-owned command allowlist or an approved browser observation.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit

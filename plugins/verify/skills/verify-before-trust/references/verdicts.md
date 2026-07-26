@@ -30,11 +30,17 @@ of these three forms; do not invent another.
 
   Use it only when the caller supplied an observed result. Keep the exact source
   identity rather than a reconstructed command line, and never rewrite an
-  observation as a `path:line`.
+  observation as a `path:line`. An observation with no artifact pointer is not
+  citable here — it stays `unable-to-check`, naming what would need to be
+  captured.
 - **No evidence** — `evidence (none)`. Allowed only for `dubious` and
-  `unable-to-check`. An `unable-to-check` verdict that follows an inconclusive
-  collection should cite the observation form instead, so the failed attempt is
-  recorded rather than blindly repeated.
+  `unable-to-check`, in two cases: no observation was attempted, or one was
+  attempted and retained nothing citable. An `unable-to-check` verdict following
+  an inconclusive collection that *did* retain an artifact must cite the
+  observation form instead, so the failed attempt is recorded rather than
+  blindly repeated. When nothing was retained, name the attempted source and the
+  missing artifact in the note — `evidence (none)` records that citable evidence
+  is absent, not that the attempt never happened.
 
 One verdict cites one form. On reassessment the observation citation *replaces*
 the evidence slot rather than joining it — keep any static context that still
@@ -83,8 +89,9 @@ disclaimer. When the claim concerns runtime behavior and the `runtime-evidence`
 plugin is installed, the named check can be escalated with
 `/collect-runtime-evidence`, passing this claim and this `unable-to-check`
 result as the reason it is necessary. Escalation is optional and never
-automatic: it needs a reviewed allowlist command ID, and verification itself
-stays read-only.
+automatic: it needs either a reviewed allowlist command ID or, when none can
+represent the claim, an approved optional-tool observation — and verification
+itself stays read-only.
 
 ## Revisiting a verdict after observation
 
@@ -95,12 +102,13 @@ same atomic claim, replace the verdict instead of emitting a second one:
 2. Read the reported observations, limitations, and cleanup status. Treat exit
    `0` as evidence that the process completed, not as automatic confirmation of
    the claim.
-3. Assign the new verdict from the same four values and cite the observation
-   evidence form.
+3. Assign the new verdict from the same four values. Cite the observation
+   evidence form when the report retained a citable artifact; otherwise use
+   `evidence (none)` and name the attempted source in the note.
 4. Keep `unable-to-check` when the run timed out, hit an output cap, failed to
    spawn, or observed something the claim does not depend on. Name the
-   limitation that blocked it, and still cite the observation form — an
-   inconclusive attempt is provenance worth carrying forward.
+   limitation that blocked it, and cite the observation form when an artifact
+   was retained — an inconclusive attempt is provenance worth carrying forward.
 
 ```text
 unable-to-check — "The health endpoint reports degraded when the cache is down." — evidence (none) — requires running the service; no static assertion covers it.

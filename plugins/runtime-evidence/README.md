@@ -3,7 +3,10 @@
 Controlled dynamic evidence collection for claims that static repository
 verification cannot settle. The plugin turns a pre-reviewed command ID into
 bounded stdout/stderr artifacts and a structured evidence record that can be
-handed back to `verify` for a verdict.
+handed back to `verify` for a verdict. When no reviewed command can represent
+the claim, an approved optional-tool observation records the same evidence
+categories using that path's own field definitions — observed state instead of
+process exit data, and no config digest.
 
 ## Install
 
@@ -30,14 +33,16 @@ Claude Code:
 
 The plugin depends on `verify`; `verify` already pulls the `retrieval-core`
 spine. The runner requires Python 3 on a POSIX platform. Windows receives a
-structured refusal before the allowlist is read or a command is spawned.
+structured refusal before the allowlist is read or a command is spawned. The
+optional-tool path ships no runner, so it has neither requirement — it needs
+only an approved, host-exposed observation tool.
 
 ## Components
 
 | Component | Purpose |
 | --- | --- |
-| **`runtime-evidence`** skill | Escalates an `unable-to-check` runtime claim to a controlled observation, then returns the evidence to `verify`. |
-| **`runtime-investigator`** agent | Selects an existing reviewed command ID, invokes only the sanctioned runner, and reports verdict-ready evidence. |
+| **`runtime-evidence`** skill | Escalates an `unable-to-check` runtime claim to a controlled observation on either collection path, then returns the evidence to `verify`. |
+| **`runtime-investigator`** agent | Selects an existing reviewed command ID, invokes only the sanctioned runner, and reports verdict-ready evidence. Command-only; it cannot reach host-exposed observation tools. |
 | **`/collect-runtime-evidence`** command | Starts a focused runtime investigation for one claim. |
 | **`run-evidence-command.py`** script | Executes exact argv from a strict user-owned JSON allowlist without a shell, with required cwd and bounded runtime/output. |
 
@@ -89,8 +94,12 @@ be broader or narrower than this wrapper. Review the config and command
 implementation before use.
 
 The runner never silently substitutes another command, cwd, config, or evidence
-path. Browser and other host runtime tools are optional; unavailable tooling is
-reported as a limitation rather than replaced with an unreviewed shell command.
+path. When no reviewed command can represent the claim, the approved
+optional-tool path runs in the main agent — a browser, debugger, or container
+observation the user has approved for a specific target. That path is bounded by
+operator approval plus host policy, with nothing enforced by this plugin, so
+treat it as the more consequential decision; unavailable tooling is reported as
+a limitation rather than replaced with an unreviewed shell command.
 
 See `skills/runtime-evidence/references/runner-contract.md` for the complete
 config and exit-code contract.

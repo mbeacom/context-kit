@@ -85,8 +85,10 @@ Modalities are layers, not rivals. The strategist sequences them:
 - **Retrieve then expand** — follow only bounded cue, neighbor, or source links
   when the compact result is insufficient.
 - **Verify then observe** — static verification escalates only an
-  `unable-to-check` runtime claim to an approved exact command ID, then consumes
-  the bounded evidence.
+  `unable-to-check` runtime claim, to an approved exact command ID bounded by
+  the runner, or to an approved optional-tool observation bounded by operator
+  approval plus host policy when no reviewed command can represent the claim,
+  then consumes the recorded observations.
 - **Verify then hand off** — verified repository facts become bounded resumable
   task state with provenance and freshness.
 

@@ -54,7 +54,8 @@ Semantic, graph, and durable recall are available as the **local-rag**,
   its bounded cue, neighbor, or source links when more context is required.
 - **Verify then observe:** `verify-before-trust` first → only an
   `unable-to-check` runtime claim escalates through `runtime-evidence`'s exact-ID
-  allowlisted runner → return bounded observations for a final verdict.
+  allowlisted runner, or its approved optional-tool path when no reviewed command
+  can represent the claim → return the recorded observations for a final verdict.
 - **Verify then hand off:** `verify-before-trust` establishes provenance-backed
   facts → compile only the proven task state into a `context-handoff` artifact.
 

@@ -29,8 +29,14 @@ summaries.
 
 For an approved optional-tool observation, where no reviewed command can
 represent the claim, substitute a stable tool identity for the command ID —
-`Observation source: tool=<approved tool>@<target>` — and keep every other field
-unchanged. `references/optional-tools.md` governs when that path is allowed.
+`Observation source: tool=<approved tool>@<target>` — and use that path's field
+set from the skill's output contract: observed state instead of process exit
+data, at least one durable artifact the tool retained, and `not-applicable` for
+the config digest. Without a durable pointer the observation is not citable
+under `verify`'s evidence forms, so the claim stays `unable-to-check` naming the
+artifact that would need capturing. `references/optional-tools.md` governs when
+that path is allowed, and it runs in the main agent rather than the
+`runtime-investigator` subagent.
 
 ## Interpretation
 

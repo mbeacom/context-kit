@@ -70,7 +70,7 @@
     "runtime-evidence": {
       "kind": "non-retrieval",
       "plugin": "runtime-evidence",
-      "tools": ["run-evidence-command.py"]
+      "tools": ["run-evidence-command.py", "approved optional tool"]
     }
   },
   "compositions": {
@@ -365,6 +365,24 @@
       ]
     },
     {
+      "id": "runtime-evidence-approved-optional-tool",
+      "query": "No allowlisted command can reproduce this rendering claim; observe it in the approved browser session instead.",
+      "corpus_cues": ["verdict is unable-to-check", "no reviewed command ID fits the claim", "user approved a browser observation"],
+      "expected": {
+        "route": "runtime-evidence",
+        "plugins": ["runtime-evidence"],
+        "tools": ["approved optional tool"]
+      },
+      "rationale": "The optional-tool path exists precisely for claims no reviewed command can represent, and it runs in the main agent because a subagent tool grant cannot reach host-exposed tooling.",
+      "near_misses": [
+        {
+          "query": "Check whether the component's snapshot test already asserts this rendering behavior.",
+          "expected_route": "verify-before-trust",
+          "reason": "A committed test settles the claim statically, so no observation path is justified."
+        }
+      ]
+    },
+    {
       "id": "hybrid-rerank-bounded-candidates",
       "query": "Find files mentioning retry, then semantically rerank only those candidates for backoff intent.",
       "corpus_cues": ["exact narrowing term", "semantic ranking needed inside the candidate set"],
@@ -607,6 +625,32 @@
           "query": "Check whether the cache flag exists in the current config file.",
           "expected_route": "verify-before-trust",
           "reason": "Static repository evidence is sufficient, so no observation step is justified."
+        }
+      ]
+    },
+    {
+      "id": "verify-then-observe-optional-tool",
+      "query": "Verify the hydration claim statically, then observe it in the approved browser since no allowlisted command covers rendering, and return it for a final verdict.",
+      "corpus_cues": ["rendering behavior claim", "static verdict may be unable-to-check", "no reviewed command represents the claim"],
+      "expected": {
+        "route": "verify-before-trust",
+        "plugins": ["verify", "runtime-evidence"],
+        "tools": ["verify-before-trust", "approved optional tool"],
+        "composition": {
+          "name": "verify-then-observe",
+          "steps": [
+            "verify-before-trust",
+            "runtime-evidence",
+            "verify-before-trust"
+          ]
+        }
+      },
+      "rationale": "The escalation shape is unchanged when no reviewed command fits; only the collection mechanism and its bounds differ, and the verdict still returns to verification.",
+      "near_misses": [
+        {
+          "query": "Read the hydration warning suppression list committed in the app config.",
+          "expected_route": "structured-data",
+          "reason": "A committed config file is inspected directly rather than observed at runtime."
         }
       ]
     },

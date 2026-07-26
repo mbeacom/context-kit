@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.1 — 2026-07-25
+
+- Extend the shipped quality corpus for `runtime-evidence`'s second collection
+  path. The `runtime-evidence` route now declares both tools, a new
+  `runtime-evidence-approved-optional-tool` scenario covers the case where no
+  reviewed command can represent the claim (with a static near miss), a
+  `verify-then-observe-optional-tool` scenario covers the same composition
+  reached through that path, and the skill gains a positive discovery fixture
+  for an approved browser observation.
+
 ## 0.5.0 — 2026-07-19
 
 - Add a schema-v1 retrieval contract corpus covering all documented modalities,
