@@ -4,7 +4,7 @@ description: "Use when deciding HOW to find information — choosing or composin
 license: MIT
 metadata:
   author: Mark Beacom
-  version: "0.4.0"
+  version: "0.5.0"
 allowed-tools: Read Glob Grep Bash
 ---
 
@@ -35,6 +35,9 @@ ships automatically with `code-search`.
   then open and verify the source).
 - Resuming the current task and its next action? → **handoff**, not durable memory
   (`context-handoff`: validate provenance and freshness first).
+- Need *every* unit accounted for rather than the relevant ones surfaced — and
+  someone will act on what was **not** found? → **exhaustive review**, not
+  retrieval (`corpus-review`: inventory, bounded shards, coverage ledger).
 
 Lexical/structural/code-intelligence/structured-data/history/metrics/docs live in **code-search**.
 Semantic, graph, and durable recall are available as the **local-rag**,
@@ -69,8 +72,9 @@ Semantic, graph, and durable recall are available as the **local-rag**,
    labels and freshness; current repository/runtime evidence wins conflicts.
 5. If a needed plugin (`local-rag`, `obsidian`, `memory`) isn't installed, say so and
    suggest installing it — don't assume its tools exist.
-6. Verification, runtime evidence, and handoff are separate plugins too. Recommend
-   those routes when warranted, but do not fabricate unavailable agents or commands.
+6. Verification, runtime evidence, handoff, and exhaustive corpus review are
+   separate plugins too. Recommend those routes when warranted, but do not
+   fabricate unavailable agents or commands.
 7. If `rtk` is installed, prefix the rtk-wrapped commands (`rg`/`git`/`find`/
    `diff`) for compact output — it passes other tools through unchanged. (See
    the `code-search` plugin's rtk reference.)

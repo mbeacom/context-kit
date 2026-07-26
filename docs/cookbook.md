@@ -184,6 +184,34 @@ whose task explicitly allows writes or execution.
 **Done means:** every subtask has an owner and result, verification gaps are
 visible, and the final synthesis is based on checked findings.
 
+## Review everything, then report the denominator
+
+**Use when:** the deliverable is coverage — someone will act on what was *not*
+found — and the corpus is too large to read in one context.
+
+**Plugin:** [`corpus-review`](plugins/corpus-review.md).
+
+1. State the review question, scope rules, finding taxonomy, and any expected
+   inventory before enumerating anything. Without a question this is retrieval.
+2. Build the inventory and shard plan into a work directory outside the corpus.
+3. Run one shard end to end and read its findings before dispatching the rest;
+   a taxonomy problem found on shard 1 is cheap.
+4. Dispatch the remaining shards to `corpus-reviewer` workers in parallel, each
+   with a self-contained brief and its own unit list.
+5. Aggregate. A nonzero exit means units are still unaccounted for — re-dispatch
+   rather than reporting the run as finished.
+
+```text
+/review-corpus ./records
+```
+
+Report findings and the ledger together. "41 findings" reads as exhaustive
+unless it is stated as "41 findings across 601 of 631 in-scope units."
+
+**Done means:** every unit has a disposition, coverage is stated by unit and by
+byte, and no expected item is called missing while an uninspectable, failed, or
+pending unit could still contain it.
+
 ## Choose the next guide
 
 - Installation or first-run failure:

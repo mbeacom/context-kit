@@ -1,0 +1,26 @@
+# Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
+# Lets APM users install this plugin alongside the Claude Code / GitHub Copilot
+# flows: `apm install corpus-review@context-kit`. There is no `.apm/`
+# directory, so the plugin-native layout (.claude-plugin/plugin.json + skills/)
+# stays authoritative; APM consumes it as a plugin collection.
+# Keep name/version in sync with .claude-plugin/plugin.json; description is a
+# concise APM/CLI listing variant.
+name: corpus-review
+version: 0.1.0
+description: Exhaustive corpus review with bounded shards, resumable dispatch, and a provable coverage ledger.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
+keywords: [corpus, review, coverage, exhaustive, sharding, audit, dispatch, findings, gaps, provenance, claude-code, copilot]
+
+dependencies:
+  apm:
+    # corpus-review composes orchestration with verification. This mirrors the
+    # plugin.json "dependencies": ["plan-execute", "verify"] — APM does not read
+    # that Claude field, so the dependencies are declared here as sibling local
+    # paths. `verify` supplies the evidence and unable-to-check discipline the
+    # coverage ledger extends to a whole corpus, and transitively deploys the
+    # retrieval-core spine; `plan-execute` supplies the worker fan-out.
+    - path: ../plan-execute
+    - path: ../verify

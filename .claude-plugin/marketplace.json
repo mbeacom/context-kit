@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Eleven context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, orchestration, steering, verification, runtime evidence, handoff, and portable plugin authoring."
+    "description": "Twelve context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, orchestration, steering, verification, exhaustive corpus review, runtime evidence, handoff, and portable plugin authoring."
   },
   "plugins": [
     {
@@ -55,6 +55,13 @@
       "description": "Read-only claim verification and prospective change-impact analysis with per-claim verdicts, blast-radius mapping, and file:line evidence.",
       "category": "verification",
       "tags": ["verification", "change-impact", "blast-radius", "compatibility", "review", "read-only", "subagent", "evidence"]
+    },
+    {
+      "name": "corpus-review",
+      "source": "./plugins/corpus-review",
+      "description": "Exhaustive review of a corpus too large to read at once: hashed unit inventory, bounded resumable shards, and a coverage ledger that separates a real gap from an undecidable one.",
+      "category": "verification",
+      "tags": ["corpus", "review", "coverage", "exhaustive", "sharding", "audit", "dispatch", "findings", "gaps"]
     },
     {
       "name": "runtime-evidence",

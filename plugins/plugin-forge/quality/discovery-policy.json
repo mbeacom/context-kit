@@ -46,6 +46,16 @@
         "Verdict-ready evidence",
         "Cleanup status"
       ]
+    },
+    "plugins/corpus-review/agents/corpus-reviewer.md": {
+      "marker": "## Output contract",
+      "required_terms": [
+        "context-kit/corpus-findings-v1",
+        "units_reviewed",
+        "units_uninspectable",
+        "Findings",
+        "Coverage"
+      ]
     }
   }
 }

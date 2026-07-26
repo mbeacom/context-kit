@@ -26,6 +26,11 @@
   stemming, so a `code` → `codebase` edit silently unanchors a fixture; the
   message now points at the description token that changed rather than only at
   the fixture that noticed.
+- Add the `corpus-review` non-retrieval route to `REQUIRED_ROUTE_KINDS` and the
+  shipped scenario corpus, with a lexical near miss that keeps "find the one
+  relevant runbook" separated from "account for every runbook."
+- Register the `corpus-reviewer` agent output contract so its findings header
+  and required sections are enforced rather than merely documented.
 
 ## 0.5.1 — 2026-07-25
 

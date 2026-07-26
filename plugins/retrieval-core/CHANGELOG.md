@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0 — 2026-07-25
+
+- Add the `corpus-review` route to the decision flow: when every unit must be
+  accounted for and someone will act on what was *not* found, the task is
+  exhaustive review rather than retrieval. Ranked hits cannot establish that
+  nothing was skipped, so the strategist now routes those asks to
+  `corpus-review` instead of presenting a retrieval result as complete coverage.
+
 ## 0.4.2 — 2026-07-25
 
 - Update the "verify then observe" composition in both the

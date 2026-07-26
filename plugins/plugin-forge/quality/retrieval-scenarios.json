@@ -71,6 +71,11 @@
       "kind": "non-retrieval",
       "plugin": "runtime-evidence",
       "tools": ["run-evidence-command.py", "approved optional tool"]
+    },
+    "corpus-review": {
+      "kind": "non-retrieval",
+      "plugin": "corpus-review",
+      "tools": ["corpus-review", "inventory-corpus.py", "aggregate-findings.py"]
     }
   },
   "compositions": {
@@ -673,6 +678,28 @@
           "query": "Resume an already validated handoff and report its next action.",
           "expected_route": "handoff",
           "reason": "The existing artifact should be validated and resumed rather than recompiled."
+        }
+      ]
+    },
+    {
+      "id": "corpus-review-provable-coverage",
+      "query": "Audit every runbook in this archive and report which ones were never inspected.",
+      "corpus_cues": [
+        "corpus exceeds one context window",
+        "the deliverable is coverage, not relevant hits",
+        "an unread unit must be reported as unread"
+      ],
+      "expected": {
+        "route": "corpus-review",
+        "plugins": ["corpus-review"],
+        "tools": ["corpus-review", "inventory-corpus.py", "aggregate-findings.py"]
+      },
+      "rationale": "Exhaustive accounting is a review capability, not a retrieval modality; ranked hits cannot establish that nothing was skipped.",
+      "near_misses": [
+        {
+          "query": "Find the runbook in this archive that documents the key rotation step.",
+          "expected_route": "lexical",
+          "reason": "A representative hit needs a keyword search, not a full-coverage pass."
         }
       ]
     }

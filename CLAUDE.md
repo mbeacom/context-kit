@@ -69,6 +69,15 @@ Copilot setup notes.
   stdlib Python runner executes exact argv selected by exact command ID from a
   user-owned JSON allowlist, without a shell, and writes bounded artifacts.
   Declares `dependencies: ["verify"]`.
+- `corpus-review` — exhaustive review of a corpus too large to read in one
+  context, as a capability distinct from retrieval. Standard-library scripts
+  enumerate hashed units with an inspectability signal, pack them into bounded
+  resumable shards that preserve original locations, and aggregate per-shard
+  findings into a coverage ledger. Every unit ends `reviewed`, `partial`,
+  `uninspectable`, `out_of_scope`, `failed`, or `pending`; `indeterminate`
+  outranks `not-found`, so a partially read, uninspectable, failed, or pending
+  unit is never treated as evidence of absence.
+  Declares `dependencies: ["plan-execute", "verify"]`.
 - `context-handoff` — manual-first `/write-handoff` and `/resume-handoff`
   workflow with a read-only compiler and deterministic validator. It has no
   lifecycle hooks or automatic RAG/memory ingestion; explicit historical
@@ -110,15 +119,16 @@ Copilot setup notes.
   `python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'` ·
+  `python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
 - Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including catalog gates), the pull-request-only
-version-bump gate, and the `local-rag` pytest
-suite plus the runtime-evidence, context-handoff, memory, and cross-plugin
-standard-library suites.
+version-bump gate, and the `local-rag` pytest suite plus the runtime-evidence,
+context-handoff, memory, corpus-review, and cross-plugin standard-library
+suites.
 
 ## Conventions when modifying this repo
 
