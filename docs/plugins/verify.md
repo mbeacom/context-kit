@@ -92,19 +92,27 @@ note.
     the dependency runs the other way. Without it, `unable-to-check` plus the
     named missing capability is the correct final answer.
 
-Change-impact is prospective and intended to be non-mutating — an intent, not a
-guarantee. It declares a surface of file reading plus search with no command
-grant, since a prefix-matched allowlist cannot express "read-only" anyway
-(`git diff --output=`, `git grep --open-files-in-pager=`, `yq -i`). It reaches
-code-intelligence, structured-data, and history only by delegating, and those
-delegates declare broader grants.
+Change-impact is prospective and intended to be non-mutating. For history,
+structured-data, and `git grep` structural search it ships an enforced executor,
+`scripts/run-impact-inspection.py`: a stdlib, no-shell runner with a fixed,
+plugin-owned catalog of read-only operations. The runner builds each argv
+itself, validates and positionally substitutes parameters, confines paths to the
+analysis root, and scrubs the environment, so the named write and exec vectors
+(`git`'s `--output` write flag, `git grep`'s `--open-files-in-pager` exec flag,
+`yq`'s in-place flag) cannot land. A prefix-matched command allowlist could not
+express any of that. For code-intelligence — and YAML when `yq` is absent — no
+enforced operation exists, so the skill declares a surface of file reading plus
+search and reaches those modalities only by delegating, disclosing that as an
+unenforced choice.
 
 !!! warning "`allowed-tools` is not an enforcement control"
     Omitting command grants avoids pre-approving them; it does not deny them,
     and it is not portable across hosts. As the [boundary map](../security.md)
-    states, host permissions and operator review govern actual execution. A real
-    non-mutation guarantee has to come from host permissions, a restricted
-    subagent such as `verifier`, or a hook.
+    states, host permissions and operator review govern what a delegate actually
+    executes. Where an enforced guarantee is needed for history, structured-data,
+    or `git grep`, it comes from the inspection runner; the runner never silently
+    downgrades, reporting a missing tool as `unavailable` so the modality is
+    marked unreached rather than quietly delegated.
 
 It separates observed repository coupling from inferred future risk and
 unknowns:

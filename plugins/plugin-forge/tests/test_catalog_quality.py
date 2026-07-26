@@ -39,6 +39,8 @@ class CatalogQualityTests(unittest.TestCase):
         )
         self.policy = {
             "aggregate_description_max_chars": 300,
+            "aggregate_description_warn_ratio": 0.95,
+            "component_description_max_chars": 200,
             "similarity_threshold": 0.72,
             "minimum_positive_fixtures": 2,
             "minimum_negative_fixtures": 2,
@@ -231,6 +233,93 @@ class CatalogQualityTests(unittest.TestCase):
             any("exceeding budget 20" in error for error in result.errors),
             result.errors,
         )
+
+    def test_headroom_below_warn_ratio_produces_no_warning(self) -> None:
+        result = self._validate()
+        self.assertEqual([], result.errors)
+        self.assertEqual([], result.warnings)
+        self.assertLess(result.description_chars, result.description_budget)
+
+    def test_budget_warning_band_reports_headroom_without_failing(self) -> None:
+        result = self._validate()
+        self.policy["aggregate_description_max_chars"] = result.description_chars + 1
+        self.policy["component_description_max_chars"] = 100
+        warned = self._validate()
+        self.assertEqual([], warned.errors)
+        self.assertEqual(1, len(warned.warnings), warned.warnings)
+        self.assertIn("1 remaining", warned.warnings[0])
+        self.assertIn("of budget", warned.warnings[0])
+
+    def test_exhausted_budget_warns_before_it_fails(self) -> None:
+        result = self._validate()
+        self.policy["aggregate_description_max_chars"] = result.description_chars
+        self.policy["component_description_max_chars"] = 100
+        exhausted = self._validate()
+        self.assertEqual([], exhausted.errors)
+        self.assertIn("0 remaining", exhausted.warnings[0])
+
+    def test_component_ceiling_failure_names_the_component(self) -> None:
+        self.policy["component_description_max_chars"] = 40
+        result = self._validate()
+        self.assertTrue(
+            any(
+                self.skill_path in error and "per-component ceiling 40" in error
+                for error in result.errors
+            ),
+            result.errors,
+        )
+
+    def test_component_ceiling_above_aggregate_budget_is_rejected(self) -> None:
+        self.policy["component_description_max_chars"] = 5000
+        result = self._validate()
+        self.assertTrue(
+            any("exceeds the aggregate budget" in error for error in result.errors),
+            result.errors,
+        )
+
+    def test_warn_ratio_must_be_a_ratio(self) -> None:
+        self.policy["aggregate_description_warn_ratio"] = 1.5
+        result = self._validate()
+        self.assertTrue(
+            any(
+                "`aggregate_description_warn_ratio` must be" in error
+                for error in result.errors
+            ),
+            result.errors,
+        )
+
+    def test_near_match_hint_names_the_changed_description_token(self) -> None:
+        self._write_component(
+            self.skill_path,
+            "alpha",
+            "Use when searching a codebase for exactly matching symbol definitions.",
+            "# Alpha\n",
+        )
+        self.fixtures["components"][self.skill_path] = {
+            "positive": [
+                "Search the codebase for exactly this symbol definition.",
+                "Find every codebase caller of this function.",
+            ],
+            "negative": [
+                "Search a PDF for exact invoice totals.",
+                "Read code review notes about invoice totals.",
+            ],
+        }
+        result = self._validate()
+        near_miss = [
+            error for error in result.errors if "needs a near-miss negative" in error
+        ]
+        self.assertEqual(1, len(near_miss), result.errors)
+        self.assertIn("`code`~`codebase`", near_miss[0])
+        self.assertIn("`exact`~`exactly`", near_miss[0])
+        self.assertIn("exact-token with no stemming", near_miss[0])
+
+    def test_near_matches_requires_a_shared_leading_prefix(self) -> None:
+        self.assertEqual(
+            ["`code`~`codebase`"],
+            catalog_quality.near_matches({"code", "totals"}, {"codebase", "symbol"}),
+        )
+        self.assertEqual([], catalog_quality.near_matches({"api"}, {"apis"}))
 
     def test_similar_descriptions_fail_unless_pair_is_allowlisted(self) -> None:
         description = (

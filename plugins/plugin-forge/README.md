@@ -37,10 +37,12 @@ Claude Code:
 | **`/scaffold-plugin`** command | Creates a standard plugin skeleton under `plugins/<name>/` with `plugin.json`, `apm.yml`, README, CHANGELOG, LICENSE, and a starter skill. |
 | **`scripts/check-manifests.sh`** | Validates every shipped plugin's `plugin.json` and sibling `apm.yml` have matching `name` and `version` fields. |
 | **`scripts/check-release-readiness.sh`** | Validates shipped catalog sources, release metadata/assets, latest changelog versions, and direct/transitive dependency graph parity. |
+| **`scripts/check-version-bump.sh`** | CI-only. Fails when a plugin's shipped content changed across `merge-base..HEAD` without a strictly-greater `plugin.json` version. |
 | **`scripts/check-skills.sh`** | Validates each skill/agent's discovery frontmatter, name, trigger phrasing, and per-description length. |
-| **`scripts/check-catalog-quality.sh`** | Enforces the aggregate discovery budget, description distinctness, centralized fixture coverage, retrieval route/composition contracts, and explicit agent output contracts. |
+| **`scripts/check-catalog-quality.sh`** | Enforces the aggregate discovery budget with a warning band, a per-component description ceiling, description distinctness, centralized fixture coverage, retrieval route/composition contracts, and explicit agent output contracts. |
 | **`scripts/test-catalog-quality.sh`** | Runs stdlib validator tests plus a mocked, no-network smoke test for the plan-big/execute-small workflow. |
 | **`scripts/test-release-readiness.sh`** | Runs hermetic release-readiness regression tests. |
+| **`scripts/test-version-bump.sh`** | Runs hermetic version-bump gate regression tests. |
 
 ## Use it in this repo
 
@@ -58,7 +60,22 @@ bash plugins/plugin-forge/scripts/check-skills.sh
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-release-readiness.sh
+bash plugins/plugin-forge/scripts/test-version-bump.sh
+
+# CI-only gate; run it locally against your PR base to preview the result
+bash plugins/plugin-forge/scripts/check-version-bump.sh --base main
 ```
+
+**Version-bump gate.** `scripts/version_bump.py`, run in CI by
+`check-version-bump.sh`, compares each plugin's changed files across
+`merge-base..HEAD` and fails when shipped content changed without a
+strictly-greater `plugin.json` version — the bump Claude Code needs to actually
+ship the change. Documentation-only (`README.md`, `docs/`, `LICENSE`), test-only
+(`tests/`, `scripts/test-*.sh`), and `CHANGELOG.md` edits are exempt; every other
+path under a plugin is treated as shipped. To skip a bump deliberately — a
+comment typo, say — add a `Skip-Version-Bump: <plugin> - <reason>` trailer to a
+commit in the pull request; the gate prints the plugin and reason into the CI log
+so the exemption stays reviewable rather than silent.
 
 The policy, centralized positive/negative discovery fixtures, and structured
 retrieval contract corpus live under `quality/`.

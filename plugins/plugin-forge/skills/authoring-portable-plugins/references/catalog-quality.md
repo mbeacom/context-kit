@@ -26,11 +26,27 @@ model credential.
 `aggregate_description_max_chars` caps the sum of the parsed, unquoted
 `description` values across every current skill and agent. Character count is
 deliberately simple and stable across tokenizers. The validator always reports
-current use and the configured limit.
+current use, the configured limit, and the remaining headroom.
 
-Treat the budget as a catalog-level constraint, not a target. Prefer shorter,
-specific triggers and progressive-disclosure references over increasing the
-limit. A limit change is an explicit policy review.
+The budget is a self-imposed catalog-wide discipline, not a host limit. It is
+fixed rather than scaled by component count, which means the marketplace has a
+maximum viable size and every addition competes with every existing component
+for the same remainder. That is the intended pressure: it forces shorter,
+specific triggers and progressive-disclosure references instead of a growing
+always-on preamble.
+
+Two companion controls keep that pressure legible rather than surprising:
+
+- `aggregate_description_warn_ratio` sets a warning band. At or above that
+  fraction of the budget the validator prints a `WARN:` line naming the
+  remaining characters and still exits `0`. Near-capacity is a review signal,
+  not a build failure, so it surfaces while there is still room to act.
+- `component_description_max_chars` caps any single description, so one verbose
+  component cannot quietly consume another's headroom. It must not exceed the
+  aggregate budget; the validator rejects a policy where it does.
+
+Raising either limit is an explicit policy review, not a routine edit. Prefer
+shortening the description you are editing.
 
 ## Description similarity
 
@@ -65,6 +81,13 @@ language queries. Static quality checks require:
 
 Negatives should exercise a realistic boundary, not merely name an unrelated
 topic. Add fixtures in the same change as a component or trigger description.
+
+Fixture matching is exact-token with no stemming, so `code` and `codebase` are
+unrelated terms. Editing a description can therefore unanchor a fixture that
+depended on the previous wording. When that happens the validator lists the
+prefix-sharing near-matches (for example ``` `code`~`codebase` ```) so the
+message points at the description token that changed rather than only at the
+fixture that noticed.
 
 These fixtures are reviewable routing hypotheses. Static validation proves only
 coverage and basic fixture hygiene; it does **not** prove that GitHub Copilot,

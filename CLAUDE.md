@@ -58,6 +58,11 @@ Copilot setup notes.
 - `verify` — a read-only `verifier` subagent (tools: Read/Grep/Glob only) + a
   `verify-before-trust` skill for claim verdicts and a prospective, read-only
   `change-impact` skill + `/analyze-impact` command for blast-radius analysis.
+  Ships `scripts/run-impact-inspection.py`, a POSIX stdlib runner with a fixed,
+  plugin-owned catalog of non-mutating `git`/`jq`/`yq` operations (no shell,
+  validated positional parameters, path confinement, scrubbed environment) so
+  history, structural, and structured-data modalities are enforced rather than
+  merely instructed; a missing tool exits `unavailable` instead of downgrading.
   Declares
   `dependencies: ["retrieval-core"]`.
 - `runtime-evidence` — static-verification escalation for runtime claims. Its
@@ -90,6 +95,8 @@ Copilot setup notes.
 - Check and test aggregate catalog quality:
   `bash plugins/plugin-forge/scripts/check-catalog-quality.sh` ·
   `bash plugins/plugin-forge/scripts/test-catalog-quality.sh`
+- Preview the CI-only version-bump gate against your PR base:
+  `bash plugins/plugin-forge/scripts/check-version-bump.sh --base main`
 - Smoke-test the APM path (needs the `apm` CLI): from a clone,
   `apm marketplace add ./ --name ps` then, in a scratch dir,
   `apm install code-search@ps --target claude` — verify it deploys both
@@ -100,6 +107,7 @@ Copilot setup notes.
   (uv resolves a dev venv; no live ollama needed — the embed client is mocked, turbovec is exercised for real).
 - Run the stdlib plugin tests:
   `python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'` ·
+  `python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
@@ -107,7 +115,8 @@ Copilot setup notes.
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
-every plugin, `pre-commit` (including catalog gates), and the `local-rag` pytest
+every plugin, `pre-commit` (including catalog gates), the pull-request-only
+version-bump gate, and the `local-rag` pytest
 suite plus the runtime-evidence, context-handoff, memory, and cross-plugin
 standard-library suites.
 
@@ -122,7 +131,12 @@ standard-library suites.
   half-built.
 - **Versioning:** bump `version` in `plugin.json` to ship updates — Claude Code
   uses it as the cache key, so pushing commits without a bump ships nothing. Bump
-  the matching `apm.yml` `version` in lockstep.
+  the matching `apm.yml` `version` in lockstep. CI enforces this on pull requests
+  via `check-version-bump.sh`: shipped content changed across `merge-base..HEAD`
+  must carry a strictly-greater version. Docs-only, test-only, and `CHANGELOG.md`
+  edits are exempt; skip deliberately with a
+  `Skip-Version-Bump: <plugin> - <reason>` commit trailer, which the gate echoes
+  into the CI log.
 - **APM (Agent Package Manager) compatibility:** each plugin ships an `apm.yml`
   that mirrors its `plugin.json` (`name`/`version` kept strictly in sync;
   `description` is intentionally a more concise variant tuned for APM/CLI
@@ -145,7 +159,11 @@ standard-library suites.
   licensed sources (e.g. the CC-BY-SA upstream that inspired `code-search`).
 - **Skill granularity:** prefer few well-scoped skills with `references/` for
   detail over many fine-grained skills (always-on token cost scales with skill
-  count). `code-search` uses two skills split by corpus (code vs data/docs).
+  count). `code-search` uses two skills split by corpus (code vs data/docs). The
+  cost is capped by a fixed 4096-character aggregate discovery budget plus a
+  384-character per-component ceiling; `check-catalog-quality.sh` warns at 95%
+  and fails above the limit. See `AGENTS.md` and
+  `plugins/plugin-forge/skills/authoring-portable-plugins/references/catalog-quality.md`.
 - **Markdown:** `.markdownlint-cli2.jsonc` disables MD013/MD033/MD041/MD060.
   Fix real lint findings rather than disabling more rules.
 

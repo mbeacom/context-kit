@@ -30,6 +30,7 @@ canonical component pages. Host-specific installation remains in
 | Third-party CLIs | Executable resolved by the host environment | May read files, write files, use credentials, or access networks | Plugin installation does not audit or sandbox the executable |
 | `local-rag` | Chosen corpus, data directory, embedding model, and Ollama endpoint | Stores chunks, metadata, and vectors; sends text to the configured endpoint | "Local" assumes a trusted local endpoint; a configured remote host receives corpus chunks and queries |
 | `runtime-evidence` | User-owned allowlist mapping an exact ID to literal argv, or a user-approved optional tool when no command fits | Executes one selected process and writes bounded artifacts, or performs an approved browser/debugger observation the plugin does not bound | Exact selection is not proof that the executable is safe or side-effect-free; the optional-tool path is bounded by operator approval plus host policy, with nothing enforced by the plugin |
+| `verify` | Plugin-owned catalog of read-only inspection operations; an analysis root supplied by the caller | Runs one selected read-only operation over history, structured-data, or `git grep`, with no shell, then reports bounded output | The catalog is read-only by construction, but the runner cannot prove the installed `git`/`jq`/`yq` is side-effect-free; code-intelligence and absent-`yq` YAML have no enforced operation and are reached only by disclosed delegation |
 | `context-handoff` | Current repository identity and a validated artifact | Writes bounded task state with repository provenance | Saved claims must be rejected or reverified when identity or freshness anchors differ |
 | `memory` | Explicit project scope, reviewed records, and optional provider | Persists evidence-backed records and may forward opted-in Claude hook payloads | Recall is a lead, not current truth; provider behavior and retention remain separate |
 | APM | Project manifest, lockfile, policy, and deployed files | Resolves, deploys, hashes, and audits packages | Integrity and policy checks do not prove semantic safety or runtime harmlessness |
@@ -108,6 +109,67 @@ a debugger or container inspector can reach process memory, secrets, and live
 data. Approve a specific interaction against a specific target, prefer
 non-production environments, and expect no automatic cleanup: the plugin
 records what was left behind rather than reversing it.
+
+## Change-impact: enforced where it can be, disclosed where it cannot
+
+[`verify`](plugins/verify.md)'s `change-impact` skill ships an enforced read-only
+executor, `run-impact-inspection.py`, for the modalities where a declaration of
+intent was not enough. Unlike `runtime-evidence`, its allowlist is not operator
+review of a config file — the catalog of inspection operations is shipped in the
+plugin's own code, so the read-only property is a property of that code. The
+runner builds each argv itself from a fixed template, validates every parameter
+by kind and positionally substitutes it, confines path parameters to the
+caller-supplied analysis root, rebuilds the child environment to drop `GIT_*`
+redirection and pager-exec variables (and to withhold `HOME`, so no `~/.gitconfig`
+or `~/.jq` is autoloaded), caps time and each output stream, and never invokes a
+shell. It also refuses to run at all on a non-POSIX host, where its capture and
+process-group primitives do not port: the platform is validated before anything
+is spawned, yielding a machine-readable refusal rather than a mid-run traceback.
+
+That is an allowlist of permitted argument *shapes*, deliberately not a denylist
+of bad flags — a denylist loses to the next tool release. Because no raw flag or
+expression is ever accepted, the named write and exec vectors (`git`'s `--output`
+write flag, `git grep`'s `--open-files-in-pager` exec flag, *caller-supplied*
+`git -c` config injection, `yq`'s in-place flag) have no slot to land in. The
+runner does use `-c` itself — fixed, runner-owned overrides that pin
+program-executing config, never derived from a parameter — which is a distinct
+thing from a caller reaching a `-c` slot, and that caller slot does not exist.
+
+Environment scrubbing pins `GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` to the null
+device with `GIT_CONFIG_NOSYSTEM=1`, which neutralizes **global and system**
+config only. Git still reads the analysis root's own repository-local
+`.git/config`, which can define program-executing settings (`diff.external`, a
+diff driver's `textconv`, `core.fsmonitor`). The runner therefore additionally
+pins those on every git invocation — `-c core.pager=cat -c core.fsmonitor=` plus
+`--no-ext-diff`/`--no-textconv` on the diff-producing operations.
+
+What the runner enforces:
+
+- only a shipped, plugin-owned operation runs; there is no config to edit;
+- parameters are validated and positionally placed, never interpolated into
+  flags, and paths stay inside the analysis root;
+- no shell, so no metacharacter, glob, or substitution surface;
+- a non-POSIX host is refused before any child is spawned.
+
+What it does not establish:
+
+- that the installed `git`/`jq`/`yq` binary is itself free of side effects;
+- freedom from every repository-local `.git/config` program-executing setting:
+  the runner pins the ones it knows, but a repo whose local config defines an
+  unpinned diff driver could still reach it. `.git/config` is not
+  clone-transferable, so this needs prior local write access to the repository,
+  not merely cloning it;
+- host command policy, which remains independent;
+- coverage of code-intelligence, or of YAML when `yq` is absent.
+
+The single most important property is that it **never silently downgrades**. An
+unknown operation, malformed parameter, or path escape is refused (exit 2); a
+missing tool is reported `unavailable` (exit 3). The skill then marks that
+modality as unreached rather than quietly delegating to an unconstrained agent.
+Delegation to `retrieval-strategist` or `code-search` remains available for
+code-intelligence and as an *unenforced, disclosed* fallback for the runner's
+modalities — a delegate's non-mutating behavior is an instruction it follows,
+not a restriction its grant imposes, exactly as elsewhere in this catalog.
 
 ## Handoffs: provenance before authority
 

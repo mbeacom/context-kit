@@ -25,8 +25,10 @@ bash plugins/plugin-forge/scripts/check-manifests.sh
 bash plugins/plugin-forge/scripts/check-skills.sh
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
+bash plugins/plugin-forge/scripts/check-version-bump.sh --base main
 pre-commit run --all-files
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
 python3 -m unittest discover -s tests/integration -p 'test_*.py'

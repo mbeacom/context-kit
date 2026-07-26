@@ -27,6 +27,21 @@ jobs:
             fi
           done
 
+  version-bump:
+    runs-on: ubuntu-latest
+    # Pull requests only: a push to `main` has no PR base ref, and diffing
+    # `main` against itself yields nothing to gate.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The gate needs real history to compute merge-base(base, HEAD).
+          fetch-depth: 0
+      - name: Check shipped content carries a version bump
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+        run: bash plugins/plugin-forge/scripts/check-version-bump.sh
+
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -47,6 +62,7 @@ jobs:
       - name: Run standard-library plugin tests
         run: |
           python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
+          python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'
           python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
           python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
           python3 -m unittest discover -s tests/integration -p 'test_*.py'

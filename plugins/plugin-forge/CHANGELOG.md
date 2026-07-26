@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.6.0 — 2026-07-25
+
+- Add a pull-request version-bump gate (`scripts/version_bump.py`, run by
+  `scripts/check-version-bump.sh`). It compares each plugin's changed files
+  across `merge-base..HEAD` and fails when shipped content moved without a
+  strictly-greater `plugin.json` version — the bump Claude Code needs to deliver
+  the change at all. Path classification is fail-closed, with `README.md`,
+  `LICENSE`, `CHANGELOG.md`, `tests/`, `docs/`, and `scripts/test-*.sh` exempt.
+  A deliberate exemption uses a `Skip-Version-Bump: <plugin> - <reason>` commit
+  trailer, which the gate echoes into its output so the skip stays reviewable.
+  Ships hermetic regression tests in `scripts/test-version-bump.sh`.
+- Add a warning band and a per-component ceiling to the discovery budget.
+  `aggregate_description_warn_ratio` (0.95) reports remaining headroom without
+  failing, so near-capacity surfaces while there is still room to act;
+  `component_description_max_chars` (384) stops one verbose description from
+  consuming another component's headroom. The validator now reports remaining
+  characters and the largest component description, and rejects a policy whose
+  per-component ceiling exceeds the aggregate budget.
+- Name the prefix-sharing near-matches when a discovery fixture no longer shares
+  a content term with its description. Fixture matching is exact-token with no
+  stemming, so a `code` → `codebase` edit silently unanchors a fixture; the
+  message now points at the description token that changed rather than only at
+  the fixture that noticed.
+
 ## 0.5.1 — 2026-07-25
 
 - Extend the shipped quality corpus for `runtime-evidence`'s second collection

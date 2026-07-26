@@ -36,6 +36,8 @@ Keep `plugin.json` and `apm.yml` aligned every time a plugin ships:
 
 - Keep `name` and `version` **strictly identical**. Claude Code uses `version` as
   the cache key, so bump `plugin.json` and `apm.yml` together to ship updates.
+  `check-version-bump.sh` fails a pull request that changes shipped content
+  without a strictly-greater version; see `references/manifests.md`.
 - Keep author, license, homepage, repository, and keywords aligned with the
   plugin manifest. Let `apm.yml` use a shorter `description` tuned for CLI
   listings while `plugin.json` can carry the fuller description.
@@ -54,8 +56,9 @@ to catch `name` or `version` drift across all plugins, and
 frontmatter problems (a missing/oversized `description`, or a `name` that does
 not match its directory or file). Run
 `${CLAUDE_PLUGIN_ROOT}/scripts/check-catalog-quality.sh` for cross-catalog checks:
-the aggregate always-on description budget, dangerously similar trigger
-descriptions, centralized positive/negative fixture coverage, and explicit agent
+the aggregate always-on description budget and its per-component ceiling,
+dangerously similar trigger descriptions, centralized positive/negative fixture
+coverage, and explicit agent
 output-contract markers. The same gate validates the schema-versioned retrieval
 scenario corpus: complete documented route/composition coverage, known plugin
 and tool references, exact composition steps, and realistic near misses. All run

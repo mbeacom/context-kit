@@ -46,16 +46,22 @@ The verifier cannot edit files, write files, or run shell commands. That makes i
 safe to use as an independent second read: it can confirm, question, or refute
 claims without mutating the tree or grading its own changes.
 
-Change-impact analysis is likewise meant to be non-mutating, and states that as
-an intent rather than a guarantee. It declares a surface of file reading plus
-search with no command grant, and reaches code-intelligence, structured-data,
-and history only by delegating to `retrieval-strategist` or `code-search`, whose
-declared grants are broader. Per the
+Change-impact analysis is likewise meant to be non-mutating. For history,
+structured-data, and `git grep` structural search it now ships an enforced
+executor — `scripts/run-impact-inspection.py`, a stdlib, no-shell runner with a
+fixed, plugin-owned catalog of read-only operations that builds each argv
+itself, validates parameters, confines paths to the analysis root, and scrubs
+the environment. For code-intelligence — and YAML when `yq` is absent — no
+enforced operation exists, so the skill declares a surface of file reading plus
+search and reaches those modalities only by delegating to `retrieval-strategist`
+or `code-search`, disclosing that as an unenforced choice. Per the
 [boundary map](https://github.com/mbeacom/context-kit/blob/main/docs/security.md),
 host permissions and operator review — not a skill's `allowed-tools` — govern
-what actually executes. Its report separates observed repository coupling from
-inferred future risk and from unknowns that need runtime or external evidence,
-and records modalities left unreached.
+what a delegate actually executes. The runner never silently downgrades: a
+missing tool is reported `unavailable` so the report marks that modality
+unreached. Its report separates observed repository coupling from inferred
+future risk and from unknowns that need runtime or external evidence, and
+records modalities left unreached.
 
 When a runtime claim stays `unable-to-check`, the verdict names the observation
 that would settle it. If the separate `runtime-evidence` plugin is installed,
