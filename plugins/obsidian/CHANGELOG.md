@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6 — 2026-07-27
+
+- Shorten the discovery description(s) to free aggregate budget for the new
+  `corpus-review` components. Triggers and scope are unchanged; the catalog
+  budget is fixed, so every addition competes for the same remainder.
+
 ## 0.1.5 — 2026-07-18
 
 - Lead the plugin README's host list with GitHub Copilot, APM, then Claude Code.

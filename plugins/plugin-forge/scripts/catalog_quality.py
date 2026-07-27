@@ -34,6 +34,7 @@ REQUIRED_ROUTE_KINDS = {
     "handoff": "non-retrieval",
     "verify-before-trust": "non-retrieval",
     "runtime-evidence": "non-retrieval",
+    "corpus-review": "non-retrieval",
 }
 REQUIRED_COMPOSITIONS = {
     "hybrid-rerank",

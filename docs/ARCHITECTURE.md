@@ -6,9 +6,9 @@ spine is organized around **retrieval modalities** — complementary ways an age
 finds information, selected by what it knows about the query and the corpus, and
 composed together — surrounded by durable recall (`memory`), orchestration
 (`plan-execute`), steering (`context-steering`), verification and impact
-analysis (`verify`), controlled runtime observation (`runtime-evidence`),
-cross-session continuity (`context-handoff`), and authoring quality
-(`plugin-forge`).
+analysis (`verify`), exhaustive corpus review (`corpus-review`), controlled
+runtime observation (`runtime-evidence`), cross-session continuity
+(`context-handoff`), and authoring quality (`plugin-forge`).
 
 All three hosts install the same plugins directly from one marketplace — GitHub
 Copilot CLI via `copilot plugin`, APM via `apm install`, and Claude Code via
@@ -48,6 +48,7 @@ the source and current repository evidence pin the claim.
 | `plan-execute`   | shipped  | Plan-big/execute-small orchestration: planner + cheap `execution-worker` |
 | `context-steering` | shipped | Skill-only: place guidance at the cheapest layer (memory/rules/skills/subagents/mcp/hooks) |
 | `verify`         | shipped  | Read-only claim verdicts + prospective change-impact analysis |
+| `corpus-review`  | shipped  | Exhaustive review of an oversized corpus: hashed inventory, bounded shards, provable coverage ledger |
 | `runtime-evidence` | shipped | Allowlisted-ID (or approved optional-tool) runtime evidence after static verification cannot settle a claim |
 | `context-handoff` | shipped | Manual bounded write/resume handoffs with provenance and freshness validation |
 | `memory`         | shipped  | Reviewed durable records + optional project-isolated MemPalace provider |
@@ -62,6 +63,13 @@ they are not chat persistence or automatic RAG ingestion. `memory` depends on
 `context-handoff`; it can preserve a validated handoff only as an explicit
 historical archive. Its recall results never override current handoff or
 repository evidence.
+`corpus-review` depends on `verify` and `plan-execute`. It is the one capability
+here whose success condition is coverage rather than relevance: retrieval ranks
+candidates and stops when the answer appears, while corpus review enumerates
+every unit, assigns each a disposition, and reports what is still unaccounted
+for. That distinction matters most for absence — an expected item nobody found
+is a real gap only when everything that could contain it was actually read,
+which is `verify`'s `unable-to-check` raised from one claim to a whole corpus.
 `local-rag` and `obsidian` pair: the obsidian bridge produces candidate note paths
 that feed `local-rag`'s hybrid `--allowlist` search. Obsidian *authoring*
 (Markdown, Bases, Canvas) is intentionally out of scope — use

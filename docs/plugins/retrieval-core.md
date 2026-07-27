@@ -67,6 +67,7 @@ The decision flow keys off **what you already know** about the target:
 | current task state and next action | validated handoff | [context-handoff](context-handoff.md) |
 | a retrieved claim must be checked before use | verification | [verify](verify.md) |
 | static verification cannot settle a runtime claim | controlled runtime evidence | [runtime-evidence](runtime-evidence.md) |
+| *every* unit must be accounted for, not just the relevant ones | exhaustive review | [corpus-review](corpus-review.md) |
 
 ## Composition is the point
 
@@ -95,7 +96,7 @@ Modalities are layers, not rivals. The strategist sequences them:
 ## What the contract suite enforces
 
 `plugins/plugin-forge/quality/retrieval-scenarios.json` turns this documented
-surface into a schema-v1 static contract: 14 primary routes, nine named
+surface into a schema-v1 static contract: 15 primary routes, nine named
 compositions, explicit cross-plugin/tool references, exact step sequences, and
 near-miss boundaries. Plugin Forge runs it through the existing catalog-quality
 gate in pre-commit and CI.
@@ -115,5 +116,5 @@ See [Architecture](../ARCHITECTURE.md) for the full modality model.
 | **Category** | retrieval |
 | **Provides** | 1 agent, 1 skill |
 | **Dependencies** | none |
-| **Depended on by** | `code-search`, `verify`; transitively `runtime-evidence`, `context-handoff`, `memory` |
+| **Depended on by** | `code-search`, `verify`; transitively `runtime-evidence`, `context-handoff`, `memory`, `corpus-review` |
 | **License** | MIT |

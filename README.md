@@ -13,10 +13,11 @@ allowlisted commands can still reach external systems. Around that spine it adds
 **context-steering** (put each rule at the cheapest layer that still fires),
 **verify** (read-only claims and change-impact analysis), **runtime-evidence**
 (controlled escalation when static checks cannot settle a runtime claim),
+**corpus-review** (exhaustive review with a provable coverage ledger),
 **context-handoff** (bounded cross-session task state), **memory**
 (provenance-bound durable recall with an optional MemPalace provider), and
 **plugin-forge** (author and quality-check portable plugins). The marketplace
-ships eleven plugins.
+ships twelve plugins.
 
 📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
 guides, architecture, and a page for every plugin.
@@ -45,6 +46,7 @@ copilot plugin install plan-execute@context-kit   # plan-big/execute-small orche
 copilot plugin install context-steering@context-kit
 copilot plugin install verify@context-kit          # auto-installs retrieval-core
 copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
+copilot plugin install corpus-review@context-kit    # pulls plan-execute + verify
 copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
 copilot plugin install memory@context-kit           # pulls handoff, verify, retrieval-core
 copilot plugin install plugin-forge@context-kit
@@ -70,6 +72,7 @@ apm install plan-execute@context-kit
 apm install context-steering@context-kit
 apm install verify@context-kit           # also pulls retrieval-core
 apm install runtime-evidence@context-kit # pulls verify, then retrieval-core
+apm install corpus-review@context-kit    # pulls plan-execute + verify
 apm install context-handoff@context-kit  # pulls verify, then retrieval-core
 apm install memory@context-kit           # pulls handoff, verify, retrieval-core
 apm install plugin-forge@context-kit
@@ -99,6 +102,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 /plugin install context-steering@context-kit  # place guidance at the cheapest layer
 /plugin install verify@context-kit            # claims + change impact (pulls retrieval-core)
 /plugin install runtime-evidence@context-kit  # controlled runtime evidence (pulls verify)
+/plugin install corpus-review@context-kit     # exhaustive review with a coverage ledger
 /plugin install context-handoff@context-kit   # manual cross-session handoffs (pulls verify)
 /plugin install memory@context-kit            # durable memory + optional MemPalace provider
 /plugin install plugin-forge@context-kit      # author portable plugins
@@ -116,6 +120,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 | **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |
 | **verify** | **Verification and impact**: a read-only `verifier`, `verify-before-trust`, and prospective `change-impact` skill plus `/analyze-impact`. Checks claims and maps blast radius without editing or executing. Ships an enforced read-only inspection runner — a POSIX Python 3 stdlib executor with a fixed, plugin-owned catalog of non-mutating `git`/`jq`/`yq` operations, no shell, validated positional parameters, and a scrubbed environment — so history, structural, and structured-data evidence comes with a real guarantee or an explicit `unavailable`, never a silent downgrade. Composes with `retrieval-core`; `plan-execute` is optional for broad read-only coverage, not a dependency. |
 | **runtime-evidence** | **Controlled observation**: escalates only runtime claims left `unable-to-check` by static verification. A POSIX-only Python 3 stdlib runner executes exact argv from a user-owned exact-ID JSON allowlist without shell parsing, requires an absolute cwd, caps time and each output stream, and writes report/stdout/stderr artifacts. Windows is refused before execution. When no reviewed command can represent the claim, an approved optional-tool observation (browser, debugger, container) runs in the main agent instead — bounded by the user's approval and the host, not by the plugin. Allowlisting constrains selection; it does not prove an executable has no side effects. |
+| **corpus-review** | **Exhaustive review**: reads a corpus too large for one context and proves what was inspected. Standard-library scripts enumerate units with content hashes and an inspectability signal, pack them into bounded resumable shards that preserve original locations, and aggregate per-shard findings into a coverage ledger. Every unit ends as `reviewed`, `partial`, `uninspectable`, `out_of_scope`, `failed`, or `pending`, and aggregation exits nonzero while any unit is unaccounted for. An expected item nobody found is `not-found` only when everything that could contain it was actually read — a partial, uninspectable, failed, or pending unit makes it `indeterminate` instead. |
 | **context-handoff** | **Session continuity**: manual-first `/write-handoff` and `/resume-handoff`, a read-only compiler, and a deterministic Python 3 validator for bounded task state. Defaults to `.context-kit/handoff.md` or `CONTEXT_KIT_HANDOFF_PATH`; detects invalid, mismatched, and stale state. It has no lifecycle hooks or automatic RAG/memory ingestion. |
 | **memory** | **Durable recall**: reviewed `context-kit/memory-v1` records with immutable evidence, primary memories, cue anchors, freshness, and supersession. Ships capture/recall/review/archive commands, a stdlib adapter for optional MemPalace, project-isolated storage, and opt-in Claude capture hooks. |
 | **plugin-forge** | **Authoring quality**: portable-plugin conventions, `/scaffold-plugin`, manifest and discovery checks, a 4096-character aggregate discovery budget with a 95% warning band and a 384-character per-component ceiling, overlap/fixture/agent-contract checks, regression tests, and a mocked no-network workflow smoke test. Static fixtures check catalog hygiene, not model routing. |
@@ -137,6 +142,9 @@ The skills degrade gracefully and tell you what's missing.
   for graph-accurate queries; otherwise falls back to `rg`/`fd`. Set your vault
   path via `CONTEXT_KIT_OBSIDIAN_VAULT` (GitHub Copilot, APM, or manual usage) or
   the Claude plugin config (`vault_path`).
+- **corpus-review** — needs Python 3 for its standard-library inventory, shard,
+  and aggregation scripts. Extracting non-text units (PDF, Office, archives)
+  relies on the optional `data-and-docs-search` tools above.
 - **runtime-evidence** and **context-handoff** — need Python 3 for their
   standard-library runner and deterministic validator. The runtime runner
   requires POSIX and refuses Windows before execution; the handoff validator is
@@ -217,6 +225,7 @@ python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'
 python3 -m unittest discover -s tests/integration -p 'test_*.py'
 
 # Run the local-rag Python tests

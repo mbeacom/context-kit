@@ -1,6 +1,6 @@
 ---
 name: plan-execute-strategy
-description: "Use when deciding HOW to split work between a strong planner and cheaper executors — configuring subagent models, writing delegation prompts, running the plan-big/execute-small workflow, or choosing between delegation and the advisor tool."
+description: "Use when deciding HOW to split work between a strong planner and cheaper executors — subagent models, writing delegation prompts, running the plan-big/execute-small workflow, or choosing delegation vs the advisor tool."
 license: MIT
 metadata:
   author: Mark Beacom

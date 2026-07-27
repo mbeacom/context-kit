@@ -27,7 +27,7 @@
         "Help reduce our always-on context budget without losing important rules."
       ],
       "negative": [
-        "Search the current context for the implementation of this symbol.",
+        "Search the codebase for where this skill is actually implemented.",
         "Verify whether the pull request description matches the code."
       ]
     },
@@ -49,6 +49,26 @@
       "negative": [
         "Resume a native host session without creating or checking a repository handoff.",
         "Automatically harvest every session into the long-term semantic index."
+      ]
+    },
+    "plugins/corpus-review/agents/corpus-reviewer.md": {
+      "positive": [
+        "Read this assigned shard and report findings against the review question.",
+        "Return findings and honest coverage for the units in shard s004."
+      ],
+      "negative": [
+        "Plan the shard budget and dispatch workers across the whole corpus.",
+        "Rewrite the deprecated rotation step in every affected runbook."
+      ]
+    },
+    "plugins/corpus-review/skills/corpus-review/SKILL.md": {
+      "positive": [
+        "Audit every runbook in this archive and prove which pages were actually read.",
+        "Review the entire log corpus for this failure mode with provable coverage."
+      ],
+      "negative": [
+        "Search this document set for the first mention of the rotation step.",
+        "Judge whether this single claim about the release process holds up."
       ]
     },
     "plugins/local-rag/skills/local-rag/SKILL.md": {
@@ -169,7 +189,7 @@
         "Reassess this claim now that I have the runtime observation report."
       ],
       "negative": [
-        "Edit the code to fix every issue described in this review.",
+        "Edit the codebase to fix every issue described in this review.",
         "Search broadly for where an unknown feature might be implemented."
       ]
     },

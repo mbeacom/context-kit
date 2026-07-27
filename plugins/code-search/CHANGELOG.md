@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-07-27
+
+- Shorten the discovery description(s) to free aggregate budget for the new
+  `corpus-review` components. Triggers and scope are unchanged; the catalog
+  budget is fixed, so every addition competes for the same remainder.
+
 ## 0.3.0 — 2026-07-18
 
 - Add a **code-intelligence** modality: symbol definitions, references, and call

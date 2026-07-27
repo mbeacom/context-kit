@@ -110,8 +110,9 @@ The retrieval corpus is a separate contract from component discovery fixtures.
 Each stable scenario declares a query and corpus cues, its expected primary
 route, participating plugins and tools, exact named composition steps when
 needed, a rationale, and at least one realistic near miss. The gate requires
-coverage of all 14 routes (11 modalities plus handoff, verification, and
-runtime-evidence escalation) and all nine named compositions.
+coverage of all 15 routes (11 modalities plus handoff, verification,
+runtime-evidence escalation, and exhaustive corpus review) and all nine named
+compositions.
 
 !!! warning "Static fixtures are not routing proof"
     Discovery fixture and retrieval contract validation proves coverage,

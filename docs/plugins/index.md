@@ -1,9 +1,9 @@
 # Plugins
 
-The marketplace ships eleven plugins. The **spine** is retrieval — a routing
+The marketplace ships twelve plugins. The **spine** is retrieval — a routing
 agent that picks and composes modalities — surrounded by plugins for
-orchestration, steering, verification and impact analysis, controlled runtime
-evidence, cross-session handoff, and authoring.
+orchestration, steering, verification and impact analysis, exhaustive corpus
+review, controlled runtime evidence, cross-session handoff, and authoring.
 
 !!! tip "Start from the task"
     Use the [cookbook](../cookbook.md) for multi-plugin journeys, the
@@ -86,6 +86,15 @@ evidence, cross-session handoff, and authoring.
 
     `verification` · shipped
 
+-   :material-clipboard-check-multiple-outline:{ .lg .middle } **[corpus-review](corpus-review.md)**
+
+    ---
+
+    Exhaustive review of a corpus too large to read at once — hashed unit
+    inventory, bounded resumable shards, and a provable coverage ledger.
+
+    `verification` · shipped
+
 -   :material-swap-horizontal:{ .lg .middle } **[context-handoff](context-handoff.md)**
 
     ---
@@ -125,6 +134,7 @@ graph TD
     OB[obsidian]
     VF[verify]
     RE[runtime-evidence]
+    CR[corpus-review]
     CH[context-handoff]
     MM[memory]
     PE[plan-execute]
@@ -136,10 +146,13 @@ graph TD
     RE -->|depends on| VF
     CH -->|depends on| VF
     MM -->|depends on| CH
+    CR -->|depends on| VF
+    CR -->|depends on| PE
     OB -->|feeds --allowlist| LR
     RC -.composes.-> CS
     RC -.composes.-> LR
     RC -.routes recall to.-> MM
+    RC -.routes coverage to.-> CR
 
     classDef spine fill:#4f46e5,stroke:#4338ca,color:#fff;
     class RC spine;
@@ -151,6 +164,10 @@ graph TD
 - **`memory`** depends on `context-handoff`, so it also pulls `verify` and the
   retrieval spine. Handoffs remain authoritative current task state; archived
   copies are historical evidence.
+- **`corpus-review`** depends on `verify` and `plan-execute`: it raises `verify`'s
+  `unable-to-check` discipline from one claim to a whole corpus, and reuses
+  `plan-execute`'s cheap-worker fan-out to read shards. Retrieval surfaces the
+  relevant; corpus review proves the exhaustive.
 - **`obsidian`** and **`local-rag`** pair: the bridge produces candidate note
   paths that feed `local-rag`'s hybrid `--allowlist` search.
 - **`plan-execute`**, **`context-steering`**, and **`plugin-forge`** are
@@ -170,6 +187,7 @@ graph TD
 | [context-steering](context-steering.md) | steering | skill + examples | — |
 | [verify](verify.md) | verification | subagent + 2 skills + command + stdlib inspection runner | `retrieval-core` |
 | [runtime-evidence](runtime-evidence.md) | verification | skill + command + subagent + stdlib runner | `verify` → `retrieval-core` |
+| [corpus-review](corpus-review.md) | verification | skill + command + subagent + 3 stdlib scripts | `plan-execute`, `verify` → `retrieval-core` |
 | [context-handoff](context-handoff.md) | continuity | skill + 2 commands + subagent + stdlib validator | `verify` → `retrieval-core` |
 | [memory](memory.md) | continuity | skill + 4 commands + stdlib adapter + opt-in Claude hooks | `context-handoff` → `verify` → `retrieval-core`; MemPalace optional |
 | [plugin-forge](plugin-forge.md) | authoring | skill + command + validators/tests | — |

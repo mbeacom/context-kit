@@ -1,6 +1,6 @@
 ---
 name: obsidian-rag-bridge
-description: "Use to retrieve from an Obsidian vault by combining its link graph/tags with local semantic search: produce a candidate note set (official obsidian CLI, or rg fallback) and feed it to local-rag's --allowlist. For writing notes, Bases, or Canvas, use the kepano/obsidian-skills plugin instead."
+description: "Use to retrieve from an Obsidian vault by combining its link graph/tags with semantic search: produce a candidate note set (obsidian CLI, or rg fallback) and feed it to local-rag's --allowlist. For writing notes, Bases, or Canvas, use kepano/obsidian-skills."
 license: MIT
 compatibility: "Best with the official obsidian CLI (Obsidian running). Falls back to rg/fd over the vault. Pairs with the local-rag plugin."
 metadata:

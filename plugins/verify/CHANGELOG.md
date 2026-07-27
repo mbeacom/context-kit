@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 — 2026-07-27
+
+- Shorten the discovery description(s) to free aggregate budget for the new
+  `corpus-review` components. Triggers and scope are unchanged; the catalog
+  budget is fixed, so every addition competes for the same remainder.
+
 ## 0.4.0 — 2026-07-25
 
 - Add an enforced read-only inspection runner for `change-impact`

@@ -1,6 +1,6 @@
 ---
 name: local-rag
-description: "Use for semantic search over a markdown corpus when keywords aren't enough (you know the meaning/intent, not the exact words), or opt-in hybrid semantic plus lexical search when both meaning and exact terms matter. Index once, then query."
+description: "Use for semantic search over a markdown corpus when keywords aren't enough (you know the meaning, not the exact words), or hybrid semantic plus lexical search when both meaning and exact terms matter. Index once, then query."
 license: MIT
 compatibility: "Requires the bin/rag CLI (auto-bootstrapped via uv) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
 metadata:
