@@ -45,36 +45,53 @@ Keep the analysis prospective and non-mutating.
 
 ### Tool boundary
 
-Everything below is a declaration of intent, not an enforcement mechanism. The
-catalog's boundary map in `docs/security.md` is explicit that host permissions
-and operator review govern what actually executes: a skill's `allowed-tools`
-pre-approves a surface, it does not deny the rest, and it is not a portable
-control across hosts. Say that plainly rather than implying a guarantee.
+A skill's `allowed-tools` pre-approves a surface; it does not deny the rest, and
+it is not a portable control across hosts. So the declaration below is intent,
+not enforcement — but this skill also ships an enforced path for the modalities
+where intent was not enough. The catalog's boundary map in `docs/security.md`
+holds the precise version; keep this section honest with it.
 
 - **Declared here.** File reading plus name and content search, with no command
   grant. A prefix-matched command allowlist could not express "read-only"
-  anyway: `git diff`/`git show` accept `--output=<file>`, `git grep` accepts
-  `--open-files-in-pager=<cmd>`, and `yq -i` rewrites in place.
+  anyway: `git diff`/`git show` accept an `--output` write flag, `git grep`
+  accepts an `--open-files-in-pager` exec flag, and `yq` rewrites in place with
+  its in-place flag.
+- **Enforced by the inspection runner.** `scripts/run-impact-inspection.py` is a
+  stdlib, no-shell executor with a fixed, plugin-owned catalog of read-only
+  operations. It reaches history (git log/show/diff/blame), structural
+  (`git grep`), and structured-data (`jq`, and `yq` when installed) under a
+  genuinely non-mutating constraint: it builds each argv itself, validates and
+  positionally substitutes parameters, confines paths to the analysis root,
+  scrubs the environment, and never invokes a shell. See
+  [references/inspection-runner.md](references/inspection-runner.md). Prefer it
+  whenever a caller needs an actual guarantee for these modalities.
 - **Reached by delegation.** `retrieval-strategist` declares unrestricted
   `Bash`; `code-search` declares `Bash(git:*)` and `Bash(yq:*)`. Their
   non-mutating character is an instruction they follow, not a restriction their
-  grants impose.
+  grants impose. Use delegation for code-intelligence, and only fall back to it
+  for the runner's modalities when the runner reports the tool unavailable and
+  the caller accepts an unenforced surface.
 
-| Modality | Where it runs | What actually constrains it |
+| Modality | Enforced path | Delegation-only fallback |
 | --- | --- | --- |
-| lexical, file reading | here | this skill's declaration plus host policy |
-| history, structured-data | `retrieval-strategist`, or `code-search` when installed | the delegate's instructions plus host policy |
-| code-intelligence, structural | `retrieval-strategist`, or `code-search` when installed | the delegate's instructions plus host policy |
-| factual claim checks | `verifier` | a subagent tool grant of Read/Grep/Glob |
-| runtime observation | `/collect-runtime-evidence` only, never here | a reviewed allowlist ID, or an approved optional tool when no ID can represent the claim |
+| lexical, file reading | this skill's Read/Grep/Glob | — |
+| history | runner: `git-log-*`, `git-show-commit`, `git-diff-revs`, `git-blame-path` | `retrieval-strategist`, or `code-search` when installed |
+| structural | runner: `git-grep` | `retrieval-strategist`, or `code-search` when installed |
+| structured-data | runner: `json-*`; `yaml-*` when `yq` is installed | `retrieval-strategist`, or `code-search` when installed |
+| code-intelligence | — (no enforced operation) | `retrieval-strategist`, or `code-search` when installed |
+| factual claim checks | `verifier` (Read/Grep/Glob grant) | — |
+| runtime observation | `/collect-runtime-evidence` only, never here | — |
 
-So: never treat delegation as a way around this skill's own declaration;
-constrain the worker to inspection and evidence gathering in the delegation
-prompt; and disclose in section 7 of the report contract both the modalities
-left unreached and any evidence gathered under a delegate's broader grants.
+The runner never silently downgrades. When the requested tool is missing, the
+operation ID is unknown, or a parameter fails validation, it exits non-zero with
+a machine-readable refusal or `unavailable` status. On `unavailable`, report the
+modality as unreached in section 7 of the report contract rather than quietly
+delegating; delegate only as a disclosed, unenforced choice, and never treat
+delegation as a way around this skill's own declaration.
 
-When a caller needs an actual non-mutation guarantee, it has to come from host
-permissions, a restricted subagent, or a hook — not from this file.
+Where no enforced operation exists — code-intelligence, and YAML when `yq` is
+absent — do not fake one. Disclose the modality as reached only by delegation,
+or as unreached, and say which.
 
 ## Analysis flow
 
@@ -86,10 +103,13 @@ permissions, a restricted subagent, or a hook — not from this file.
    search for exact names, code intelligence for definitions and references,
    structural search for code shapes, structured-data search for manifests and
    config, and history search when compatibility intent or prior migrations
-   matter. Run lexical search and file reading here; reach every other modality
-   only by delegation, per the tool boundary above. Invoke `retrieval-strategist`
-   when the repository is unfamiliar or the right modality is unclear,
-   constraining it to inspection.
+   matter. Run lexical search and file reading here. For history,
+   structured-data, and `git grep` structural search, prefer the enforced
+   inspection runner (`scripts/run-impact-inspection.py`, see the tool boundary
+   above); reach code-intelligence — and any modality the runner reports
+   unavailable — by delegation, disclosing it as unenforced. Invoke
+   `retrieval-strategist` when the repository is unfamiliar or the right modality
+   is unclear, constraining it to inspection.
 3. **Trace direct dependents first.** Find imports, references, callers,
    implementers, registries, serializers, consumers, build/package edges, and
    generated-code sources that directly depend on each change anchor. Do not

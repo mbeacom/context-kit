@@ -158,9 +158,13 @@ For every material unknown, state:
 - the minimum evidence needed next.
 
 Also summarize corpus boundaries, excluded/generated/vendor paths, unavailable
-tools or services, and search modalities used. Name any modality left unreached
-because delegating it would have exceeded this skill's declared tool surface,
-and flag any evidence that was gathered under a delegate's broader grants.
+tools or services, and search modalities used. Distinguish modalities reached
+under the enforced inspection runner from those reached only by delegation, and
+name any modality left unreached — including any the runner reported
+`unavailable` (for example, a `yaml-*` operation when `yq` is not installed).
+Report an `unavailable` modality as unreached rather than implying delegation
+silently covered it, and flag any evidence gathered under a delegate's broader
+grants.
 
 ### 8. Conclusion
 

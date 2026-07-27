@@ -72,7 +72,7 @@ evidence, cross-session handoff, and authoring.
     ---
 
     Read-only per-claim verification plus prospective change-impact and
-    blast-radius analysis.
+    blast-radius analysis, with an enforced non-mutating inspection runner.
 
     `verification` · shipped
 
@@ -168,7 +168,7 @@ graph TD
 | [obsidian](obsidian.md) | retrieval | skill only | `local-rag` (runtime) |
 | [plan-execute](plan-execute.md) | orchestration | skill + command + workflow + subagent | — |
 | [context-steering](context-steering.md) | steering | skill + examples | — |
-| [verify](verify.md) | verification | subagent + 2 skills + command | `retrieval-core` |
+| [verify](verify.md) | verification | subagent + 2 skills + command + stdlib inspection runner | `retrieval-core` |
 | [runtime-evidence](runtime-evidence.md) | verification | skill + command + subagent + stdlib runner | `verify` → `retrieval-core` |
 | [context-handoff](context-handoff.md) | continuity | skill + 2 commands + subagent + stdlib validator | `verify` → `retrieval-core` |
 | [memory](memory.md) | continuity | skill + 4 commands + stdlib adapter + opt-in Claude hooks | `context-handoff` → `verify` → `retrieval-core`; MemPalace optional |

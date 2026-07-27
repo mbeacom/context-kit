@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.4.0 — 2026-07-25
+
+- Add an enforced read-only inspection runner for `change-impact`
+  (`scripts/run-impact-inspection.py`): a stdlib, no-shell executor with a
+  fixed, plugin-owned catalog of read-only operations covering history (git
+  log/show/diff/blame), structural (`git grep`), and structured-data (`jq`, and
+  `yq` when installed). It builds each argv itself, validates and positionally
+  substitutes parameters, confines paths to the analysis root, scrubs the
+  environment of `GIT_*` redirection and pager-exec vectors, bounds output and
+  runtime, and exposes `--list` for discovery.
+- The runner never silently downgrades: an unknown operation, bad parameter, or
+  path escape is refused (exit 2), and a missing tool is reported `unavailable`
+  (exit 3) so the skill marks that modality unreached instead of quietly
+  delegating to an unconstrained agent.
+- Enforce the runner's documented non-POSIX refusal in code: `main()` validates
+  the platform before any child is spawned, so a non-POSIX host yields a
+  machine-readable refusal (exit 2) rather than a mid-run traceback.
+- Harden against repository-local `.git/config`: environment scrubbing
+  neutralizes only global and system config, so every git invocation now also
+  pins the program-executing settings git reads from the analysis root's own
+  `.git/config` — runner-owned, fixed `-c core.pager=cat -c core.fsmonitor=`
+  overrides plus `--no-ext-diff`/`--no-textconv` on the diff-producing
+  operations. `git-grep` also pins `--basic-regexp` so the documented pattern
+  kind is enforced by the runner rather than left to the repository-local
+  `grep.patternType`, the same class of repo-config gap. Withhold `HOME` from the
+  child so no `~/.gitconfig` or `~/.jq` is autoloaded.
+- Encode each accepted `field` segment as a JSON-quoted bracket key
+  (`a.b` → `.["a"]["b"]`) instead of a bare dotted filter, so a hyphenated
+  segment such as `release-name` addresses the literal key rather than being
+  parsed by `jq`/`yq` as a subtraction, and a digit-leading segment such as `2fa`
+  does not become a syntax error.
+- Rewrite the `change-impact` tool-boundary section, report-contract disclosure,
+  and `/analyze-impact` command to prefer the enforced runner for its modalities
+  and to disclose code-intelligence — and YAML when `yq` is absent — as
+  delegation-only or unavailable.
+- Document the runner in `references/inspection-runner.md` and the enforced
+  boundary in `docs/security.md`.
+
 ## 0.3.1 - 2026-07-25
 
 - Require an artifact pointer for observation evidence. An observation with no

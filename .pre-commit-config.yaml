@@ -30,9 +30,9 @@ repos:
     rev: v0.6.9
     hooks:
       - id: ruff
-        files: '^(plugins/(local-rag|memory|runtime-evidence|context-handoff|plugin-forge)|tests/integration)/.*\.py$'
+        files: '^(plugins/(local-rag|memory|runtime-evidence|context-handoff|plugin-forge|verify)|tests/integration)/.*\.py$'
       - id: ruff-format
-        files: '^(plugins/(local-rag|memory|runtime-evidence|context-handoff|plugin-forge)|tests/integration)/.*\.py$'
+        files: '^(plugins/(local-rag|memory|runtime-evidence|context-handoff|plugin-forge|verify)|tests/integration)/.*\.py$'
 
   - repo: local
     hooks:
@@ -55,6 +55,20 @@ repos:
         language: system
         pass_filenames: false
         files: '^plugins/plugin-forge/(scripts/(release_readiness\.py|check-release-readiness\.sh|test-release-readiness\.sh)|tests/test_release_readiness\.py)$'
+      - id: test-version-bump
+        # The gate itself is CI-only (it needs a merge base); its regression
+        # tests are hermetic, so they run here like every other suite.
+        name: version bump gate regression tests
+        entry: bash plugins/plugin-forge/scripts/test-version-bump.sh
+        language: system
+        pass_filenames: false
+        files: '^plugins/plugin-forge/(scripts/(version_bump\.py|check-version-bump\.sh|test-version-bump\.sh|release_readiness\.py)|tests/test_version_bump\.py)$'
+      - id: test-verify-runner
+        name: verify enforced inspection runner tests
+        entry: python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'
+        language: system
+        pass_filenames: false
+        files: '^plugins/verify/(scripts|tests)/.*\.py$'
       - id: check-skills
         name: skill/agent discovery frontmatter
         entry: bash plugins/plugin-forge/scripts/check-skills.sh

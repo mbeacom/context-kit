@@ -7,11 +7,16 @@ import argparse
 import json
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
+# Fixture matching is exact-token with no stemming, so `code` and `codebase`
+# are unrelated terms. When a fixture stops matching, report the prefix-sharing
+# pairs at or above this length so the author sees which description edit
+# caused it rather than only that the fixture is now unanchored.
+NEAR_MATCH_PREFIX = 4
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 CONTRACT_HEADING_RE = re.compile(r"^## (?:Output contract|Report)\s*$", re.MULTILINE)
 REQUIRED_ROUTE_KINDS = {
@@ -89,9 +94,14 @@ class Component:
 @dataclass
 class ValidationResult:
     errors: list[str]
+    warnings: list[str] = field(default_factory=list)
     component_count: int = 0
     description_chars: int = 0
     description_budget: int = 0
+    description_warn_ratio: float = 0.0
+    component_budget: int = 0
+    max_component_chars: int = 0
+    max_component_path: str | None = None
     max_similarity: float = 0.0
     max_similarity_pair: tuple[str, str] | None = None
     similarity_threshold: float = 0.0
@@ -163,6 +173,33 @@ def discover_components(repo_root: Path) -> tuple[list[Component], list[str]]:
 
 def content_tokens(text: str) -> list[str]:
     return [token for token in TOKEN_RE.findall(text.lower()) if token not in STOPWORDS]
+
+
+def near_matches(fixture_terms: set[str], description_terms: set[str]) -> list[str]:
+    """Return `fixture~description` term pairs that share a leading prefix.
+
+    Matching is exact-token, so a description edit from `code` to `codebase`
+    silently unanchors any fixture that depended on the shorter form. Surfacing
+    the prefix-sharing pairs points the author at the description token that
+    changed instead of at the fixture that merely noticed.
+    """
+    pairs: set[str] = set()
+    for fixture_term in fixture_terms:
+        for description_term in description_terms:
+            shorter, longer = sorted((fixture_term, description_term), key=len)
+            if len(shorter) >= NEAR_MATCH_PREFIX and longer.startswith(shorter):
+                pairs.add(f"`{fixture_term}`~`{description_term}`")
+    return sorted(pairs)
+
+
+def _near_match_hint(fixture_terms: set[str], description_terms: set[str]) -> str:
+    pairs = near_matches(fixture_terms, description_terms)
+    if not pairs:
+        return ""
+    return (
+        f"; closest near-matches {', '.join(pairs)} "
+        "(matching is exact-token with no stemming)"
+    )
 
 
 def description_similarity(left: str, right: str) -> float:
@@ -327,12 +364,15 @@ def _validate_fixtures(
                 if polarity == "positive" and not (terms & description_terms):
                     errors.append(
                         f"{fixture_label} shares no content term with its description"
+                        + _near_match_hint(terms, description_terms)
                     )
             polarity_terms[polarity] = term_sets
         negatives = polarity_terms.get("negative", [])
         if negatives and not any(terms & description_terms for terms in negatives):
+            hint = _near_match_hint(set().union(*negatives), description_terms)
             errors.append(
-                f"fixtures: `{path}` needs a near-miss negative sharing a description term"
+                f"fixtures: `{path}` needs a near-miss negative sharing a "
+                f"description term{hint}"
             )
     return len(expected & actual), example_count
 
@@ -431,10 +471,10 @@ def _check_fields(
     optional: set[str] | None = None,
 ) -> None:
     optional = optional or set()
-    for field in sorted(required - set(value)):
-        errors.append(f"{label} is missing `{field}`")
-    for field in sorted(set(value) - required - optional):
-        errors.append(f"{label} has unknown field `{field}`")
+    for key in sorted(required - set(value)):
+        errors.append(f"{label} is missing `{key}`")
+    for key in sorted(set(value) - required - optional):
+        errors.append(f"{label} has unknown field `{key}`")
 
 
 def _scenario_text(
@@ -819,6 +859,7 @@ def validate_repository(
         repo_root / "plugins/plugin-forge/quality/retrieval-scenarios.json"
     )
     errors: list[str] = []
+    warnings: list[str] = []
     components, discovery_errors = discover_components(repo_root)
     errors.extend(discovery_errors)
     policy = load_json(policy_path, "policy", errors)
@@ -833,6 +874,24 @@ def validate_repository(
         errors,
         minimum=1,
     )
+    component_budget = _integer(
+        policy,
+        "component_description_max_chars",
+        errors,
+        minimum=1,
+    )
+    warn_ratio = _number(
+        policy,
+        "aggregate_description_warn_ratio",
+        errors,
+        minimum=0,
+        maximum=1,
+    )
+    if component_budget > budget:
+        errors.append(
+            "policy: `component_description_max_chars` "
+            f"({component_budget}) exceeds the aggregate budget ({budget})"
+        )
     threshold = _number(
         policy,
         "similarity_threshold",
@@ -858,6 +917,26 @@ def validate_repository(
         errors.append(
             f"discovery descriptions use {description_chars} chars, exceeding budget {budget}"
         )
+    elif budget and description_chars >= budget * warn_ratio:
+        warnings.append(
+            f"discovery descriptions use {description_chars}/{budget} chars "
+            f"({description_chars / budget:.1%} of budget, "
+            f"{budget - description_chars} remaining); adding or clarifying a "
+            "component now competes for that remainder"
+        )
+
+    max_component_chars = 0
+    max_component_path: str | None = None
+    for component in components:
+        length = len(component.description)
+        if length > max_component_chars:
+            max_component_chars = length
+            max_component_path = component.path
+        if length > component_budget:
+            errors.append(
+                f"{component.path}: description uses {length} chars, exceeding "
+                f"the per-component ceiling {component_budget}"
+            )
 
     component_paths = {component.path for component in components}
     allowed_pairs = _allowlisted_pairs(policy, component_paths, errors)
@@ -893,9 +972,14 @@ def validate_repository(
 
     return ValidationResult(
         errors=errors,
+        warnings=warnings,
         component_count=len(components),
         description_chars=description_chars,
         description_budget=budget,
+        description_warn_ratio=warn_ratio,
+        component_budget=component_budget,
+        max_component_chars=max_component_chars,
+        max_component_path=max_component_path,
         max_similarity=max_similarity,
         max_similarity_pair=max_pair,
         similarity_threshold=threshold,
@@ -910,10 +994,17 @@ def validate_repository(
 
 
 def _print_report(result: ValidationResult) -> None:
+    remaining = result.description_budget - result.description_chars
     print(
         "Discovery budget: "
         f"{result.description_chars}/{result.description_budget} chars "
-        f"across {result.component_count} components"
+        f"across {result.component_count} components "
+        f"({remaining} remaining)"
+    )
+    largest = f" (`{result.max_component_path}`)" if result.max_component_path else ""
+    print(
+        "Largest component description: "
+        f"{result.max_component_chars}/{result.component_budget} chars{largest}"
     )
     pair = (
         f" (`{result.max_similarity_pair[0]}` vs `{result.max_similarity_pair[1]}`)"
@@ -958,6 +1049,9 @@ def main(argv: list[str] | None = None) -> int:
         retrieval_scenarios_path=args.retrieval_scenarios,
     )
     _print_report(result)
+    sys.stdout.flush()
+    for warning in result.warnings:
+        print(f"WARN: {warning}", file=sys.stderr)
     for error in result.errors:
         print(f"ERROR: {error}", file=sys.stderr)
     if result.errors:

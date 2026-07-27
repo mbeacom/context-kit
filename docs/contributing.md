@@ -37,6 +37,7 @@ bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 
 # Run the focused standard-library suites and their cross-plugin integration
 python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
 python3 -m unittest discover -s tests/integration -p 'test_*.py'
@@ -76,12 +77,16 @@ The `main` branch deploys to GitHub Pages automatically via
   stubs stay unlisted so they can't be installed half-built. Add a page here under
   `docs/plugins/` and wire it into `mkdocs.yml`. Add central positive/negative
   discovery fixtures and keep the aggregate description budget within 4096
-  characters.
+  characters (384 per component). The catalog gate warns at 95% of the budget.
 - **Versioning** — bump `version` in `plugin.json` to ship updates (Claude Code
   uses it as the cache key). Bump the matching `apm.yml` `version` in lockstep;
   `plugin-forge`'s `check-manifests.sh` enforces this. Add the same version as the
   top release in that plugin's `CHANGELOG.md`; the release-readiness gate enforces
-  the changelog and dependency graph invariants.
+  the changelog and dependency graph invariants. On pull requests, CI also runs
+  `check-version-bump.sh`, which fails when shipped plugin content changed without
+  a strictly-greater version. Docs-only, test-only, and `CHANGELOG.md` edits are
+  exempt; to skip deliberately, add a `Skip-Version-Bump: <plugin> - <reason>`
+  trailer to a commit so the exemption is visible in review and in the CI log.
 - **Portability** — keep skill bodies host-neutral. Prefer `CONTEXT_KIT_*`
   environment variables in examples, with `CLAUDE_PLUGIN_*` documented as the
   Claude fallback. Keep marketplace mechanics in `.claude-plugin/` and Claude-only

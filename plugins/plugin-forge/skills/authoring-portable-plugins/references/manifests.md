@@ -90,6 +90,28 @@ Bump both manifest versions for every shipped change. Claude Code uses
 `plugin.json` `version` as the cache key, so pushing commits without a version
 bump may not deliver the update.
 
+That rule is enforced on pull requests by
+`${CLAUDE_PLUGIN_ROOT}/scripts/check-version-bump.sh`. It compares each plugin's
+changed files across `merge-base..HEAD` and fails when shipped content moved
+without a strictly-greater `plugin.json` version. It is CI-only because it is the
+only gate needing a merge base; preview it locally with `--base main`. Exempt
+paths are `README.md`, `LICENSE`, `CHANGELOG.md`, `tests/`, `docs/`, and
+`scripts/test-*.sh`; classification is fail-closed, so any path the set does not
+name counts as shipped. To skip a bump deliberately, add a commit trailer:
+
+```text
+Skip-Version-Bump: <plugin-name> - <reason>
+```
+
+The gate prints the plugin and reason into its output, so an exemption is
+reviewable rather than silent. A trailer naming an unknown plugin, or carrying an
+empty reason, is an error.
+
+The line must be a real git trailer — in the commit message's trailer block, the
+last paragraph, alongside any `Co-authored-by:`. The gate reads it with
+`git log --format=%(trailers:key=...)`, so a `Skip-Version-Bump:` line quoted in
+prose, an example, or a diff is not an exemption and does not suppress the bump.
+
 Keep `.claude-plugin/marketplace.json` hand-authored. Do **not** run `apm pack` to
 regenerate it: generated output drops the per-plugin `category` field and rewrites
 the shared catalog. The category fix in `microsoft/apm#2189` is merged but treated

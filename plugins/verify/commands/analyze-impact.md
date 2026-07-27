@@ -20,6 +20,12 @@ and prospective:
   operational evidence — constraining it to inspection, and noting that a
   delegate's non-mutating behavior is something it follows, not something its
   grants impose;
+- for history, structured-data, and `git grep` structural search, prefer the
+  enforced inspection runner
+  `${CLAUDE_PLUGIN_ROOT}/scripts/run-impact-inspection.py` (run `--list` to
+  discover operations); it enforces read-only with no shell. If it exits
+  `unavailable` because a tool is missing, report that modality as unreached —
+  delegate only as a disclosed, unenforced fallback, never as a silent one;
 - use the existing `verifier` and its confirmed/dubious/refuted/unable-to-check
   taxonomy for factual claims that benefit from an independent pass;
 - when an unknown can only be settled by runtime observation and
