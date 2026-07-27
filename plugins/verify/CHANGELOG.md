@@ -22,9 +22,15 @@
   pins the program-executing settings git reads from the analysis root's own
   `.git/config` — runner-owned, fixed `-c core.pager=cat -c core.fsmonitor=`
   overrides plus `--no-ext-diff`/`--no-textconv` on the diff-producing
-  operations. Withhold `HOME` from the child so no `~/.gitconfig` or `~/.jq` is
-  autoloaded, and describe `git grep -e` accurately as a basic regular
-  expression.
+  operations. `git-grep` also pins `--basic-regexp` so the documented pattern
+  kind is enforced by the runner rather than left to the repository-local
+  `grep.patternType`, the same class of repo-config gap. Withhold `HOME` from the
+  child so no `~/.gitconfig` or `~/.jq` is autoloaded.
+- Encode each accepted `field` segment as a JSON-quoted bracket key
+  (`a.b` → `.["a"]["b"]`) instead of a bare dotted filter, so a hyphenated
+  segment such as `release-name` addresses the literal key rather than being
+  parsed by `jq`/`yq` as a subtraction, and a digit-leading segment such as `2fa`
+  does not become a syntax error.
 - Rewrite the `change-impact` tool-boundary section, report-contract disclosure,
   and `/analyze-impact` command to prefer the enforced runner for its modalities
   and to disclose code-intelligence — and YAML when `yq` is absent — as

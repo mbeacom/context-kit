@@ -121,7 +121,12 @@ def _validate_field(raw: str) -> str:
             "field must be a dotted path of [A-Za-z0-9_-] segments; the runner "
             "assembles the filter, so no raw jq/yq expression is accepted"
         )
-    return "." + ".".join(segments)
+    # Encode each segment as a JSON-quoted bracket key: `.["a"]["b"]`. A bare
+    # dotted filter is unsafe for both jq and yq -- `.release-name` parses as
+    # subtraction (`.release` minus `name`) and `.2fa` is a syntax error -- so an
+    # accepted segment could silently address the wrong thing or fail to run.
+    # json.dumps keeps the quoting correct if FIELD_SEGMENT_RE is ever widened.
+    return "." + "".join(f"[{json.dumps(seg)}]" for seg in segments)
 
 
 def _validate_path(raw: str, root: Path) -> str:
@@ -228,7 +233,11 @@ def _op_git_blame_path(v: dict[str, str]) -> list[str]:
 
 
 def _op_git_grep(v: dict[str, str]) -> list[str]:
-    argv = _git("grep", "-n", "--no-color", "-e", v["pattern"])
+    # --basic-regexp pins the documented pattern kind. git grep otherwise honors
+    # the repository-local grep.patternType, which GIT_CONFIG_GLOBAL/SYSTEM do not
+    # reach, so a repo set to extended/perl/fixed would silently change what this
+    # operation means. The flag is runner-owned and overrides that repo config.
+    argv = _git("grep", "-n", "--no-color", "--basic-regexp", "-e", v["pattern"])
     if "path" in v:
         argv += ["--", v["path"]]
     return argv
@@ -317,7 +326,8 @@ OPERATIONS: tuple[Operation, ...] = (
                 "pattern",
                 "pattern",
                 True,
-                "basic regular expression (git grep -e) over tracked content",
+                "basic regular expression (git grep --basic-regexp -e) over "
+                "tracked content",
             ),
             _OPT_PATH,
         ),

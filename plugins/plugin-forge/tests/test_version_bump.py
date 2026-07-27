@@ -127,6 +127,53 @@ class VersionBumpTests(unittest.TestCase):
             result.errors,
         )
 
+    def test_non_ascii_shipped_path_is_not_silently_dropped(self) -> None:
+        # Without -z, git honors core.quotePath and returns
+        # "plugins/alpha/skills/alpha/caf\303\251.md" with literal quotes, which
+        # would fail the `plugins/` prefix check and drop the change — the
+        # opposite of fail-closed. Force quotePath on to prove it is handled.
+        self._write_plugin("alpha", "1.0.0")
+        self._commit("base")
+        self._start_feature()
+        self._git("config", "core.quotePath", "true")
+        self._touch("alpha", "skills/alpha/café.md", "# accented\n")
+        self._commit("add an accented shipped file")
+
+        result = self._check()
+
+        self.assertTrue(
+            any(
+                "plugin `alpha`: shipped content changed" in error
+                and "café.md" in error
+                for error in result.errors
+            ),
+            result.errors,
+        )
+
+    def test_skip_line_outside_the_trailer_block_does_not_suppress(self) -> None:
+        # A quoted example in a commit body is prose, not an exemption. Only a
+        # real trailer block counts, so this must still fail.
+        self._write_plugin("alpha", "1.0.0")
+        self._commit("base")
+        self._start_feature()
+        self._touch("alpha", "skills/alpha/SKILL.md", "# edit\n")
+        self._commit(
+            "edit skill\n\n"
+            "Skip-Version-Bump: alpha - quoted example in the middle of prose\n\n"
+            "That line above is documentation, not a trailer.\n"
+        )
+
+        result = self._check()
+
+        self.assertEqual([], result.notices)
+        self.assertTrue(
+            any(
+                "plugin `alpha`: shipped content changed" in error
+                for error in result.errors
+            ),
+            result.errors,
+        )
+
     def test_shipped_change_with_bump_passes(self) -> None:
         self._write_plugin("alpha", "1.0.0")
         self._commit("base")

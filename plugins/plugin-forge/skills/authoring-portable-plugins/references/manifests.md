@@ -107,6 +107,11 @@ The gate prints the plugin and reason into its output, so an exemption is
 reviewable rather than silent. A trailer naming an unknown plugin, or carrying an
 empty reason, is an error.
 
+The line must be a real git trailer — in the commit message's trailer block, the
+last paragraph, alongside any `Co-authored-by:`. The gate reads it with
+`git log --format=%(trailers:key=...)`, so a `Skip-Version-Bump:` line quoted in
+prose, an example, or a diff is not an exemption and does not suppress the bump.
+
 Keep `.claude-plugin/marketplace.json` hand-authored. Do **not** run `apm pack` to
 regenerate it: generated output drops the per-plugin `category` field and rewrites
 the shared catalog. The category fix in `microsoft/apm#2189` is merged but treated

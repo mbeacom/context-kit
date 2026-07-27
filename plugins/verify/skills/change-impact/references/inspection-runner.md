@@ -68,13 +68,21 @@ run-impact-inspection.py --operation ID --root ABSOLUTE_DIR [--param name=value 
 | --- | --- | --- |
 | `count` | integer `1`–`10000` | `--max-count=<n>` (built by the runner) |
 | `rev` | `[A-Za-z0-9][A-Za-z0-9._/~^-]*`, no leading dash | a positional revision |
-| `pattern` | non-empty, NUL-free text, read as a basic regular expression | the argument of `git grep -e` |
-| `field` | dotted `[A-Za-z0-9_-]` segments | a `jq`/`yq` filter `.a.b`, assembled by the runner — never a raw expression |
+| `pattern` | non-empty, NUL-free text, read as a basic regular expression | the argument of `git grep --basic-regexp -e` |
+| `field` | dotted `[A-Za-z0-9_-]` segments | a `jq`/`yq` bracket filter `.["a"]["b"]`, assembled by the runner — never a raw expression |
 | `path` | repo-relative, no leading dash | a positional after `--`, confined inside `--root` |
 
 A `path` is rejected if it is absolute, begins with a dash, or — after symlink
 resolution — falls outside the resolved root. A `rev` or `field` that could carry
 a flag or a raw query is rejected before anything spawns.
+
+A `field` is not concatenated into a dotted filter: each accepted segment is
+JSON-encoded into a bracket key, so `a.b` becomes `.["a"]["b"]`. A bare dotted
+filter would be unsafe for both `jq` and `yq` — `.release-name` parses as
+subtraction (`.release` minus `name`) and a digit-leading `.2fa` is a syntax
+error — so the bracket form is what guarantees every accepted segment addresses
+the literal key it names. The encoding uses `json.dumps`, so it stays correct if
+the accepted character set is ever widened.
 
 ## Operation catalog
 
@@ -92,13 +100,13 @@ prefix.
 | `git-show-commit` | history | git | `show --no-color --no-ext-diff --no-textconv --stat <rev>` |
 | `git-diff-revs` | history | git | `diff --no-color --no-ext-diff --no-textconv <base> <head> [-- <path>]` |
 | `git-blame-path` | history | git | `blame --no-color --no-textconv -- <path>` |
-| `git-grep` | structural | git | `grep -n --no-color -e <pattern> [-- <path>]` |
+| `git-grep` | structural | git | `grep -n --no-color --basic-regexp -e <pattern> [-- <path>]` |
 | `json-keys` | structured-data | jq | `jq --sort-keys keys <path>` |
-| `json-field` | structured-data | jq | `jq <.field> <path>` |
+| `json-field` | structured-data | jq | `jq '.["a"]["b"]' <path>` (bracket filter from `<field>`) |
 | `json-paths` | structured-data | jq | `jq -c paths <path>` |
 | `json-type` | structured-data | jq | `jq type <path>` |
 | `yaml-keys` | structured-data | yq | `yq keys <path>` (mikefarah yq) |
-| `yaml-field` | structured-data | yq | `yq <.field> <path>` (mikefarah yq) |
+| `yaml-field` | structured-data | yq | `yq '.["a"]["b"]' <path>` (mikefarah yq, bracket filter) |
 
 Every git argv carries `--no-pager` and `--no-color` as fixed literals, closing
 the pager-exec vector before a parameter is even considered. The shared prefix
@@ -106,6 +114,14 @@ also pins the program-executing repository-local config surfaces (see
 *Environment hardening*): `core.pager` and `core.fsmonitor` via `-c`, and
 `diff.external`/textconv diff drivers via `--no-ext-diff`/`--no-textconv` on the
 operations that can invoke a diff driver.
+
+`git-grep` additionally carries `--basic-regexp` so the documented pattern kind
+is enforced by the runner, not left to the repository. `git grep` otherwise
+honors the repository-local `grep.patternType` config — which
+`GIT_CONFIG_GLOBAL`/`GIT_CONFIG_SYSTEM` do not reach — so a repo set to
+`extended`, `perl`, or `fixed` would silently change what the `pattern` parameter
+means. The fixed flag overrides that config, the same class of gap already closed
+for `core.fsmonitor` and `diff.external`.
 
 ## Environment hardening
 

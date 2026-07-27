@@ -42,12 +42,15 @@ class RunnerCliTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
-    def run_runner(self, *cli_args: str) -> subprocess.CompletedProcess[str]:
+    def run_runner(
+        self, *cli_args: str, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, str(RUNNER), *cli_args],
             check=False,
             capture_output=True,
             text=True,
+            env=env,
         )
 
     def git(self, *args: str) -> None:
@@ -256,8 +259,12 @@ class RunnerCliTests(unittest.TestCase):
     # --- Unavailable, never a silent downgrade ------------------------------
 
     def test_missing_tool_reports_unavailable(self) -> None:
-        # yq is not part of the test environment; the runner must say so, not
-        # silently fall back to something else.
+        # main() resolves availability with shutil.which(command[0]), which
+        # consults the runner process's own PATH. Point that PATH at a directory
+        # that cannot exist, so the tool is unresolvable whether or not yq (or
+        # anything else) is installed on the host -- CI ships yq, this box does
+        # not, and both must exercise the unavailable path deterministically.
+        env = {**os.environ, "PATH": str(self.root / "no-such-bin-dir")}
         result = self.run_runner(
             "--operation",
             "yaml-keys",
@@ -265,6 +272,7 @@ class RunnerCliTests(unittest.TestCase):
             str(self.root),
             "--param",
             "path=apm.yml",
+            env=env,
         )
         self.assertEqual(result.returncode, 3)
         payload = json.loads(result.stderr)
@@ -307,6 +315,7 @@ class RunnerCliTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0)
         report = json.loads(result.stdout)
+        self.assertIn("--basic-regexp", report["argv"])
         self.assertIn("needle", report["observations"]["stdout_excerpt"])
 
     @unittest.skipUnless(_has_git(), "requires git")
@@ -349,6 +358,13 @@ class RunnerCliTests(unittest.TestCase):
             "runner-owned -c overrides must neutralize repo-local diff.external",
         )
 
+    # --- Field filter is a bracket key, not a bare dotted expression --------
+
+    @unittest.skipUnless(_has_jq(), "requires jq")
+    def test_json_field_addresses_nested_key(self) -> None:
+        # Split out of the git-hardening test above: the runner must build a
+        # bracket filter so the jq assertion fails only for a field-encoding
+        # reason, and the test stays runnable on a host with git but without jq.
         (self.root / "data.json").write_text(
             json.dumps({"outer": {"inner": "found"}}), encoding="utf-8"
         )
@@ -364,8 +380,54 @@ class RunnerCliTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0)
         report = json.loads(result.stdout)
-        self.assertEqual(report["argv"], ["jq", ".outer.inner", "data.json"])
+        self.assertEqual(report["argv"], ["jq", '.["outer"]["inner"]', "data.json"])
         self.assertIn("found", report["observations"]["stdout_excerpt"])
+
+    @unittest.skipUnless(_has_jq(), "requires jq")
+    def test_json_field_hyphenated_key_addresses_literal_key(self) -> None:
+        # A bare `.release-name` filter parses as subtraction and returns the
+        # wrong thing; the bracket form must address the literal key.
+        (self.root / "data.json").write_text(
+            json.dumps({"release-name": {"inner": "found"}}), encoding="utf-8"
+        )
+        result = self.run_runner(
+            "--operation",
+            "json-field",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=data.json",
+            "--param",
+            "field=release-name.inner",
+        )
+        self.assertEqual(result.returncode, 0)
+        report = json.loads(result.stdout)
+        self.assertEqual(
+            report["argv"], ["jq", '.["release-name"]["inner"]', "data.json"]
+        )
+        self.assertIn("found", report["observations"]["stdout_excerpt"])
+
+    @unittest.skipUnless(_has_jq(), "requires jq")
+    def test_json_field_digit_leading_key_addresses_literal_key(self) -> None:
+        # A bare `.2fa` filter is a jq syntax error even though the regex accepts
+        # the segment; the bracket form must address the literal key instead.
+        (self.root / "data.json").write_text(
+            json.dumps({"2fa": "enabled"}), encoding="utf-8"
+        )
+        result = self.run_runner(
+            "--operation",
+            "json-field",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=data.json",
+            "--param",
+            "field=2fa",
+        )
+        self.assertEqual(result.returncode, 0)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["argv"], ["jq", '.["2fa"]', "data.json"])
+        self.assertIn("enabled", report["observations"]["stdout_excerpt"])
 
     @unittest.skipUnless(_has_git(), "requires git")
     def test_environment_is_scrubbed_of_redirection_vars(self) -> None:
@@ -465,7 +527,18 @@ class RunnerUnitTests(unittest.TestCase):
     def test_validate_field_builds_filter(self) -> None:
         self.assertEqual(
             run_impact_inspection._validate_field("a.b.c"),
-            ".a.b.c",
+            '.["a"]["b"]["c"]',
+        )
+        # A hyphenated segment and a digit-leading segment are both accepted by
+        # the regex; each must encode to a literal bracket key, not a jq/yq
+        # expression that would subtract or fail to parse.
+        self.assertEqual(
+            run_impact_inspection._validate_field("release-name"),
+            '.["release-name"]',
+        )
+        self.assertEqual(
+            run_impact_inspection._validate_field("2fa"),
+            '.["2fa"]',
         )
         with self.assertRaises(run_impact_inspection.Refusal):
             run_impact_inspection._validate_field("a.b; system")

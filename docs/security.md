@@ -141,7 +141,13 @@ config only. Git still reads the analysis root's own repository-local
 `.git/config`, which can define program-executing settings (`diff.external`, a
 diff driver's `textconv`, `core.fsmonitor`). The runner therefore additionally
 pins those on every git invocation — `-c core.pager=cat -c core.fsmonitor=` plus
-`--no-ext-diff`/`--no-textconv` on the diff-producing operations.
+`--no-ext-diff`/`--no-textconv` on the diff-producing operations. The same class
+of repo-local override reaches `git grep`'s `grep.patternType`, which would
+silently change the documented pattern kind; `git-grep` pins it with a fixed
+`--basic-regexp`. A `field` parameter is likewise encoded as a bracket key
+(`.["a"]["b"]`) rather than a bare dotted filter, so an accepted segment such as
+`release-name` addresses the literal key instead of being read by `jq`/`yq` as a
+subtraction or a syntax error.
 
 What the runner enforces:
 

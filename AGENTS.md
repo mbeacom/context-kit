@@ -41,13 +41,13 @@ an application. See
   document `CLAUDE_PLUGIN_*` as the Claude fallback. Use `${CLAUDE_PLUGIN_ROOT}`
   for in-plugin paths; never hardcode install locations.
 - **Skill granularity:** a few well-scoped skills with `references/` beat many
-  tiny ones — always-on name+description cost scales with skill count. That cost
-  is capped: **4096 characters summed across every skill/agent `name` +
-  `description`, and 384 characters for any single one.** The budget is fixed,
-  not scaled by component count, so a new component and a clarification to an
-  existing one compete for the same remainder. Check headroom before writing
-  with `python3 plugins/plugin-forge/scripts/catalog_quality.py`; it warns at
-  95% of the budget and fails above it.
+  tiny ones — always-on name+description cost scales with skill count. The
+  measured budget caps the `description` half of that cost: **4096 characters
+  summed across every skill/agent `description`, and 384 for any single one.**
+  The budget is fixed, not scaled by component count, so a new component and a
+  clarification to an existing one compete for the same remainder. Check headroom
+  before writing with `python3 plugins/plugin-forge/scripts/catalog_quality.py`;
+  it warns at 95% of the budget and fails above it.
 - **Catalog discipline:** add a `marketplace.json` entry only when a plugin is
   ready to ship; keep it hand-authored (never `apm pack`, which drops `category`).
 - **Fresh content, MIT (Mark Beacom):** don't copy externally licensed text.

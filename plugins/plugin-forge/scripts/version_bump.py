@@ -54,11 +54,15 @@ EXEMPT_DIR_PREFIXES = ("tests/", "docs/")
 
 # Skip-Version-Bump: <plugin-name> - <reason>
 # Separator mirrors RELEASE_HEADING_RE in release_readiness.py (em/en dash,
-# hyphen, or colon). A line matching the prefix but not the full pattern, or a
-# reason that is empty, is an ERROR — skipping must never be silent.
-SKIP_PREFIX_RE = re.compile(r"^\s*Skip-Version-Bump\s*:", re.IGNORECASE)
+# hyphen, or colon). Only a real trailer counts: the lines below come from
+# `git log --format=%(trailers:key=...)`, which parses each commit's trailer
+# block, so a quoted example in a commit body cannot suppress a bump. A line
+# that is a trailer but does not match the full pattern, or whose reason is
+# empty, is an ERROR — skipping must never be silent.
+SKIP_TRAILER_KEY = "Skip-Version-Bump"
+SKIP_PREFIX_RE = re.compile(rf"^\s*{SKIP_TRAILER_KEY}\s*:", re.IGNORECASE)
 SKIP_TRAILER_RE = re.compile(
-    r"^\s*Skip-Version-Bump\s*:\s+(?P<plugin>\S+)\s*(?:—|–|-|:)\s+(?P<reason>.+)$",
+    rf"^\s*{SKIP_TRAILER_KEY}\s*:\s+(?P<plugin>\S+)\s*(?:—|–|-|:)\s+(?P<reason>.+)$",
     re.IGNORECASE,
 )
 
@@ -136,8 +140,12 @@ def _precedence_key(version: str) -> tuple[Any, ...]:
 
 
 def _changed_paths(repo_root: Path, merge_base: str) -> list[str]:
-    result = _git(repo_root, "diff", "--name-only", f"{merge_base}..HEAD")
-    return [line for line in result.stdout.splitlines() if line.strip()]
+    # -z keeps paths verbatim. Without it git honors core.quotePath and wraps
+    # non-ASCII or control-character names in quotes with C-style escapes, which
+    # would make _plugin_of fail to recognize the `plugins/` prefix and silently
+    # drop the change — the opposite of this gate's fail-closed contract.
+    result = _git(repo_root, "diff", "--name-only", "-z", f"{merge_base}..HEAD")
+    return [line for line in result.stdout.split("\0") if line.strip()]
 
 
 def _plugin_of(path: str) -> str | None:
@@ -174,13 +182,15 @@ def _working_tree_plugins(repo_root: Path) -> set[str]:
 
 def _merge_base_plugins(repo_root: Path, merge_base: str) -> set[str]:
     result = _git(
-        repo_root, "ls-tree", "-r", "--name-only", merge_base, "--", "plugins"
+        repo_root, "ls-tree", "-r", "--name-only", "-z", merge_base, "--", "plugins"
     )
     if result.returncode != 0:
         return set()
     suffix = "/" + MANIFEST_RELPATH
     names: set[str] = set()
-    for line in result.stdout.splitlines():
+    for line in result.stdout.split("\0"):
+        if not line.strip():
+            continue
         name = _plugin_of(line)
         if name is not None and line == f"plugins/{name}{suffix}":
             names.add(name)
@@ -231,27 +241,37 @@ def _collect_skips(
     known_plugins: set[str],
     errors: list[str],
 ) -> dict[str, str]:
-    result = _git(repo_root, "log", "--format=%B%x00", f"{merge_base}..HEAD")
+    # `%(trailers:key=...)` makes git parse each commit's actual trailer block,
+    # so a `Skip-Version-Bump:` line quoted inside a body — in prose, an example,
+    # or a diff — is not mistaken for an exemption. Git emits one `Key: value`
+    # line per matching trailer, and nothing for commits without one, so a
+    # present-but-empty trailer stays distinguishable from an absent trailer.
+    result = _git(
+        repo_root,
+        "log",
+        f"--format=%(trailers:key={SKIP_TRAILER_KEY})",
+        f"{merge_base}..HEAD",
+    )
     skips: dict[str, str] = {}
-    for line in result.stdout.replace("\x00", "\n").splitlines():
+    for line in result.stdout.splitlines():
         if not SKIP_PREFIX_RE.match(line):
             continue
         match = SKIP_TRAILER_RE.match(line)
         if match is None:
             errors.append(
-                f"malformed Skip-Version-Bump trailer (need "
-                f"`Skip-Version-Bump: <plugin> - <reason>`): {line.strip()!r}"
+                f"malformed {SKIP_TRAILER_KEY} trailer (need "
+                f"`{SKIP_TRAILER_KEY}: <plugin> - <reason>`): {line.strip()!r}"
             )
             continue
         plugin = match.group("plugin")
         reason = match.group("reason").strip()
         if not reason:
             errors.append(
-                f"Skip-Version-Bump trailer for `{plugin}` has an empty reason"
+                f"{SKIP_TRAILER_KEY} trailer for `{plugin}` has an empty reason"
             )
             continue
         if plugin not in known_plugins:
-            errors.append(f"Skip-Version-Bump trailer names unknown plugin `{plugin}`")
+            errors.append(f"{SKIP_TRAILER_KEY} trailer names unknown plugin `{plugin}`")
             continue
         skips[plugin] = reason
     return skips

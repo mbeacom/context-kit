@@ -9,7 +9,10 @@
   the change at all. Path classification is fail-closed, with `README.md`,
   `LICENSE`, `CHANGELOG.md`, `tests/`, `docs/`, and `scripts/test-*.sh` exempt.
   A deliberate exemption uses a `Skip-Version-Bump: <plugin> - <reason>` commit
-  trailer, which the gate echoes into its output so the skip stays reviewable.
+  trailer, read from the commit's real trailer block so a quoted example cannot
+  suppress a bump, and echoed into the gate's output so the skip stays
+  reviewable. Changed paths are read NUL-delimited so a non-ASCII filename
+  cannot slip past the `plugins/` prefix check.
   Ships hermetic regression tests in `scripts/test-version-bump.sh`.
 - Add a warning band and a per-component ceiling to the discovery budget.
   `aggregate_description_warn_ratio` (0.95) reports remaining headroom without
