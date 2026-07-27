@@ -34,6 +34,10 @@ FINDING_RE = re.compile(
 CANDIDATE_RE = re.compile(r"^-\s*\[")
 HEADING_RE = re.compile(r"^##+\s+(?P<title>.+?)\s*$")
 
+# The four sections the `corpus-reviewer` output contract requires. A report
+# missing any of them is truncated, not merely terse.
+REQUIRED_SECTIONS = frozenset({"summary", "findings", "gaps observed", "coverage"})
+
 
 def load_json_file(path: Path, schema: str) -> dict[str, Any]:
     data = json.loads(path.read_bytes().decode("utf-8"))
@@ -54,6 +58,25 @@ def inventory_digest(inventory: dict[str, Any]) -> str:
     payload = {"scope": inventory.get("scope"), "units": inventory.get("units")}
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def resolve_output(destination: Path, inventory: dict[str, Any]) -> Path:
+    """Refuse to write derived artifacts inside the corpus root.
+
+    An artifact written into the corpus is enumerated by the next inventory
+    run, which inflates the denominator with the review's own output.
+    """
+    resolved = destination.expanduser().resolve()
+    raw_root = inventory.get("root")
+    if not isinstance(raw_root, str) or not raw_root:
+        return resolved
+    root = Path(raw_root).expanduser().resolve()
+    if resolved == root or root in resolved.parents:
+        raise ValueError(
+            f"refusing to write inside the corpus root ({root}); use a separate "
+            "work directory so a re-run does not enumerate its own artifacts"
+        )
+    return resolved
 
 
 def parse_frontmatter(text: str) -> tuple[dict[str, Any] | None, str]:
@@ -103,28 +126,49 @@ def split_sections(body: str) -> dict[str, list[str]]:
 def parse_findings_section(lines: Sequence[str]) -> tuple[list[dict[str, str]], int]:
     """Return parsed findings and the count of bullets that failed to parse.
 
-    An unparsed bullet is reported rather than dropped: a reviewer who wrote the
+    Each finding keeps its indented continuation block — the Observation,
+    Evidence, and Why-it-matters lines the worker contract requires. Storing
+    only the marker line would reduce every finding to a tag and a citation,
+    leaving the aggregate outputs with no substance to act on.
+
+    An unparsed bullet is counted rather than dropped: a reviewer who wrote the
     marker slightly differently should see a warning, not lose the finding.
     """
     findings: list[dict[str, str]] = []
     unparsed = 0
+    current: dict[str, str] | None = None
+    body: list[str] = []
+
+    def flush() -> None:
+        if current is not None:
+            current["body"] = "\n".join(body).strip()
+            findings.append(current)
+
     for line in lines:
         stripped = line.strip()
-        if not CANDIDATE_RE.match(stripped):
-            continue
-        match = FINDING_RE.match(stripped)
-        if match is None:
-            unparsed += 1
-            continue
-        tags = [tag.strip().upper() for tag in match.group("tags").split(",")]
-        findings.append(
-            {
+        if CANDIDATE_RE.match(stripped):
+            flush()
+            current, body = None, []
+            match = FINDING_RE.match(stripped)
+            if match is None:
+                unparsed += 1
+                continue
+            tags = [tag.strip().upper() for tag in match.group("tags").split(",")]
+            current = {
                 "tags": ",".join(tag for tag in tags if tag),
                 "significance": match.group("significance").strip().lower(),
                 "citation": match.group("citation").strip(),
                 "text": stripped,
             }
-        )
+            continue
+        if current is not None and line.startswith((" ", "\t")) and stripped:
+            body.append(stripped)
+            continue
+        if not stripped:
+            continue
+        flush()
+        current, body = None, []
+    flush()
     return findings, unparsed
 
 
@@ -174,6 +218,20 @@ class Ledger:
             counts[value] = counts.get(value, 0) + 1
         return counts
 
+    def entries(self) -> list[dict[str, Any]]:
+        """Return every unit with its disposition, in inventory order."""
+        return [
+            {
+                "id": unit_id,
+                "path": self.units[unit_id]["path"],
+                "bytes": self.units[unit_id]["bytes"],
+                "range": self.units[unit_id].get("range"),
+                "disposition": self.disposition[unit_id],
+                "reason": self.reasons.get(unit_id),
+            }
+            for unit_id in sorted(self.disposition)
+        ]
+
     def bytes_for(self, disposition: str) -> int:
         return sum(
             int(self.units[unit_id]["bytes"])
@@ -192,7 +250,9 @@ def read_shard_report(
 ) -> tuple[str, dict[str, Any], list[dict[str, str]], int, str]:
     """Classify one shard's findings file.
 
-    Returns (status, frontmatter, findings, unparsed_count, body).
+    Returns (status, frontmatter, findings, unparsed_count, findings_text).
+    The last element is the text of the Findings section only — see `_absence`
+    for why the rest of the report must not count as evidence of presence.
     """
     path = findings_dir / f"{shard['id']}.md"
     if not path.is_file():
@@ -201,20 +261,31 @@ def read_shard_report(
         text = path.read_text(encoding="utf-8")
     except OSError:
         return FAILED, {}, [], 0, ""
+    except UnicodeDecodeError:
+        # A report we cannot decode is unusable, not fatal. Failing the shard
+        # keeps the ledger computable so the rest of the run is still reportable.
+        return FAILED, {}, [], 0, ""
 
     fields, body = parse_frontmatter(text)
     if fields is None:
-        return FAILED, {}, [], 0, text
+        return FAILED, {}, [], 0, ""
     if fields.get("schema") != FINDINGS_SCHEMA:
-        return FAILED, fields, [], 0, body
+        return FAILED, fields, [], 0, ""
     if str(fields.get("shard", "")).strip('"') != shard["id"]:
-        return FAILED, fields, [], 0, body
+        return FAILED, fields, [], 0, ""
     if str(fields.get("digest", "")).strip('"') != shard["digest"]:
-        return "stale_digest", fields, [], 0, body
+        return "stale_digest", fields, [], 0, ""
 
     sections = split_sections(body)
-    findings, unparsed = parse_findings_section(sections.get("findings", []))
-    return "complete", fields, findings, unparsed, body
+    # A header alone is not a report. Without this check a truncated file whose
+    # frontmatter claims every unit was reviewed would count as full coverage
+    # while carrying no findings, gaps, or coverage statement at all.
+    if not REQUIRED_SECTIONS <= set(sections):
+        return FAILED, fields, [], 0, ""
+
+    findings_lines = sections.get("findings", [])
+    findings, unparsed = parse_findings_section(findings_lines)
+    return "complete", fields, findings, unparsed, "\n".join(findings_lines)
 
 
 def aggregate(
@@ -233,6 +304,15 @@ def aggregate(
             "wrong denominator"
         )
 
+    inventory_errors = inventory.get("errors")
+    inventory_errors = inventory_errors if isinstance(inventory_errors, list) else []
+    if inventory_errors:
+        warnings.append(
+            f"{len(inventory_errors)} directory/directories could not be traversed "
+            "at inventory time; their files are missing from this denominator, so "
+            "coverage is measured against a known-incomplete corpus"
+        )
+
     ledger = Ledger(inventory)
     shard_status: dict[str, int] = {
         "complete": 0,
@@ -241,11 +321,14 @@ def aggregate(
         "stale_digest": 0,
     }
     all_findings: list[dict[str, Any]] = []
-    bodies: list[str] = []
+    findings_prose: list[str] = []
+    # Shards a re-run must handle: failed, stale, pending, and any shard whose
+    # worker left units unaccounted for.
+    redispatch: set[str] = set()
 
     for shard in shards["shards"]:
         member_ids = {unit["id"] for unit in shard["units"]}
-        status, fields, findings, unparsed, body = read_shard_report(
+        status, fields, findings, unparsed, findings_text = read_shard_report(
             shard, findings_dir
         )
         shard_status[status] = shard_status.get(status, 0) + 1
@@ -253,18 +336,25 @@ def aggregate(
         if status == FAILED:
             for unit_id in sorted(member_ids):
                 ledger.assign(unit_id, FAILED, "shard findings file is unusable")
-            warnings.append(f"shard {shard['id']}: findings file is malformed")
+            warnings.append(
+                f"shard {shard['id']}: findings file is unusable — it is not "
+                "decodable, lacks valid frontmatter, or is missing a required "
+                "section from the reviewer output contract"
+            )
+            redispatch.add(shard["id"])
             continue
         if status == "stale_digest":
             warnings.append(
                 f"shard {shard['id']}: findings digest does not match the plan; "
                 "the corpus changed under the review"
             )
+            redispatch.add(shard["id"])
             continue
         if status == PENDING:
+            redispatch.add(shard["id"])
             continue
 
-        bodies.append(body)
+        findings_prose.append(findings_text)
         if unparsed:
             warnings.append(
                 f"shard {shard['id']}: {unparsed} finding bullet(s) did not match "
@@ -302,6 +392,7 @@ def aggregate(
             warnings.append(
                 f"shard {shard['id']}: unit `{unit_id}` was never accounted for"
             )
+            redispatch.add(shard["id"])
 
         for finding in findings:
             all_findings.append({"shard": shard["id"], **finding})
@@ -330,6 +421,11 @@ def aggregate(
     complete = blocking == 0 and in_scope_units > 0
 
     generated = (now or datetime.now(timezone.utc)).isoformat()
+    # The per-unit map is the ledger's actual product. Counts alone let a reader
+    # see that eight units are pending without being able to name them, which
+    # makes the plugin's central claim — every unit is accounted for — unprovable
+    # and leaves no way to target a re-dispatch.
+    unit_ledger = ledger.entries()
     ledger_doc = {
         "schema": COVERAGE_SCHEMA,
         "generated_at": generated,
@@ -338,16 +434,24 @@ def aggregate(
         "dispositions": counts,
         "coverage": coverage,
         "shards": {"total": len(shards["shards"]), **shard_status},
+        "inventory_errors": inventory_errors,
+        "units": unit_ledger,
         "uninspectable": [
-            {
-                "id": unit_id,
-                "path": ledger.units[unit_id]["path"],
-                "reason": ledger.reasons.get(unit_id, "unspecified"),
-            }
-            for unit_id in sorted(ledger.disposition)
-            if ledger.disposition[unit_id] == UNINSPECTABLE
+            entry for entry in unit_ledger if entry["disposition"] == UNINSPECTABLE
         ],
-        "absence": _absence(expected, bodies, counts, shard_status, in_scope_units),
+        "needs_attention": {
+            name: [entry for entry in unit_ledger if entry["disposition"] == name]
+            for name in (PENDING, FAILED, PARTIAL)
+        },
+        "shards_to_redispatch": sorted(redispatch),
+        "absence": _absence(
+            expected,
+            findings_prose,
+            counts,
+            shard_status,
+            in_scope_units,
+            bool(inventory_errors),
+        ),
         "warnings": warnings,
     }
 
@@ -389,18 +493,23 @@ def _by_key(findings: Sequence[dict[str, Any]], key: str) -> dict[str, int]:
 
 def _absence(
     expected: Sequence[str] | None,
-    bodies: Sequence[str],
+    findings_prose: Sequence[str],
     counts: dict[str, int],
     shard_status: dict[str, int],
     in_scope_units: int,
+    inventory_incomplete: bool = False,
 ) -> dict[str, Any]:
     """Classify each expected-but-unmentioned item.
 
     `indeterminate` outranks `not-found`: while any unit is uninspectable,
-    partially read, failed, pending, or stale, absence is not decidable and must
-    not be reported as a gap. A partially read unit blocks a `not-found` for the
-    same reason an uninspectable one does — its unread portion could hold the
-    expected item.
+    partially read, failed, pending, or stale — or the inventory itself could
+    not enumerate the whole corpus — absence is not decidable and must not be
+    reported as a gap. A partially read unit blocks a `not-found` for the same
+    reason an uninspectable one does: its unread portion could hold the item.
+
+    Presence is judged from the Findings sections only. Scanning whole reports
+    would let "incident report is absent" in a Gaps section read as proof that
+    an incident report was found, silently deleting a real gap from the output.
     """
     if not expected:
         return {
@@ -425,7 +534,9 @@ def _absence(
         "stale_digest": shard_status["stale_digest"],
     }
     blocking = {name: value for name, value in blockers.items() if value}
-    haystack = "\n".join(bodies).casefold()
+    if inventory_incomplete:
+        blocking["untraversable directories"] = 1
+    haystack = "\n".join(findings_prose).casefold()
 
     not_found: list[str] = []
     indeterminate: list[dict[str, str]] = []
@@ -480,11 +591,44 @@ def render_coverage_markdown(ledger: dict[str, Any]) -> str:
     ]
     if ledger["uninspectable"]:
         lines += [
-            f"- `{entry['path']}` — {entry['reason']}"
+            f"- `{entry['path']}` — {entry['reason'] or 'unspecified'}"
             for entry in ledger["uninspectable"]
         ]
     else:
         lines.append("None.")
+
+    lines += ["", "## Units needing attention", ""]
+    attention = ledger["needs_attention"]
+    if any(attention.values()):
+        for name in (PENDING, FAILED, PARTIAL):
+            entries = attention[name]
+            if not entries:
+                continue
+            lines += [f"`{name}` ({len(entries)}):", ""]
+            lines += [
+                f"- `{entry['path']}`"
+                + (f" — {entry['reason']}" if entry["reason"] else "")
+                for entry in entries
+            ]
+            lines.append("")
+        if ledger["shards_to_redispatch"]:
+            joined = ", ".join(f"`{name}`" for name in ledger["shards_to_redispatch"])
+            lines += [f"Re-dispatch: {joined}", ""]
+        lines.pop()
+    else:
+        lines.append("None.")
+
+    if ledger["inventory_errors"]:
+        lines += ["", "## Untraversable directories", ""]
+        lines += [
+            f"- `{entry['path']}` — {entry['error']}"
+            for entry in ledger["inventory_errors"]
+        ]
+        lines += [
+            "",
+            "Their files never entered the denominator, so coverage below is "
+            "measured against a known-incomplete corpus.",
+        ]
 
     absence = ledger["absence"]
     lines += ["", "## Absence verdicts", ""]
@@ -556,6 +700,11 @@ def render_findings_markdown(findings_doc: dict[str, Any]) -> str:
                 f"- [{finding['significance']}] `{finding['citation']}` "
                 f"(shard {finding['shard']})"
             )
+            # The continuation block is the substance; a marker line alone tells
+            # a reader where to look but not what was found.
+            for detail in str(finding.get("body", "")).splitlines():
+                if detail.strip():
+                    lines.append(f"  {detail.strip()}")
         lines.append("")
     if not by_tag:
         lines.append("None.")
@@ -615,7 +764,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 
-    out_dir = Path(args.out_dir).expanduser()
+    try:
+        out_dir = resolve_output(Path(args.out_dir), inventory)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "coverage.json").write_text(
         json.dumps(ledger, indent=2) + "\n", encoding="utf-8"
@@ -644,9 +797,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"WARNING: {warning}", file=sys.stderr)
 
     if not ledger["complete"]:
+        targets = ledger["shards_to_redispatch"]
+        listed = ", ".join(targets) if targets else "none identified"
         print(
-            "ERROR: review is incomplete; re-dispatch pending, failed, and "
-            "stale shards before reporting coverage",
+            "ERROR: review is incomplete; re-dispatch these shards before "
+            f"reporting coverage: {listed}",
             file=sys.stderr,
         )
         return 0 if args.allow_incomplete else 1

@@ -62,6 +62,7 @@ silently skipped one is indistinguishable from one that was never there.
     "exclude": ["**/node_modules/**"],
     "follow_symlinks": false
   },
+  "errors": [],
   "totals": {
     "units": 640,
     "bytes": 18234112,
@@ -101,6 +102,20 @@ accountable, without the scope rule being defeated by the act of recording it.
 "end": 500}` when a large unit was subdivided. Citations use the unit path plus
 its range, never a shard identifier.
 
+## Untraversable directories
+
+`errors` records every directory the walk could not enter, with the reason.
+This is not cosmetic. `os.walk` ignores traversal errors by default, so an
+unreadable subtree would simply not appear — and a unit that never enters the
+denominator cannot be reported as unread. Coverage would then look complete over
+a corpus that quietly lost files.
+
+The script exits nonzero when `errors` is non-empty. Fix the permissions,
+exclude the subtree explicitly so it is accounted for as `out_of_scope`, or pass
+`--allow-unreadable` to accept a known-incomplete denominator. In the last case
+the ledger reports the errors and refuses every `not-found` absence verdict,
+because material nobody could enumerate could hold the expected item.
+
 ## Invocation
 
 ```bash
@@ -116,6 +131,7 @@ Inside Claude Code plugin components, use
 `${CLAUDE_PLUGIN_ROOT}/scripts/inventory-corpus.py` when the neutral plugin root
 variable is not set. Prefer `CONTEXT_KIT_*` variables in portable instructions.
 
-The script reads only. It never writes into the corpus root, never follows
-symlinks unless asked, and refuses to write its output inside the corpus root so
-a re-run cannot enumerate its own artifacts.
+The script reads only. It never follows symlinks unless asked, and refuses to
+write its output inside the corpus root so a re-run cannot enumerate its own
+artifacts. `plan-shards.py` and `aggregate-findings.py` apply the same
+containment rule, reading the corpus root from the inventory.

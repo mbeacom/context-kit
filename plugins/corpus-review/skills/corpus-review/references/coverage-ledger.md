@@ -56,8 +56,13 @@ For each item in the expected inventory that no worker found:
 - **`not-found`** — every unit that could plausibly contain it was `reviewed`,
   and none did. A real gap, safe to act on.
 - **`indeterminate`** — at least one unit that could plausibly contain it is
-  `uninspectable`, `partial`, `failed`, or `pending`. Absence is not decidable
-  yet.
+  `uninspectable`, `partial`, `failed`, or `pending`, or the inventory could not
+  traverse part of the corpus. Absence is not decidable yet.
+
+Presence is judged from the **Findings** sections only. Scanning whole reports
+would let a Gaps sentence such as "no incident report in this shard" read as
+proof that an incident report *was* found, silently deleting the very gap the
+worker reported.
 
 **`indeterminate` outranks `not-found`.** Downgrading it — treating an unread
 unit as if it had been read and found empty — is the characteristic failure of
@@ -99,9 +104,22 @@ expected *and* material that was actually read.
     "pending": 1,
     "stale_digest": 0
   },
+  "units": [
+    {
+      "id": "u0104",
+      "path": "scans/intake-07.pdf",
+      "bytes": 812004,
+      "range": null,
+      "disposition": "uninspectable",
+      "reason": "no text layer"
+    }
+  ],
   "uninspectable": [
     { "id": "u0104", "path": "scans/intake-07.pdf", "reason": "no text layer" }
   ],
+  "needs_attention": { "pending": [], "failed": [], "partial": [] },
+  "shards_to_redispatch": ["s017", "s022"],
+  "inventory_errors": [],
   "absence": {
     "available": true,
     "not_found": ["signed acknowledgement"],
@@ -114,6 +132,18 @@ expected *and* material that was actually read.
   }
 }
 ```
+
+`units` is the ledger's actual product: every inventory unit with its
+disposition and reason. Counts alone let a reader see that eight units are
+pending without being able to name them, which makes "every unit is accounted
+for" unprovable and leaves no way to target a re-dispatch. `needs_attention`
+and `shards_to_redispatch` are convenience views over the same data —
+`shards_to_redispatch` includes pending, failed, and stale shards **and** any
+shard whose worker left units unaccounted for.
+
+`inventory_errors` carries directories the inventory could not traverse. Their
+files never entered the denominator, so their presence blocks every `not-found`
+verdict and is reported alongside coverage.
 
 `complete` is `true` only when `pending`, `failed`, and `stale_digest` are all
 zero and the in-scope denominator is nonzero. A scope rule that matched nothing

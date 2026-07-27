@@ -89,9 +89,28 @@ class Scope:
         return any(rule.match(relative) for rule in self._include)
 
 
-def iter_files(root: Path, follow_symlinks: bool) -> Iterable[Path]:
-    """Yield files under root in deterministic sorted order."""
-    for directory, dirnames, filenames in os.walk(root, followlinks=follow_symlinks):
+def iter_files(
+    root: Path, follow_symlinks: bool, errors: list[dict[str, str]]
+) -> Iterable[Path]:
+    """Yield files under root in deterministic sorted order.
+
+    Directory traversal errors are recorded rather than swallowed. `os.walk`
+    ignores them silently by default, which would drop an unreadable subtree
+    out of the inventory entirely — and a unit that never enters the denominator
+    cannot be reported as unread, so coverage would look complete over a corpus
+    that quietly lost files.
+    """
+
+    def on_error(exc: OSError) -> None:
+        target = Path(exc.filename) if exc.filename else root
+        try:
+            label = target.resolve().relative_to(root.resolve()).as_posix()
+        except (ValueError, OSError):
+            label = str(target)
+        errors.append({"path": label, "error": exc.strerror or type(exc).__name__})
+
+    walker = os.walk(root, onerror=on_error, followlinks=follow_symlinks)
+    for directory, dirnames, filenames in walker:
         current = Path(directory)
         dirnames.sort()
         if not follow_symlinks:
@@ -155,9 +174,10 @@ def build_units(
     scope: Scope,
     follow_symlinks: bool,
     max_unit_bytes: int | None,
+    errors: list[dict[str, str]],
 ) -> list[dict[str, object]]:
     units: list[dict[str, object]] = []
-    for path in iter_files(root, follow_symlinks):
+    for path in iter_files(root, follow_symlinks, errors):
         relative = path.relative_to(root).as_posix()
         if not scope.in_scope(relative):
             units.append(
@@ -267,7 +287,8 @@ def build_inventory(
     max_unit_bytes: int | None,
     now: datetime | None = None,
 ) -> dict[str, object]:
-    units = build_units(root, scope, follow_symlinks, max_unit_bytes)
+    errors: list[dict[str, str]] = []
+    units = build_units(root, scope, follow_symlinks, max_unit_bytes, errors)
     generated = (now or datetime.now(timezone.utc)).isoformat()
     return {
         "schema": SCHEMA,
@@ -280,6 +301,7 @@ def build_inventory(
             "max_unit_bytes": max_unit_bytes,
         },
         "totals": summarize(units),
+        "errors": sorted(errors, key=lambda entry: entry["path"]),
         "units": units,
     }
 
@@ -319,6 +341,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="descend into symlinked files and directories",
     )
+    parser.add_argument(
+        "--allow-unreadable",
+        action="store_true",
+        help="record unreadable directories and continue instead of failing",
+    )
     args = parser.parse_args(argv)
 
     root = Path(args.root).expanduser().resolve()
@@ -353,6 +380,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     for kind, count in sorted(dict(totals["by_inspectability"]).items()):
         print(f"  {kind}: {count}")
+
+    errors = inventory["errors"]
+    assert isinstance(errors, list)
+    if errors:
+        # A directory that could not be traversed removes its files from the
+        # denominator, and a unit that never enters the denominator cannot be
+        # reported as unread. Fail loudly rather than produce a plausible-looking
+        # inventory that silently understates the corpus.
+        print(
+            f"ERROR: {len(errors)} directory/directories could not be traversed; "
+            "their contents are missing from this inventory",
+            file=sys.stderr,
+        )
+        for entry in errors:
+            print(f"  {entry['path']}: {entry['error']}", file=sys.stderr)
+        if not args.allow_unreadable:
+            print(
+                "Fix the permissions, exclude the subtree explicitly, or rerun "
+                "with --allow-unreadable to accept a known-incomplete denominator",
+                file=sys.stderr,
+            )
+            return 1
     return 0
 
 

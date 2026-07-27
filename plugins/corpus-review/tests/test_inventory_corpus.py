@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -169,6 +170,76 @@ class BuildInventoryTests(unittest.TestCase):
 
         paths = [unit["path"] for unit in self.build()["units"]]
         self.assertNotIn("docs/link.md", paths)
+
+
+class TraversalErrorTests(unittest.TestCase):
+    """An unreadable subtree must never vanish from the denominator.
+
+    `os.walk` ignores traversal errors by default. A file that never enters the
+    inventory cannot be reported as unread, so coverage would look complete over
+    a corpus that silently lost material — the exact failure this plugin exists
+    to prevent.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name) / "corpus"
+        (self.root / "open").mkdir(parents=True)
+        (self.root / "open" / "a.md").write_text("alpha\n", encoding="utf-8")
+        self.locked = self.root / "locked"
+        self.locked.mkdir()
+        (self.locked / "secret.md").write_text("hidden\n", encoding="utf-8")
+        self.addCleanup(self._cleanup)
+
+    def _cleanup(self) -> None:
+        try:
+            self.locked.chmod(0o700)
+        except OSError:
+            pass
+        self._tmp.cleanup()
+
+    def _deny(self) -> bool:
+        if os.geteuid() == 0:
+            return False
+        self.locked.chmod(0o000)
+        return True
+
+    def test_unreadable_directory_is_recorded_not_dropped(self) -> None:
+        if not self._deny():
+            self.skipTest("running as root; permissions are not enforced")
+
+        inventory = inventory_corpus.build_inventory(
+            self.root,
+            inventory_corpus.Scope(["**/*.md"], None),
+            follow_symlinks=False,
+            max_unit_bytes=None,
+        )
+
+        self.assertEqual(1, len(inventory["errors"]))
+        self.assertEqual("locked", inventory["errors"][0]["path"])
+        self.assertEqual(["open/a.md"], [unit["path"] for unit in inventory["units"]])
+
+    def test_cli_fails_on_an_unreadable_directory(self) -> None:
+        if not self._deny():
+            self.skipTest("running as root; permissions are not enforced")
+        out = Path(self._tmp.name) / "work" / "inventory.json"
+        argv = ["--root", str(self.root), "--out", str(out), "--include", "**/*.md"]
+
+        self.assertEqual(1, inventory_corpus.main(argv))
+        self.assertEqual(0, inventory_corpus.main([*argv, "--allow-unreadable"]))
+
+        recorded = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(1, len(recorded["errors"]))
+
+    def test_a_clean_corpus_records_no_errors(self) -> None:
+        inventory = inventory_corpus.build_inventory(
+            self.root,
+            inventory_corpus.Scope(["**/*.md"], None),
+            follow_symlinks=False,
+            max_unit_bytes=None,
+        )
+
+        self.assertEqual([], inventory["errors"])
 
 
 class OutputGuardTests(unittest.TestCase):

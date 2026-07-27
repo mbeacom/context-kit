@@ -12,6 +12,20 @@
 - `corpus-reviewer` agent: a bounded per-shard worker with an output contract
   that reports its own coverage and uninspectable units alongside findings.
 - `/review-corpus` command for the end-to-end run.
+- `inventory-corpus.py` records directories it could not traverse and exits
+  nonzero: `os.walk` ignores traversal errors by default, and a file that never
+  enters the denominator cannot be reported as unread. `--allow-unreadable`
+  accepts a known-incomplete denominator, which the ledger then reports and
+  which blocks every `not-found` verdict.
+- Presence is judged from Findings sections only, so a gap note such as "no
+  incident report in this shard" no longer reads as proof the item was found.
+- Shard digests cover path and range as well as content, so a same-content
+  rename cannot resume onto findings that cite the old location.
+- Aggregation rejects a report missing any contract section, treats an
+  undecodable report as a failed shard rather than aborting the run, preserves
+  each finding's continuation block into `findings.json`/`findings.md`, and
+  serializes a per-unit ledger with the exact shards to re-dispatch.
+- All three scripts refuse to write inside the corpus root.
 - Standard-library scripts: `inventory-corpus.py` enumerates and hashes units,
   `plan-shards.py` produces a bounded shard plan with original-location anchors
   and a content-derived `inventory_sha256` that survives a re-inventory, and

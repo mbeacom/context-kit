@@ -19,9 +19,11 @@ Collect and restate before enumerating anything:
 - **Scope rules** — include and exclude patterns.
 - The **finding taxonomy** — allowed tags and what makes a finding significant.
 - An **expected inventory**, if one exists. Without it, absence verdicts are
-  unavailable and the report must say so.
+  unavailable and the report must say so. Persist it one item per line at
+  `<work>/expected.txt` — it is an input to aggregation, not just framing.
 - A **work directory** outside the corpus root for inventory, shards, findings,
-  and the report.
+  and the report. All three scripts refuse to write inside the corpus root, so a
+  re-run never enumerates the review's own artifacts.
 
 If the review question is missing, stop and ask. Do not infer it from the
 corpus.
@@ -36,6 +38,11 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/inventory-corpus.py" \
 
 Read the totals. If a large share of units is `binary`, decide with the user
 whether to extract them first or carry them as `uninspectable` limitations.
+
+A nonzero exit means a directory could not be traversed, so its files never
+entered the denominator. Fix the permissions or exclude the subtree explicitly.
+Only pass `--allow-unreadable` when the user accepts a known-incomplete
+denominator; the ledger then reports it and blocks any `not-found` verdict.
 
 ## 3. Plan shards
 
@@ -55,25 +62,36 @@ taxonomy problem found on shard 1 is cheap.
 
 Then dispatch the remaining shards to `corpus-reviewer` workers in batched
 parallel calls. Give each worker a self-contained brief: the review question,
-the taxonomy, its unit list with paths and inspectability, the citation rule,
-and its output path under `<work>/findings/`. Do not give a worker the full
-inventory.
+the taxonomy, and its unit list with each unit's path, **line range**, and
+inspectability. A range is what keeps a worker inside its slice of a subdivided
+file; omit it and the worker reads the whole file and another shard's units.
+Include the citation rule. Do not give a worker the full inventory.
+
+Workers are read-only. Persist each returned findings document yourself to
+`<work>/findings/<shard-id>.md`, preserving all four contract sections —
+aggregation rejects a truncated report and fails the whole shard.
 
 Skip any shard whose findings file already records a matching digest. Re-dispatch
-shards whose file is missing, malformed, or stale.
+shards whose file is missing, unusable, or stale.
 
 ## 5. Aggregate
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/aggregate-findings.py" \
   --inventory "<work>/inventory.json" --shards "<work>/shards.json" \
-  --findings-dir "<work>/findings" --out-dir "<work>/report"
+  --findings-dir "<work>/findings" --out-dir "<work>/report" \
+  --expected "<work>/expected.txt"
 ```
 
-A nonzero exit means the run is incomplete. Re-dispatch the `pending` and
-`failed` shards and rerun. Do not report an incomplete run as finished; if the
-user chooses to stop early, report the ledger as incomplete and name what is
-unaccounted for.
+Pass `--expected` whenever the frame produced one; without it every absence
+verdict is reported as unavailable and the review answers nothing about gaps.
+
+A nonzero exit means the run is incomplete. `coverage.json` names exactly which
+shards to re-dispatch in `shards_to_redispatch` — pending, failed, stale-digest,
+and any shard whose worker left units unaccounted for — and lists the individual
+units under `needs_attention`. Re-dispatch those and rerun. Do not report an
+incomplete run as finished; if the user chooses to stop early, report the ledger
+as incomplete and name what is unaccounted for.
 
 ## 6. Report
 

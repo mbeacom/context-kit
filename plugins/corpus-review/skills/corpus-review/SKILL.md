@@ -66,7 +66,12 @@ python3 "${CONTEXT_KIT_CORPUS_REVIEW_ROOT}/scripts/inventory-corpus.py" \
 
 Each unit carries a path, byte size, SHA-256, and an inspectability signal.
 The hash is what makes resumption safe and makes a later re-run detect drift.
-See `references/inventory-contract.md`.
+
+The script exits nonzero when a directory could not be traversed: its files
+never entered the denominator, and a unit that is not in the denominator cannot
+be reported as unread. Fix it, exclude the subtree explicitly, or accept a
+known-incomplete denominator with `--allow-unreadable`. See
+`references/inventory-contract.md`.
 
 ### 3. Shard
 
@@ -86,8 +91,14 @@ shard. See `references/shard-dispatch.md`.
 ### 4. Dispatch
 
 One `corpus-reviewer` worker per shard, each with a self-contained brief: the
-review question, the finding taxonomy, its shard's units, and its output path.
-Send independent workers in one batch rather than sequentially.
+review question, the finding taxonomy, and its shard's units with each unit's
+path, line range, and inspectability. Send independent workers in one batch
+rather than sequentially.
+
+Workers are read-only — they return a findings document, and the caller persists
+it. A worker that runs out of context leaves its unopened units unclaimed so
+they stay `pending`, rather than dressing them up as `uninspectable` and making
+an abandoned shard look finished.
 
 Workers are resumable. A shard whose findings file already matches the recorded
 shard digest is skipped, so an interrupted run resumes instead of re-reading.
@@ -99,12 +110,17 @@ python3 "${CONTEXT_KIT_CORPUS_REVIEW_ROOT}/scripts/aggregate-findings.py" \
   --inventory "<work dir>/inventory.json" \
   --shards "<work dir>/shards.json" \
   --findings-dir "<work dir>/findings" \
-  --out-dir "<work dir>/report"
+  --out-dir "<work dir>/report" \
+  --expected "<work dir>/expected.txt"
 ```
 
+Pass `--expected` whenever the frame produced an expected inventory. Without it,
+absence verdicts are unavailable — the pipeline can still report coverage, but
+it answers nothing about gaps.
+
 Aggregation merges findings and computes the coverage ledger. It exits nonzero
-while any unit is `pending` or `failed`, so an incomplete run cannot be reported
-as a complete one. See `references/coverage-ledger.md`.
+while any unit is `pending` or `failed`, names every unit's disposition, and
+lists the shards to re-dispatch. See `references/coverage-ledger.md`.
 
 ### 6. Report
 

@@ -44,13 +44,44 @@ def load_inventory(path: Path) -> tuple[dict[str, Any], str]:
 
 
 def shard_digest(units: Sequence[dict[str, Any]]) -> str:
-    """Hash member unit hashes in order.
+    """Hash member identity and content, in order.
 
     The digest is the resumption key: a findings file is only reusable while
-    its shard still contains exactly these units with exactly this content.
+    its shard still contains exactly these units, at these locations, with
+    exactly this content. Path and range are part of the identity because a
+    same-content rename would otherwise reproduce the digest, and the reused
+    findings would cite a path that no longer exists.
     """
-    joined = "\n".join(str(unit.get("sha256")) for unit in units)
+    joined = "\n".join(
+        "|".join(
+            (
+                str(unit.get("path")),
+                json.dumps(unit.get("range"), sort_keys=True),
+                str(unit.get("sha256")),
+            )
+        )
+        for unit in units
+    )
     return hashlib.sha256(joined.encode("utf-8")).hexdigest()
+
+
+def resolve_output(destination: Path, inventory: dict[str, Any]) -> Path:
+    """Refuse to write derived artifacts inside the corpus root.
+
+    An artifact written into the corpus is enumerated by the next inventory
+    run, which inflates the denominator with the review's own output.
+    """
+    resolved = destination.expanduser().resolve()
+    raw_root = inventory.get("root")
+    if not isinstance(raw_root, str) or not raw_root:
+        return resolved
+    root = Path(raw_root).expanduser().resolve()
+    if resolved == root or root in resolved.parents:
+        raise ValueError(
+            f"refusing to write inside the corpus root ({root}); use a separate "
+            "work directory so a re-run does not enumerate its own artifacts"
+        )
+    return resolved
 
 
 def shard_member(unit: dict[str, Any]) -> dict[str, Any]:
@@ -164,8 +195,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"ERROR: cannot load inventory: {exc}", file=sys.stderr)
         return 2
 
+    try:
+        out = resolve_output(Path(args.out), inventory)
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+
     plan = build_plan(inventory, digest, args.max_bytes, args.max_units)
-    out = Path(args.out).expanduser()
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
 

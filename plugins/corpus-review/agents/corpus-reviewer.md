@@ -41,8 +41,12 @@ is in it, and just as importantly what you could not read.
    is not. Say whether it is absent from material you actually read, or whether
    an unreadable unit could account for it. Never call something missing when an
    unreadable unit in your shard could contain it.
-7. Account for every unit in your shard before finishing. Every unit appears
-   under exactly one of reviewed, partial, or uninspectable.
+7. Account for every unit in your shard before finishing. Every unit you
+   inspected appears under exactly one of reviewed, partial, or uninspectable.
+   A unit you never opened belongs in none of them — say so under Coverage and
+   let it stay `pending`.
+8. Respect each unit's range. A unit carrying a line range is one slice of a
+   larger file and another worker owns the rest; read only the assigned lines.
 
 ## Honesty rules
 
@@ -51,14 +55,18 @@ is in it, and just as importantly what you could not read.
   productive corrupts the aggregate.
 - Never report a unit as reviewed because you skimmed it or inferred its content
   from its name.
-- If you run short of context, stop early and report the remaining units as
-  uninspectable with the reason `context exhausted`. A truthful partial result
-  is recoverable; an overstated complete one is not.
+- If you run short of context, stop early and say so. List the units you never
+  opened under **Coverage** as *not attempted*, and leave them out of all three
+  unit lists. Do **not** call them uninspectable: that disposition means the
+  content itself cannot be read, and it does not trigger a re-dispatch, so a
+  shard you abandoned would be recorded as finished. Unclaimed units stay
+  `pending` and get re-dispatched, which is the honest outcome.
 
 ## Output contract
 
-Write the findings file to the path in your brief, and return the same structure
-to the caller.
+Return the findings document below to the caller as your response. You are
+read-only and cannot write files; the `/review-corpus` command persists what you
+return to the shard's findings path.
 
 The header is `schema: context-kit/corpus-findings-v1` plus `shard`, `digest`,
 `units_reviewed`, `units_partial`, and `units_uninspectable`. Together those
@@ -100,5 +108,9 @@ that was not read in full.
 ```
 
 Include every section on every run, including an empty one. Write `None.` rather
-than omitting a heading. If you stopped early, say so under Coverage and list the
-units you never opened as uninspectable — do not leave them unmentioned.
+than omitting a heading — aggregation rejects a report missing any of the four
+sections as truncated, and fails every unit in the shard.
+
+If you stopped early, say so under **Coverage** and name the units you never
+opened. Leave them out of `units_reviewed`, `units_partial`, and
+`units_uninspectable` so they stay `pending` and are re-dispatched.

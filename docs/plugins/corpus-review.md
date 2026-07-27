@@ -39,7 +39,7 @@ to a whole corpus. `verify` already pulls the
 | Component | What it is |
 | --- | --- |
 | **`corpus-review`** skill | The frame → inventory → shard → dispatch → aggregate → report pipeline, the disposition vocabulary, and the absence rule. |
-| **`corpus-reviewer`** subagent | Reads one shard against the supplied review question and reports findings plus its own coverage. Read-only, shard-scoped. |
+| **`corpus-reviewer`** subagent | Reads one shard against the supplied review question and returns findings plus its own coverage. Read-only and shard-scoped — the command persists what it returns. |
 | **`/review-corpus`** command | Runs the pipeline end to end over a corpus root. |
 | **`inventory-corpus.py`** | Enumerates the corpus into deterministic hashed units with an inspectability signal. |
 | **`plan-shards.py`** | Packs units into bounded shards whose digests make resumption safe. |
@@ -91,6 +91,9 @@ python3 "$ROOT/scripts/aggregate-findings.py" \
   --findings-dir ./work/findings --out-dir ./work/report \
   --expected ./work/expected.txt
 ```
+
+`--expected` is what makes absence verdicts available; omit it and the ledger
+reports them as unavailable rather than guessing.
 
 Claude Code components may use `CLAUDE_PLUGIN_ROOT` as the plugin-root fallback.
 
@@ -152,7 +155,6 @@ digest, so a resumed review is never invalidated by a fresh timestamp.
 
 - **Requires** Python 3 for the standard-library scripts. Extracting non-text
   units relies on the optional [`data-and-docs-search`](code-search.md) tools.
-- **Reads only.** No script writes into the corpus root, and `inventory-corpus.py`
-  refuses to write its output there so a re-run cannot enumerate its own
-  artifacts.
+- **Reads only.** All three scripts refuse to write their output inside the
+  corpus root, so a re-run cannot enumerate the review's own artifacts.
 - **Hermetic tests:** `python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'`

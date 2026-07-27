@@ -114,8 +114,9 @@ the ledger reports the unfinished shards instead of averaging over them.
 
 ## Findings file shape
 
-Workers write Markdown with a small machine-readable header so aggregation does
-not have to guess:
+Workers are read-only: they return this document and the caller persists it to
+`<findings-dir>/<shard-id>.md`. The machine-readable header exists so
+aggregation does not have to guess.
 
 ```markdown
 ---
@@ -123,20 +124,41 @@ schema: context-kit/corpus-findings-v1
 shard: s001
 digest: "…"
 units_reviewed: ["u0001", "u0002"]
+units_partial: [{ "id": "u0004", "reason": "last 40 pages unreadable" }]
 units_uninspectable: [{ "id": "u0003", "reason": "image-only, no text layer" }]
 ---
+
+## Summary
+
+…
 
 ## Findings
 
 - [TAG] [significance: high] `docs/runbooks/rotate-keys.md:118`
   **Observation:** …
+  **Evidence:** …
   **Why it matters:** …
 
 ## Gaps observed
 
 - …
+
+## Coverage
+
+…
 ```
 
-`units_reviewed` and `units_uninspectable` must together account for every unit
-in the shard. Aggregation treats any unaccounted unit as `pending`, which keeps
-a worker that quietly skipped material from being counted as complete.
+All four sections are required. Aggregation rejects a report missing any of them
+as truncated and fails every unit in the shard, because a header claiming full
+coverage over an empty body would otherwise count as a completed review. Write
+`None.` under a section with nothing to report.
+
+The indented continuation lines under each finding are preserved into
+`findings.json` and `findings.md`, so put the substance there rather than in the
+marker line.
+
+`units_reviewed`, `units_partial`, and `units_uninspectable` together account for
+every unit the worker inspected. Aggregation treats any unaccounted unit as
+`pending`, which keeps a worker that quietly skipped material — or ran out of
+context — from being counted as complete. That is deliberate: a unit left
+unclaimed is re-dispatched, while a unit mislabeled `uninspectable` never is.

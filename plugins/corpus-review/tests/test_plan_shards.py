@@ -78,8 +78,25 @@ class DigestTests(unittest.TestCase):
         members = [unit(1, 10), unit(2, 10)]
 
         self.assertEqual(
-            "c0165699c6e9472c8bc68318b042b1a8b5e646ffc9e3d928e9b2d003cade2611",
+            "2c2c1a570d72393e13d16090f1b71d5425f8a4bb04f29d1146cdaadbf209b752",
             plan_shards.shard_digest(members),
+        )
+
+    def test_digest_changes_when_a_unit_is_renamed(self) -> None:
+        """A same-content move must not reuse findings that cite the old path."""
+        before = [unit(1, 10)]
+        after = [dict(before[0], path="archive/moved.md")]
+
+        self.assertNotEqual(
+            plan_shards.shard_digest(before), plan_shards.shard_digest(after)
+        )
+
+    def test_digest_changes_when_a_unit_range_changes(self) -> None:
+        before = [dict(unit(1, 10), range={"kind": "lines", "start": 1, "end": 20})]
+        after = [dict(unit(1, 10), range={"kind": "lines", "start": 21, "end": 40})]
+
+        self.assertNotEqual(
+            plan_shards.shard_digest(before), plan_shards.shard_digest(after)
         )
 
     def test_digest_changes_when_content_changes(self) -> None:
@@ -128,6 +145,26 @@ class BuildPlanTests(unittest.TestCase):
         self.assertEqual("docs/0001.md", member["path"])
         self.assertIn("sha256", member)
         self.assertIn("range", member)
+
+
+class OutputContainmentTests(unittest.TestCase):
+    def test_refuses_to_write_inside_the_corpus_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            inv = dict(inventory([]), root=str(root))
+
+            with self.assertRaises(ValueError):
+                plan_shards.resolve_output(root / "work" / "shards.json", inv)
+
+    def test_allows_a_directory_outside_the_corpus_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = (Path(tmp) / "corpus").resolve()
+            root.mkdir()
+            inv = dict(inventory([]), root=str(root))
+
+            resolved = plan_shards.resolve_output(Path(tmp) / "s.json", inv)
+
+            self.assertTrue(str(resolved).endswith("s.json"))
 
 
 class LoadInventoryTests(unittest.TestCase):

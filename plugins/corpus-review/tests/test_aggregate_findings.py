@@ -83,6 +83,7 @@ def findings_file(
     partial: list[dict] | None = None,
     uninspectable: list[dict] | None = None,
     findings: str = "None.",
+    gaps: str = "- None.",
     digest: str | None = None,
     schema: str = aggregate_findings.FINDINGS_SCHEMA,
 ) -> None:
@@ -106,7 +107,7 @@ Reviewed.
 
 ## Gaps observed
 
-- None.
+{gaps}
 
 ## Coverage
 
@@ -262,7 +263,120 @@ class AggregateTests(unittest.TestCase):
         ledger, _, warnings = self.run_aggregate(inventory(units), shard_plan([entry]))
 
         self.assertEqual(1, ledger["dispositions"]["failed"])
-        self.assertTrue(any("malformed" in text for text in warnings))
+        self.assertTrue(any("unusable" in text for text in warnings))
+
+    def test_report_missing_a_contract_section_is_rejected(self) -> None:
+        """A header alone is not a report.
+
+        Without this, a truncated file whose frontmatter claims every unit was
+        reviewed would count as full coverage while carrying no findings.
+        """
+        units = [unit(1)]
+        entry = shard("s001", units)
+        self.findings_dir.mkdir(parents=True, exist_ok=True)
+        (self.findings_dir / "s001.md").write_text(
+            f"""---
+schema: {aggregate_findings.FINDINGS_SCHEMA}
+shard: s001
+digest: {entry["digest"]}
+units_reviewed: ["u0001"]
+units_partial: []
+units_uninspectable: []
+---
+
+## Summary
+
+Truncated before the rest of the contract.
+""",
+            encoding="utf-8",
+        )
+
+        ledger, _, _ = self.run_aggregate(inventory(units), shard_plan([entry]))
+
+        self.assertEqual(1, ledger["dispositions"]["failed"])
+        self.assertEqual(0, ledger["dispositions"]["reviewed"])
+
+    def test_undecodable_findings_file_fails_without_aborting(self) -> None:
+        units = [unit(1)]
+        entry = shard("s001", units)
+        self.findings_dir.mkdir(parents=True, exist_ok=True)
+        (self.findings_dir / "s001.md").write_bytes(b"---\nschema: \xff\xfe\n---\n")
+
+        ledger, _, _ = self.run_aggregate(inventory(units), shard_plan([entry]))
+
+        self.assertEqual(1, ledger["dispositions"]["failed"])
+        self.assertFalse(ledger["complete"])
+
+    def test_ledger_names_every_unit_and_the_shards_to_redispatch(self) -> None:
+        units = [unit(1), unit(2)]
+        first = shard("s001", [units[0]])
+        second = shard("s002", [units[1]])
+        findings_file(self.findings_dir, first, reviewed=["u0001"])
+
+        ledger, _, _ = self.run_aggregate(inventory(units), shard_plan([first, second]))
+
+        self.assertEqual(
+            {"u0001": "reviewed", "u0002": "pending"},
+            {entry["id"]: entry["disposition"] for entry in ledger["units"]},
+        )
+        self.assertEqual(
+            ["docs/0002.md"],
+            [entry["path"] for entry in ledger["needs_attention"]["pending"]],
+        )
+        self.assertEqual(["s002"], ledger["shards_to_redispatch"])
+
+    def test_stale_and_unaccounted_shards_are_listed_for_redispatch(self) -> None:
+        units = [unit(1), unit(2)]
+        stale = shard("s001", [units[0]])
+        incomplete = shard("s002", [units[1]])
+        findings_file(self.findings_dir, stale, reviewed=["u0001"], digest="f" * 64)
+        findings_file(self.findings_dir, incomplete, reviewed=[])
+
+        ledger, _, _ = self.run_aggregate(
+            inventory(units), shard_plan([stale, incomplete])
+        )
+
+        self.assertEqual(["s001", "s002"], ledger["shards_to_redispatch"])
+
+    def test_findings_keep_their_continuation_block(self) -> None:
+        units = [unit(1)]
+        entry = shard("s001", units)
+        findings_file(
+            self.findings_dir,
+            entry,
+            reviewed=["u0001"],
+            findings=(
+                "- [ROTATION] [significance: high] `docs/0001.md:3`\n"
+                "  **Observation:** the rotation step was removed.\n"
+                '  **Evidence:** "step 4 deleted"\n'
+                "  **Why it matters:** the runbook no longer rotates keys."
+            ),
+        )
+
+        _, index, _ = self.run_aggregate(inventory(units), shard_plan([entry]))
+        finding = index["findings"][0]
+
+        self.assertIn("the rotation step was removed", finding["body"])
+        self.assertIn("Why it matters", finding["body"])
+        self.assertIn(
+            "the rotation step was removed",
+            aggregate_findings.render_findings_markdown(index),
+            "the substance must reach the rendered report, not just the JSON",
+        )
+
+    def test_untraversable_directories_are_surfaced(self) -> None:
+        units = [unit(1)]
+        entry = shard("s001", units)
+        findings_file(self.findings_dir, entry, reviewed=["u0001"])
+        inv = dict(
+            inventory(units),
+            errors=[{"path": "restricted", "error": "Permission denied"}],
+        )
+
+        ledger, _, warnings = self.run_aggregate(inv, shard_plan([entry]))
+
+        self.assertEqual(1, len(ledger["inventory_errors"]))
+        self.assertTrue(any("could not be traversed" in text for text in warnings))
 
     def test_foreign_findings_schema_is_rejected(self) -> None:
         units = [unit(1)]
@@ -502,6 +616,41 @@ class AbsenceTests(unittest.TestCase):
         self.assertEqual([], ledger["absence"]["not_found"])
         self.assertIn("no in-scope units", ledger["absence"]["reason"])
 
+    def test_an_untraversable_directory_blocks_not_found(self) -> None:
+        units = [unit(1)]
+        entry = shard("s001", units)
+        findings_file(self.findings_dir, entry, reviewed=["u0001"])
+        inv = dict(
+            inventory(units),
+            errors=[{"path": "restricted", "error": "Permission denied"}],
+        )
+
+        ledger, _, _ = self.run_aggregate(inv, shard_plan([entry]), ["incident report"])
+
+        self.assertEqual([], ledger["absence"]["not_found"])
+        self.assertIn("untraversable", ledger["absence"]["indeterminate"][0]["reason"])
+
+    def test_a_gap_note_is_not_evidence_of_presence(self) -> None:
+        """ "incident report is absent" must not delete the gap it reports.
+
+        Scanning whole reports let a Gaps sentence naming the item count as
+        proof the item was found, silently removing it from both buckets.
+        """
+        units = [unit(1)]
+        entry = shard("s001", units)
+        findings_file(
+            self.findings_dir,
+            entry,
+            reviewed=["u0001"],
+            gaps="- No incident report anywhere in this shard.",
+        )
+
+        ledger, _, _ = self.run_aggregate(
+            inventory(units), shard_plan([entry]), ["incident report"]
+        )
+
+        self.assertEqual(["incident report"], ledger["absence"]["not_found"])
+
     def test_a_mentioned_item_is_neither_absent_nor_indeterminate(self) -> None:
         units = [unit(1)]
         entry = shard("s001", units)
@@ -541,6 +690,14 @@ class RenderTests(unittest.TestCase):
                 "stale_digest": 0,
             },
             "uninspectable": [{"id": "u1", "path": "docs/blob.md", "reason": "binary"}],
+            "inventory_errors": [],
+            "units": [],
+            "needs_attention": {
+                "pending": [{"id": "u2", "path": "docs/late.md", "reason": None}],
+                "failed": [],
+                "partial": [],
+            },
+            "shards_to_redispatch": ["s003"],
             "absence": {
                 "available": True,
                 "not_found": [],
@@ -556,6 +713,8 @@ class RenderTests(unittest.TestCase):
         self.assertIn("Byte coverage: 56.6%", text)
         self.assertIn("incident report — 2 pending", text)
         self.assertIn("docs/blob.md", text)
+        self.assertIn("docs/late.md", text)
+        self.assertIn("Re-dispatch: `s003`", text)
 
     def test_findings_markdown_warns_when_the_run_is_incomplete(self) -> None:
         text = aggregate_findings.render_findings_markdown(

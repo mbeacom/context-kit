@@ -198,8 +198,10 @@ found — and the corpus is too large to read in one context.
    a taxonomy problem found on shard 1 is cheap.
 4. Dispatch the remaining shards to `corpus-reviewer` workers in parallel, each
    with a self-contained brief and its own unit list.
-5. Aggregate. A nonzero exit means units are still unaccounted for — re-dispatch
-   rather than reporting the run as finished.
+5. Aggregate, passing `--expected` when the frame produced an expected
+   inventory — without it, absence verdicts are unavailable. A nonzero exit
+   means units are still unaccounted for; `coverage.json` names the shards to
+   re-dispatch, so re-dispatch rather than reporting the run as finished.
 
 ```text
 /review-corpus ./records
@@ -209,8 +211,8 @@ Report findings and the ledger together. "41 findings" reads as exhaustive
 unless it is stated as "41 findings across 601 of 631 in-scope units."
 
 **Done means:** every unit has a disposition, coverage is stated by unit and by
-byte, and no expected item is called missing while an uninspectable, failed, or
-pending unit could still contain it.
+byte, and no expected item is called missing while a partial, uninspectable,
+failed, or pending unit could still contain it.
 
 ## Choose the next guide
 
