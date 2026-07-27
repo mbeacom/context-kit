@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "memory",
   "displayName": "Durable Memory",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Provenance-bound durable memory across sessions: immutable records, append-only review state, active-only recall, explicit MemPalace reconciliation, and opt-in lifecycle capture.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",
