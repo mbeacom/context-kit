@@ -109,7 +109,23 @@ argument-hint: "[artifact-path]"
 ```
 
 The same trap applies to a value that reads as a bool (`yes`, `off`), a number
-(`1.2`), a date (`2026-01-01`), a mapping (`{a: b}`), or an alias/tag (`*x`,
-`!x`). Angle-bracket hints such as `argument-hint: <runtime claim>` are already
-plain scalars and need no quoting, but quoting them is still safe. A plain
-scalar containing `": "` is a YAML parse error and is rejected as well.
+(`1.2`), a date (`2026-01-01`), or a mapping (`{a: b}`). Angle-bracket hints such
+as `argument-hint: <runtime claim>` are already plain scalars and need no
+quoting, but quoting them is still safe.
+
+Three more shapes are rejected, because each one also stops the command loading:
+
+```yaml
+description: # TODO          # comment-only, so YAML resolves it to null
+description: "unterminated   # a quoted scalar with no closing quote
+description:                 # a nested mapping, not a string
+  text: value
+```
+
+A plain scalar containing `": "` is a YAML parse error and is rejected too.
+
+Type resolution ports PyYAML's implicit resolvers (YAML 1.1) verbatim, so the
+gate never fails a value YAML would accept. That has deliberate consequences
+worth knowing: `1e3` and `1.0e3` are strings because the exponent form needs an
+explicit sign, `0o17` is a string because YAML 1.1 octal is `017`, and `y` / `n`
+are strings because PyYAML omits the single-letter booleans.

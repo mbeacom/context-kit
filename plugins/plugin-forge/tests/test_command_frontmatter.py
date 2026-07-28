@@ -39,6 +39,9 @@ class ResolveTypeTests(unittest.TestCase):
             "0.1.0.4",
             "1.2.3",
             "v1",
+            # YAML 1.1 needs a mantissa dot and an explicit exponent sign, so
+            # this is a string, not a float. Confirmed against PyYAML.
+            "1e3",
         ):
             with self.subTest(raw=raw):
                 self.assertEqual(command_frontmatter.resolve_type(raw), "str")
@@ -61,22 +64,68 @@ class ResolveTypeTests(unittest.TestCase):
             "42": "int",
             "-7": "int",
             "0x1f": "int",
+            "017": "int",
             "3.14": "float",
             ".inf": "float",
             ".nan": "float",
-            "1e3": "float",
             "2026-01-01": "timestamp",
-            "*anchor": "alias",
-            "&anchor value": "anchor",
-            "!!str 5": "tag",
+            "*x": "malformed",
         }
         for raw, expected in cases.items():
             with self.subTest(raw=raw):
                 self.assertEqual(command_frontmatter.resolve_type(raw), expected)
 
+    def test_pyyaml_parity_for_near_miss_scalars(self) -> None:
+        """Values that *look* typed but that PyYAML resolves as strings.
+
+        Each expectation was checked against PyYAML's implicit resolvers; the
+        gate ports those regexes so it never fails a command YAML accepts.
+        """
+        for raw in (
+            "1e3",  # YAML 1.1 needs an explicit exponent sign
+            "1.0e3",
+            "0o17",  # YAML 1.1 octal is `017`
+            "y",  # PyYAML omits the single-letter booleans
+            "n",
+            "-.5",  # a signed float needs digits before the dot
+            "09",  # not octal, not decimal
+            "2026-1-1",  # the date-only form needs two-digit month and day
+            "&x v",  # an anchor resolves to the value it decorates
+            "!!str 5",
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(command_frontmatter.resolve_type(raw), "str")
+
     def test_trailing_comment_does_not_change_the_type(self) -> None:
         self.assertEqual(command_frontmatter.resolve_type("[a] # note"), "seq")
         self.assertEqual(command_frontmatter.resolve_type('"[a]" # note'), "str")
+
+    def test_comment_only_value_is_null(self) -> None:
+        # `description: # TODO` is null in YAML, not the text "# TODO".
+        for raw in ("# TODO", "#", "  # trailing thought  "):
+            with self.subTest(raw=raw):
+                self.assertEqual(command_frontmatter.resolve_type(raw), "null")
+
+    def test_malformed_quoted_scalars(self) -> None:
+        for raw in (
+            '"unterminated',
+            "'unterminated",
+            '"closed" then junk',
+            "'closed' then junk",
+            '"escaped \\" but never closed',
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(command_frontmatter.resolve_type(raw), "malformed")
+
+    def test_well_formed_quoted_scalars_with_escapes(self) -> None:
+        for raw in (
+            '"has \\"inner\\" quotes"',
+            "'it''s fine'",
+            '"trailing" # comment',
+            "'<new-plugin-name> [\"short description\"]'",
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(command_frontmatter.resolve_type(raw), "str")
 
 
 class ValidateCommandTests(unittest.TestCase):
@@ -88,7 +137,9 @@ class ValidateCommandTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.tempdir.cleanup()
 
-    def _write(self, text: str, *, plugin: str = "demo", name: str = "do-thing") -> None:
+    def _write(
+        self, text: str, *, plugin: str = "demo", name: str = "do-thing"
+    ) -> None:
         path = self.plugins / plugin / "commands" / f"{name}.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
@@ -111,7 +162,11 @@ class ValidateCommandTests(unittest.TestCase):
         )
 
     def test_boolean_field_must_be_boolean(self) -> None:
-        self._write(VALID.replace("---\n\nBody", 'disable-model-invocation: "true"\n---\n\nBody'))
+        self._write(
+            VALID.replace(
+                "---\n\nBody", 'disable-model-invocation: "true"\n---\n\nBody'
+            )
+        )
         errors = self._errors()
         self.assertTrue(
             any("`disable-model-invocation` must be a boolean" in e for e in errors),
@@ -119,7 +174,9 @@ class ValidateCommandTests(unittest.TestCase):
         )
 
     def test_boolean_field_accepts_a_real_boolean(self) -> None:
-        self._write(VALID.replace("---\n\nBody", "disable-model-invocation: true\n---\n\nBody"))
+        self._write(
+            VALID.replace("---\n\nBody", "disable-model-invocation: true\n---\n\nBody")
+        )
         self.assertEqual(self._errors(), [])
 
     def test_missing_frontmatter_is_rejected(self) -> None:
@@ -149,7 +206,9 @@ class ValidateCommandTests(unittest.TestCase):
         )
 
     def test_duplicate_key_is_rejected(self) -> None:
-        self._write(VALID.replace("---\n\nBody", 'argument-hint: "[other]"\n---\n\nBody'))
+        self._write(
+            VALID.replace("---\n\nBody", 'argument-hint: "[other]"\n---\n\nBody')
+        )
         self.assertTrue(any("duplicate key" in e for e in self._errors()))
 
     def test_unquoted_colon_in_plain_scalar_is_rejected(self) -> None:
@@ -173,6 +232,84 @@ class ValidateCommandTests(unittest.TestCase):
     def test_missing_plugins_dir_is_reported(self) -> None:
         result = command_frontmatter.validate_plugins(self.repo / "nope")
         self.assertTrue(any("plugins dir not found" in e for e in result.errors))
+
+    def test_comment_only_value_is_rejected(self) -> None:
+        self._write(
+            VALID.replace('argument-hint: "[artifact-path]"', "argument-hint: # TODO")
+        )
+        self.assertTrue(
+            any("`argument-hint` is empty" in e for e in self._errors()),
+            self._errors(),
+        )
+
+    def test_comment_only_description_is_rejected(self) -> None:
+        self._write("---\ndescription: # TODO\n---\n\nBody.\n")
+        self.assertTrue(
+            any("`description` is empty" in e for e in self._errors()),
+            self._errors(),
+        )
+
+    def test_unterminated_quote_is_rejected(self) -> None:
+        self._write(VALID.replace('"[artifact-path]"', '"[artifact-path]'))
+        self.assertTrue(
+            any("`argument-hint` is not valid YAML" in e for e in self._errors()),
+            self._errors(),
+        )
+
+    def test_quoted_value_with_trailing_junk_is_rejected(self) -> None:
+        self._write(VALID.replace('"[artifact-path]"', '"[artifact-path]" oops'))
+        self.assertTrue(
+            any("`argument-hint` is not valid YAML" in e for e in self._errors()),
+            self._errors(),
+        )
+
+    def test_nested_mapping_is_rejected(self) -> None:
+        self._write("---\ndescription:\n  text: value\n---\n\nBody.\n")
+        errors = self._errors()
+        self.assertTrue(
+            any("`description` must be a string" in e and "map" in e for e in errors),
+            errors,
+        )
+
+    def test_nested_sequence_is_rejected(self) -> None:
+        self._write(
+            VALID.replace(
+                "allowed-tools: Read, Grep, Glob, Bash(git:*), Bash(python3:*)",
+                "allowed-tools:\n  - Read\n  - Grep",
+            )
+        )
+        errors = self._errors()
+        self.assertTrue(
+            any("`allowed-tools` must be a string" in e and "seq" in e for e in errors),
+            errors,
+        )
+
+    def test_mapping_under_a_plain_scalar_is_rejected(self) -> None:
+        self._write("---\ndescription: Some text\n  other: value\n---\n\nBody.\n")
+        self.assertTrue(
+            any("`description` is not valid YAML" in e for e in self._errors()),
+            self._errors(),
+        )
+
+    def test_indented_plain_scalar_is_accepted(self) -> None:
+        self._write(
+            "---\ndescription:\n  A description that lives on the next line.\n---\n\nB.\n"
+        )
+        self.assertEqual(self._errors(), [])
+
+    def test_block_scalar_is_accepted(self) -> None:
+        self._write(
+            "---\ndescription: >-\n  A folded description spanning\n"
+            "  two source lines.\n---\n\nBody.\n"
+        )
+        self.assertEqual(self._errors(), [])
+
+    def test_wrapped_plain_scalar_is_accepted(self) -> None:
+        self._write(
+            "---\ndescription: A description that wraps\n  onto a second line.\n"
+            "---\n\nBody.\n"
+        )
+        self.assertEqual(self._errors(), [])
 
     def test_no_commands_is_not_an_error(self) -> None:
         self.plugins.mkdir(parents=True, exist_ok=True)
