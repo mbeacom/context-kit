@@ -1,6 +1,6 @@
 ---
 description: Validate and safely resume a bounded task handoff.
-argument-hint: [artifact-path]
+argument-hint: "[artifact-path]"
 allowed-tools: Read, Grep, Glob, Task, Bash(git:*), Bash(python3:*)
 ---
 

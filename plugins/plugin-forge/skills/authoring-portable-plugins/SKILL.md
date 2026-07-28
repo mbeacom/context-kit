@@ -51,10 +51,12 @@ Keep `plugin.json` and `apm.yml` aligned every time a plugin ships:
   `microsoft/apm#2189` is treated as unreleased for this repo.
 
 Run `${CLAUDE_PLUGIN_ROOT}/scripts/check-manifests.sh` from any working directory
-to catch `name` or `version` drift across all plugins, and
+to catch `name` or `version` drift across all plugins,
 `${CLAUDE_PLUGIN_ROOT}/scripts/check-skills.sh` to catch skill/agent discovery
 frontmatter problems (a missing/oversized `description`, or a `name` that does
-not match its directory or file). Run
+not match its directory or file), and
+`${CLAUDE_PLUGIN_ROOT}/scripts/check-commands.sh` to catch slash-command
+frontmatter that resolves to the wrong YAML type. Run
 `${CLAUDE_PLUGIN_ROOT}/scripts/check-catalog-quality.sh` for cross-catalog checks:
 the aggregate always-on description budget and its per-component ceiling,
 dangerously similar trigger descriptions, centralized positive/negative fixture
@@ -88,6 +90,14 @@ GitHub Copilot and Claude Code both decide when to load a component from those
 two fields, so `check-skills.sh` enforces them. Add positive and negative query
 examples to `plugin-forge/quality/discovery-fixtures.json` at the same time; the
 catalog gate requires exact coverage for every current skill and agent.
+
+Quote any `commands/*.md` frontmatter value that YAML would resolve to a
+non-string. A command field of the wrong type is a **hard load failure**, not a
+degraded one: unquoted `argument-hint: [artifact-path]` is a flow sequence, so
+the host rejects the command with `argument-hint must be a string`. Write
+`argument-hint: "[artifact-path]"` instead. The same applies to a value that
+looks like a bool, number, date, or `{...}` mapping. `check-commands.sh`
+enforces this; see `references/layout.md` for the field-by-field contract.
 
 ## Portability rules
 

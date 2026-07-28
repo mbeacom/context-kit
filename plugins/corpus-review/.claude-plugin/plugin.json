@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "corpus-review",
   "displayName": "Corpus Review",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Exhaustive review of a corpus too large to read in one context. Inventory units, shard them under a bounded budget, dispatch resumable workers that cite original locations, then aggregate findings into a coverage ledger that separates a real gap from an undecidable one.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",

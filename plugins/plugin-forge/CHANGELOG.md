@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.0 — 2026-07-27
+
+- Add a slash-command frontmatter gate (`scripts/command_frontmatter.py`, run by
+  `scripts/check-commands.sh`). Nothing validated `commands/*.md`, so a command
+  could ship with a field that resolves to the wrong YAML type and fail to load
+  outright — an unquoted `argument-hint: [path]` is a flow sequence, which hosts
+  reject with `argument-hint must be a string`. `check-skills.sh` could not
+  cover this: it only walks skills and agents, and its line parser reads `[x]`
+  as the literal text `"[x]"`.
+- Resolve YAML scalar types using only the standard library, and fail on a
+  string-typed field that parses as a sequence, mapping, bool, number, null,
+  timestamp, alias, or tag; a non-boolean `disable-model-invocation`; an
+  unquoted `": "` that is a YAML parse error; a duplicate or unknown key; and
+  missing, unterminated, or empty frontmatter.
+- Add `scripts/test-commands.sh` and `tests/test_command_frontmatter.py`, which
+  pin the original regression and assert the shipped commands stay valid.
+
 ## 0.6.1 — 2026-07-27
 
 - Add the `corpus-review` non-retrieval route to `REQUIRED_ROUTE_KINDS` and the

@@ -99,8 +99,9 @@ Copilot setup notes.
 - Validate all plugins:
   `for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin validate "$p" --strict; done`
 - Lint everything (markdownlint + shellcheck + hygiene + manifest/skill checks): `pre-commit run --all-files`
-- Check manifest sync and skill discovery frontmatter directly:
-  `bash plugins/plugin-forge/scripts/check-manifests.sh` · `bash plugins/plugin-forge/scripts/check-skills.sh`
+- Check manifest sync, skill discovery frontmatter, and command frontmatter directly:
+  `bash plugins/plugin-forge/scripts/check-manifests.sh` · `bash plugins/plugin-forge/scripts/check-skills.sh` ·
+  `bash plugins/plugin-forge/scripts/check-commands.sh`
 - Check and test aggregate catalog quality:
   `bash plugins/plugin-forge/scripts/check-catalog-quality.sh` ·
   `bash plugins/plugin-forge/scripts/test-catalog-quality.sh`
@@ -120,6 +121,7 @@ Copilot setup notes.
   `python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'` ·
+  `python3 -m unittest discover -s plugins/plugin-forge/tests -p 'test_command_frontmatter.py'` ·
   `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
 - Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
