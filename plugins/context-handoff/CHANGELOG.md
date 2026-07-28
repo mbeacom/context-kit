@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 — 2026-07-27
+
+- Fix `/write-handoff` and `/resume-handoff` failing to load. Their
+  `argument-hint: [artifact-path]` frontmatter was unquoted, so YAML resolved it
+  to a flow sequence rather than a string and the host rejected both commands
+  with `argument-hint must be a string`.
+
 ## 0.2.2 — 2026-07-25
 
 - Record the `evidence (none)` case for an observation attempt that retained

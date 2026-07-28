@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 — 2026-07-27
+
+- Fix `/review-corpus` failing to load. Its `argument-hint: [corpus-root]`
+  frontmatter was unquoted, so YAML resolved it to a flow sequence rather than a
+  string and the host rejected the command with
+  `argument-hint must be a string`.
+
 ## 0.1.0 — 2026-07-25
 
 - Initial release: exhaustive review for a corpus too large to read in one

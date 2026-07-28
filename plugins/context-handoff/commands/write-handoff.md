@@ -1,6 +1,6 @@
 ---
 description: Compile, write, and validate a bounded verified task handoff.
-argument-hint: [artifact-path]
+argument-hint: "[artifact-path]"
 allowed-tools: Read, Grep, Glob, Write, Task, Bash(git:*), Bash(python3:*)
 ---
 

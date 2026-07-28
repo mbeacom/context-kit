@@ -1,6 +1,6 @@
 ---
 description: Review an entire corpus with bounded shards and a provable coverage ledger.
-argument-hint: [corpus-root]
+argument-hint: "[corpus-root]"
 allowed-tools: Read, Grep, Glob, Write, Task, Bash(python3:*)
 ---
 

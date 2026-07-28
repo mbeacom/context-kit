@@ -59,6 +59,7 @@ claude plugin validate . --strict
 for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin validate "$p" --strict; done
 bash plugins/plugin-forge/scripts/check-manifests.sh   # plugin.json ⇆ apm.yml drift
 bash plugins/plugin-forge/scripts/check-skills.sh      # skill/agent discovery frontmatter
+bash plugins/plugin-forge/scripts/check-commands.sh    # slash command frontmatter types
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 bash plugins/plugin-forge/scripts/check-version-bump.sh --base main  # CI-only gate, previewable

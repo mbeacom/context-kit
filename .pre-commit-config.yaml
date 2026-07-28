@@ -75,6 +75,20 @@ repos:
         language: system
         pass_filenames: false
         files: '^plugins/.*/(SKILL\.md|agents/.*\.md)$'
+      - id: check-commands
+        # A command whose frontmatter resolves to the wrong YAML type fails to
+        # load outright (e.g. unquoted `argument-hint: [path]` is a sequence).
+        name: slash command frontmatter
+        entry: bash plugins/plugin-forge/scripts/check-commands.sh
+        language: system
+        pass_filenames: false
+        files: '^plugins/.*/commands/.*\.md$'
+      - id: test-commands
+        name: command frontmatter regression tests
+        entry: bash plugins/plugin-forge/scripts/test-commands.sh
+        language: system
+        pass_filenames: false
+        files: '^plugins/(.*/commands/.*\.md|plugin-forge/(scripts/(command_frontmatter\.py|check-commands\.sh|test-commands\.sh)|tests/test_command_frontmatter\.py))$'
       - id: check-catalog-quality
         name: aggregate catalog discovery quality
         entry: bash plugins/plugin-forge/scripts/check-catalog-quality.sh
