@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.2 — 2026-08-03
+
+- Shorten the discovery description(s) to free aggregate budget for the new
+  `deep-review` components. Triggers and scope are unchanged; the catalog
+  budget stays at 4096 characters rather than being raised.
+
 ## 0.3.1 — 2026-07-27
 
 - Shorten the discovery description(s) to free aggregate budget for the new

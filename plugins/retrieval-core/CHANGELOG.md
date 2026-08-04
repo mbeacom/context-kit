@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.1 — 2026-08-03
+
+- Shorten the discovery description(s) to free aggregate budget for the new
+  `deep-review` components. Triggers and scope are unchanged; the catalog
+  budget stays at 4096 characters rather than being raised.
+
 ## 0.5.0 — 2026-07-25
 
 - Add the `corpus-review` route to the decision flow: when every unit must be

@@ -1,9 +1,9 @@
 # Plugins
 
-The marketplace ships twelve plugins. The **spine** is retrieval — a routing
+The marketplace ships thirteen plugins. The **spine** is retrieval — a routing
 agent that picks and composes modalities — surrounded by plugins for
-orchestration, steering, verification and impact analysis, exhaustive corpus
-review, controlled runtime evidence, cross-session handoff, and authoring.
+orchestration, steering, verification and impact analysis, multi-lens review,
+exhaustive corpus review, controlled runtime evidence, cross-session handoff, and authoring.
 
 !!! tip "Start from the task"
     Use the [cookbook](../cookbook.md) for multi-plugin journeys, the
@@ -95,6 +95,16 @@ review, controlled runtime evidence, cross-session handoff, and authoring.
 
     `verification` · shipped
 
+-   :material-account-search-outline:{ .lg .middle } **[deep-review](deep-review.md)**
+
+    ---
+
+    Multi-lens evaluative critique: independent charters return typed
+    findings, agreement merges into confidence, disagreement survives as an
+    explicit tradeoff.
+
+    `verification` · shipped
+
 -   :material-swap-horizontal:{ .lg .middle } **[context-handoff](context-handoff.md)**
 
     ---
@@ -135,6 +145,7 @@ graph TD
     VF[verify]
     RE[runtime-evidence]
     CR[corpus-review]
+    DR[deep-review]
     CH[context-handoff]
     MM[memory]
     PE[plan-execute]
@@ -148,6 +159,8 @@ graph TD
     MM -->|depends on| CH
     CR -->|depends on| VF
     CR -->|depends on| PE
+    DR -->|depends on| VF
+    DR -->|depends on| PE
     OB -->|feeds --allowlist| LR
     RC -.composes.-> CS
     RC -.composes.-> LR
@@ -168,6 +181,11 @@ graph TD
   `unable-to-check` discipline from one claim to a whole corpus, and reuses
   `plan-execute`'s cheap-worker fan-out to read shards. Retrieval surfaces the
   relevant; corpus review proves the exhaustive.
+- **`deep-review`** depends on `verify` and `plan-execute`: it deliberately
+  refuses to settle its own `DEFECT` findings and routes them to `verify` as
+  claims, and reuses `plan-execute`'s fan-out to run lenses independently.
+  Verification asks whether a claim is true; deep review asks whether the work
+  is good.
 - **`obsidian`** and **`local-rag`** pair: the bridge produces candidate note
   paths that feed `local-rag`'s hybrid `--allowlist` search.
 - **`plan-execute`**, **`context-steering`**, and **`plugin-forge`** are
@@ -188,6 +206,7 @@ graph TD
 | [verify](verify.md) | verification | subagent + 2 skills + command + stdlib inspection runner | `retrieval-core` |
 | [runtime-evidence](runtime-evidence.md) | verification | skill + command + subagent + stdlib runner | `verify` → `retrieval-core` |
 | [corpus-review](corpus-review.md) | verification | skill + command + subagent + 3 stdlib scripts | `plan-execute`, `verify` → `retrieval-core` |
+| [deep-review](deep-review.md) | verification | skill + command + subagent + stdlib adjudicator | `plan-execute`, `verify` → `retrieval-core` |
 | [context-handoff](context-handoff.md) | continuity | skill + 2 commands + subagent + stdlib validator | `verify` → `retrieval-core` |
 | [memory](memory.md) | continuity | skill + 4 commands + stdlib adapter + opt-in Claude hooks | `context-handoff` → `verify` → `retrieval-core`; MemPalace optional |
 | [plugin-forge](plugin-forge.md) | authoring | skill + command + validators/tests | — |

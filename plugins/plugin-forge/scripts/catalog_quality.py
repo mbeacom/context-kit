@@ -35,6 +35,7 @@ REQUIRED_ROUTE_KINDS = {
     "verify-before-trust": "non-retrieval",
     "runtime-evidence": "non-retrieval",
     "corpus-review": "non-retrieval",
+    "deep-review": "non-retrieval",
 }
 REQUIRED_COMPOSITIONS = {
     "hybrid-rerank",

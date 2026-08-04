@@ -1,0 +1,26 @@
+# Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
+# Lets APM users install this plugin alongside the Claude Code / GitHub Copilot
+# flows: `apm install deep-review@context-kit`. There is no `.apm/`
+# directory, so the plugin-native layout (.claude-plugin/plugin.json + skills/)
+# stays authoritative; APM consumes it as a plugin collection.
+# Keep name/version in sync with .claude-plugin/plugin.json; description is a
+# concise APM/CLI listing variant.
+name: deep-review
+version: 0.1.0
+description: Multi-lens evaluative review with typed findings, corroboration merging, and preserved tradeoffs.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
+keywords: [review, critique, adversarial, red-team, architecture, tradeoffs, findings, severity, code-review, design-review, claude-code, copilot]
+
+dependencies:
+  apm:
+    # deep-review composes orchestration with verification. This mirrors the
+    # plugin.json "dependencies": ["plan-execute", "verify"] — APM does not read
+    # that Claude field, so the dependencies are declared here as sibling local
+    # paths. `verify` adjudicates the `defect` findings this plugin deliberately
+    # refuses to settle itself, and transitively deploys the retrieval-core
+    # spine; `plan-execute` supplies the per-lens worker fan-out.
+    - path: ../plan-execute
+    - path: ../verify

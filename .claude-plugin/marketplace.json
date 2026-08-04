@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Twelve context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, orchestration, steering, verification, exhaustive corpus review, runtime evidence, handoff, and portable plugin authoring."
+    "description": "Thirteen context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, orchestration, steering, verification, multi-lens review, exhaustive corpus review, runtime evidence, handoff, and portable plugin authoring."
   },
   "plugins": [
     {
@@ -12,84 +12,191 @@
       "source": "./plugins/retrieval-core",
       "description": "The spine: a retrieval-strategist agent and retrieval-strategy skill that pick and compose search modalities.",
       "category": "retrieval",
-      "tags": ["agent", "router", "search", "rag", "retrieval"]
+      "tags": [
+        "agent",
+        "router",
+        "search",
+        "rag",
+        "retrieval"
+      ]
     },
     {
       "name": "code-search",
       "source": "./plugins/code-search",
       "description": "Fast CLI search across modalities: lexical, structural, code-intelligence, structured-data, history, rewrite, metrics, and docs.",
       "category": "retrieval",
-      "tags": ["ripgrep", "ast-grep", "semgrep", "jq", "search", "code", "code-intelligence"]
+      "tags": [
+        "ripgrep",
+        "ast-grep",
+        "semgrep",
+        "jq",
+        "search",
+        "code",
+        "code-intelligence"
+      ]
     },
     {
       "name": "local-rag",
       "source": "./plugins/local-rag",
       "description": "Local-first semantic RAG: embed through a configurable Ollama endpoint, index with turbovec, and optionally fuse FTS5/BM25.",
       "category": "retrieval",
-      "tags": ["rag", "semantic", "turbovec", "ollama", "embeddings"]
+      "tags": [
+        "rag",
+        "semantic",
+        "turbovec",
+        "ollama",
+        "embeddings"
+      ]
     },
     {
       "name": "obsidian",
       "source": "./plugins/obsidian",
       "description": "Skill-only RAG bridge: turn an Obsidian vault's graph and tags into a candidate set fed to local-rag.",
       "category": "retrieval",
-      "tags": ["obsidian", "notes", "graph", "rag", "retrieval"]
+      "tags": [
+        "obsidian",
+        "notes",
+        "graph",
+        "rag",
+        "retrieval"
+      ]
     },
     {
       "name": "plan-execute",
       "source": "./plugins/plan-execute",
       "description": "Plan-big / execute-small orchestration: a strong model plans and delegates token-heavy work to cheaper subagents.",
       "category": "orchestration",
-      "tags": ["orchestration", "workflow", "subagents", "delegation", "multi-agent"]
+      "tags": [
+        "orchestration",
+        "workflow",
+        "subagents",
+        "delegation",
+        "multi-agent"
+      ]
     },
     {
       "name": "context-steering",
       "source": "./plugins/context-steering",
       "description": "Choose where guidance lives — always-on memory, path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — to steer agents while keeping the always-on context budget small.",
       "category": "steering",
-      "tags": ["steering", "rules", "hooks", "skills", "context", "memory", "mcp"]
+      "tags": [
+        "steering",
+        "rules",
+        "hooks",
+        "skills",
+        "context",
+        "memory",
+        "mcp"
+      ]
     },
     {
       "name": "verify",
       "source": "./plugins/verify",
       "description": "Read-only claim verification and prospective change-impact analysis with per-claim verdicts, blast-radius mapping, and file:line evidence.",
       "category": "verification",
-      "tags": ["verification", "change-impact", "blast-radius", "compatibility", "review", "read-only", "subagent", "evidence"]
+      "tags": [
+        "verification",
+        "change-impact",
+        "blast-radius",
+        "compatibility",
+        "review",
+        "read-only",
+        "subagent",
+        "evidence"
+      ]
     },
     {
       "name": "corpus-review",
       "source": "./plugins/corpus-review",
       "description": "Exhaustive review of a corpus too large to read at once: hashed unit inventory, bounded resumable shards, and a coverage ledger that separates a real gap from an undecidable one.",
       "category": "verification",
-      "tags": ["corpus", "review", "coverage", "exhaustive", "sharding", "audit", "dispatch", "findings", "gaps"]
+      "tags": [
+        "corpus",
+        "review",
+        "coverage",
+        "exhaustive",
+        "sharding",
+        "audit",
+        "dispatch",
+        "findings",
+        "gaps"
+      ]
+    },
+    {
+      "name": "deep-review",
+      "source": "./plugins/deep-review",
+      "description": "Multi-lens evaluative review: independent adversarial, architect, consumer, and operator charters return typed findings that merge on agreement and preserve disagreement as an explicit tradeoff.",
+      "category": "verification",
+      "tags": [
+        "review",
+        "critique",
+        "adversarial",
+        "red-team",
+        "architecture",
+        "tradeoffs",
+        "findings",
+        "severity",
+        "code-review",
+        "design-review"
+      ]
     },
     {
       "name": "runtime-evidence",
       "source": "./plugins/runtime-evidence",
       "description": "Controlled runtime evidence for claims static verification cannot settle, using exact IDs from a user-owned command allowlist and bounded artifacts.",
       "category": "verification",
-      "tags": ["runtime", "evidence", "verification", "allowlist", "reproduction", "artifacts"]
+      "tags": [
+        "runtime",
+        "evidence",
+        "verification",
+        "allowlist",
+        "reproduction",
+        "artifacts"
+      ]
     },
     {
       "name": "context-handoff",
       "source": "./plugins/context-handoff",
       "description": "Portable, bounded, verified task-state handoffs with manual write/resume commands, a read-only compiler, and deterministic validation.",
       "category": "continuity",
-      "tags": ["handoff", "context", "sessions", "task-state", "verification", "provenance"]
+      "tags": [
+        "handoff",
+        "context",
+        "sessions",
+        "task-state",
+        "verification",
+        "provenance"
+      ]
     },
     {
       "name": "memory",
       "source": "./plugins/memory",
       "description": "Provenance-bound durable memory with immutable records, append-only review state, active-only recall, explicit MemPalace reconciliation, and opt-in capture.",
       "category": "continuity",
-      "tags": ["memory", "mempalace", "rag", "retrieval", "provenance", "continuity"]
+      "tags": [
+        "memory",
+        "mempalace",
+        "rag",
+        "retrieval",
+        "provenance",
+        "continuity"
+      ]
     },
     {
       "name": "plugin-forge",
       "source": "./plugins/plugin-forge",
       "description": "Author portable GitHub Copilot, APM, and Claude Code plugins with scaffolding, manifest/frontmatter checks, and deterministic catalog and release-readiness gates.",
       "category": "authoring",
-      "tags": ["authoring", "scaffold", "plugin", "apm", "manifest", "catalog-quality", "discovery", "validation"]
+      "tags": [
+        "authoring",
+        "scaffold",
+        "plugin",
+        "apm",
+        "manifest",
+        "catalog-quality",
+        "discovery",
+        "validation"
+      ]
     }
   ]
 }

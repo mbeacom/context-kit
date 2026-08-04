@@ -132,6 +132,7 @@ nav:
       - context-steering: plugins/context-steering.md
       - verify: plugins/verify.md
       - corpus-review: plugins/corpus-review.md
+      - deep-review: plugins/deep-review.md
       - runtime-evidence: plugins/runtime-evidence.md
       - context-handoff: plugins/context-handoff.md
       - memory: plugins/memory.md

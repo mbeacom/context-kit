@@ -21,16 +21,6 @@
         "Build a semantic index over my markdown vault."
       ]
     },
-    "plugins/context-steering/skills/context-budget/SKILL.md": {
-      "positive": [
-        "Should this guidance live in AGENTS.md, a skill, a hook, or a subagent?",
-        "Help reduce our always-on context budget without losing important rules."
-      ],
-      "negative": [
-        "Search the codebase for where this skill is actually implemented.",
-        "Verify whether the pull request description matches the code."
-      ]
-    },
     "plugins/context-handoff/agents/handoff-compiler.md": {
       "positive": [
         "Compile these verified task facts and git provenance into a bounded handoff.",
@@ -51,6 +41,16 @@
         "Automatically harvest every session into the long-term semantic index."
       ]
     },
+    "plugins/context-steering/skills/context-budget/SKILL.md": {
+      "positive": [
+        "Should this guidance live in AGENTS.md, a skill, a hook, or a subagent?",
+        "Help reduce our always-on context budget without losing important rules."
+      ],
+      "negative": [
+        "Search the codebase for where this skill is actually implemented.",
+        "Verify whether the pull request description matches the code."
+      ]
+    },
     "plugins/corpus-review/agents/corpus-reviewer.md": {
       "positive": [
         "Read this assigned shard and report findings against the review question.",
@@ -69,6 +69,26 @@
       "negative": [
         "Search this document set for the first mention of the rotation step.",
         "Judge whether this single claim about the release process holds up."
+      ]
+    },
+    "plugins/deep-review/agents/review-lens.md": {
+      "positive": [
+        "Review this artifact through the adversarial charter alone and cite findings.",
+        "Apply one assigned lens to this diff and return its coverage honestly."
+      ],
+      "negative": [
+        "Frame the panel, pick every lens, and adjudicate all of their findings.",
+        "Read one assigned shard of a document corpus against a review question."
+      ]
+    },
+    "plugins/deep-review/skills/deep-review/SKILL.md": {
+      "positive": [
+        "Critique this migration design and surface the tradeoffs before we commit.",
+        "Run an adversarial and operator judgment pass over this proposed change."
+      ],
+      "negative": [
+        "Verify whether each claim in this design document is actually true.",
+        "Prove every unit of this archive was inspected and report the coverage."
       ]
     },
     "plugins/local-rag/skills/local-rag/SKILL.md": {
@@ -172,16 +192,6 @@
         "Verify this documentation claim using only repository files."
       ]
     },
-    "plugins/verify/skills/change-impact/SKILL.md": {
-      "positive": [
-        "Analyze the blast radius of changing this API field before implementation.",
-        "Map affected callers, tests, configs, compatibility, and operations for this schema change."
-      ],
-      "negative": [
-        "Implement this API change and update every affected caller.",
-        "Verify whether this completed pull request description matches the code."
-      ]
-    },
     "plugins/verify/agents/verifier.md": {
       "positive": [
         "Independently verify each claim in this migration note against the codebase.",
@@ -191,6 +201,16 @@
       "negative": [
         "Edit the codebase to fix every issue described in this review.",
         "Search broadly for where an unknown feature might be implemented."
+      ]
+    },
+    "plugins/verify/skills/change-impact/SKILL.md": {
+      "positive": [
+        "Analyze the blast radius of changing this API field before implementation.",
+        "Map affected callers, tests, configs, compatibility, and operations for this schema change."
+      ],
+      "negative": [
+        "Implement this API change and update every affected caller.",
+        "Verify whether this completed pull request description matches the code."
       ]
     },
     "plugins/verify/skills/verify-before-trust/SKILL.md": {

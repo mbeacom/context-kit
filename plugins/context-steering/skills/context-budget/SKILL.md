@@ -1,6 +1,6 @@
 ---
 name: context-budget
-description: "Use when deciding WHERE a piece of guidance should live — always-on memory (CLAUDE.md / AGENTS.md), a path-scoped rule, an on-demand skill, a subagent, an MCP server, or a deterministic hook — and how to keep the always-on budget small."
+description: "Use when deciding WHERE guidance should live — always-on memory (CLAUDE.md / AGENTS.md), a path-scoped rule, an on-demand skill, a subagent, an MCP server, or a deterministic hook — and how to keep the always-on budget small."
 license: MIT
 metadata:
   author: Mark Beacom
