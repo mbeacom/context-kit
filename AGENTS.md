@@ -69,6 +69,7 @@ python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'
+python3 -m unittest discover -s plugins/deep-review/tests -p 'test_*.py'
 python3 -m unittest discover -s tests/integration -p 'test_*.py'
 cd plugins/local-rag && uv run --group dev pytest -q   # local-rag Python tests
 ```

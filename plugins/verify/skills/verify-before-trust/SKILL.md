@@ -1,6 +1,6 @@
 ---
 name: verify-before-trust
-description: "Use when you need to check whether claims are actually true before relying on them — checking an AI answer, a plan's assumptions, a PR description, or docs against the real codebase, with per-claim verdicts and evidence."
+description: "Use when you need to check whether claims are actually true before relying on them — checking an AI answer, a plan's assumptions, or a PR description against the codebase, with per-claim verdicts and evidence."
 license: MIT
 metadata:
   author: Mark Beacom

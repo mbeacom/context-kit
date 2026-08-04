@@ -6,7 +6,8 @@ spine is organized around **retrieval modalities** — complementary ways an age
 finds information, selected by what it knows about the query and the corpus, and
 composed together — surrounded by durable recall (`memory`), orchestration
 (`plan-execute`), steering (`context-steering`), verification and impact
-analysis (`verify`), exhaustive corpus review (`corpus-review`), controlled
+analysis (`verify`), multi-lens evaluative review (`deep-review`), exhaustive
+corpus review (`corpus-review`), controlled
 runtime observation (`runtime-evidence`), cross-session continuity
 (`context-handoff`), and authoring quality (`plugin-forge`).
 
@@ -49,6 +50,7 @@ the source and current repository evidence pin the claim.
 | `context-steering` | shipped | Skill-only: place guidance at the cheapest layer (memory/rules/skills/subagents/mcp/hooks) |
 | `verify`         | shipped  | Read-only claim verdicts + prospective change-impact analysis |
 | `corpus-review`  | shipped  | Exhaustive review of an oversized corpus: hashed inventory, bounded shards, provable coverage ledger |
+| `deep-review`    | shipped  | Multi-lens evaluative critique: typed findings, merged corroboration, preserved tradeoffs |
 | `runtime-evidence` | shipped | Allowlisted-ID (or approved optional-tool) runtime evidence after static verification cannot settle a claim |
 | `context-handoff` | shipped | Manual bounded write/resume handoffs with provenance and freshness validation |
 | `memory`         | shipped  | Reviewed durable records + optional project-isolated MemPalace provider |
@@ -70,6 +72,14 @@ every unit, assigns each a disposition, and reports what is still unaccounted
 for. That distinction matters most for absence — an expected item nobody found
 is a real gap only when everything that could contain it was actually read,
 which is `verify`'s `unable-to-check` raised from one claim to a whole corpus.
+`deep-review` also depends on `verify` and `plan-execute`, and is the third
+distinct success condition here: retrieval optimizes relevance, corpus review
+optimizes coverage, and deep review optimizes *judgment*. It never settles its
+own `DEFECT` findings — those become claims for `verify` — and it refuses to
+resolve a disagreement between two lenses, reporting it as a tradeoff for the
+human who owns the decision. Its lenses are charters passed to one worker
+rather than an agent per persona, so a domain lens costs a brief, not a
+component.
 `local-rag` and `obsidian` pair: the obsidian bridge produces candidate note paths
 that feed `local-rag`'s hybrid `--allowlist` search. Obsidian *authoring*
 (Markdown, Bases, Canvas) is intentionally out of scope — use
@@ -122,6 +132,9 @@ The modalities are layers, not rivals — `retrieval-core` sequences them:
   allowlisted runner, or its approved optional-tool path when no reviewed
   command can represent the claim, and the recorded observations return to
   `verify`.
+- **Review then verify** — a multi-lens panel produces typed findings; only a
+  `DEFECT` becomes a claim for `verify`, while a `JUDGMENT` stays the author's
+  to decline and an unresolved tradeoff stays the owner's to decide.
 - **Verify then hand off** — `context-handoff` compiles bounded task state with
   repository provenance; resume rejects identity mismatches and reverifies stale
   claims before acting.
@@ -134,8 +147,9 @@ declares route ownership and tools, named composition step variants, and stable
 scenarios with query/corpus cues, expected primary routes, participating
 plugins/tools, rationales, and near misses.
 
-The blocking gate requires all 11 modalities, the handoff/verification/runtime
-evidence non-retrieval routes, and all nine compositions to remain represented.
+The blocking gate requires all 11 modalities, the
+handoff/verification/runtime-evidence/corpus-review/deep-review non-retrieval
+routes, and all nine compositions to remain represented.
 It rejects stale cross-plugin/tool references and composition-step drift. This is
 contract and coverage validation only: no model runs in CI, and passing does not
 measure routing accuracy. Future scheduled live-model evaluation can consume the

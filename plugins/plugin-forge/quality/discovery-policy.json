@@ -56,6 +56,16 @@
         "Findings",
         "Coverage"
       ]
+    },
+    "plugins/deep-review/agents/review-lens.md": {
+      "marker": "## Output contract",
+      "required_terms": [
+        "context-kit/review-findings-v1",
+        "Findings",
+        "Coverage",
+        "Falsification",
+        "Trigger"
+      ]
     }
   }
 }

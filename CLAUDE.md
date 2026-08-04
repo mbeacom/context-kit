@@ -78,6 +78,17 @@ Copilot setup notes.
   outranks `not-found`, so a partially read, uninspectable, failed, or pending
   unit is never treated as evidence of absence.
   Declares `dependencies: ["plan-execute", "verify"]`.
+- `deep-review` — multi-lens evaluative review, as a capability distinct from
+  claim verification and coverage: it asks whether a work product is good and
+  what will go wrong. Independent charters (`adversarial`, `architect`,
+  `consumer`, `operator`, plus caller-defined domain lenses) drive one
+  parameterized `review-lens` worker rather than one agent per persona.
+  Findings are typed — `DEFECT` (routed to `verify`), `RISK` (needs a stated
+  trigger), `JUDGMENT`, `QUESTION` — and a stdlib adjudicator merges
+  corroborating findings into one entry, surfaces conflicting resolutions as
+  unresolved tradeoffs rather than resolving them, and exits nonzero when a
+  declared lens produced no report.
+  Declares `dependencies: ["plan-execute", "verify"]`.
 - `context-handoff` — manual-first `/write-handoff` and `/resume-handoff`
   workflow with a read-only compiler and deterministic validator. It has no
   lifecycle hooks or automatic RAG/memory ingestion; explicit historical
@@ -121,6 +132,7 @@ Copilot setup notes.
   `python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'` ·
+  `python3 -m unittest discover -s plugins/deep-review/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/plugin-forge/tests -p 'test_command_frontmatter.py'` ·
   `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
 - Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`
@@ -129,7 +141,8 @@ Copilot setup notes.
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including catalog gates), the pull-request-only
 version-bump gate, and the `local-rag` pytest suite plus the runtime-evidence,
-context-handoff, memory, corpus-review, and cross-plugin standard-library
+context-handoff, memory, corpus-review, deep-review, and cross-plugin
+standard-library
 suites.
 
 ## Conventions when modifying this repo

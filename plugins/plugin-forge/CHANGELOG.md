@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.1 — 2026-08-03
+
+- Shorten the discovery description(s) to free aggregate budget for the new
+  `deep-review` components. Triggers and scope are unchanged; the catalog
+  budget stays at 4096 characters rather than being raised.
+- Add the `deep-review` non-retrieval route to the required contract set,
+  with two primary scenarios and near misses that cross the boundaries into
+  `verify-before-trust` (truth of a stated claim) and `corpus-review`
+  (provable coverage over many units).
+- Register discovery fixtures for the `deep-review` skill and `review-lens`
+  agent, and an `agent_output_contracts` entry requiring the worker's
+  `Falsification` and `Trigger` terms.
+
 ## 0.7.0 — 2026-07-27
 
 - Add a slash-command frontmatter gate (`scripts/command_frontmatter.py`, run by
