@@ -56,6 +56,12 @@ plugin (`copilot plugin install deep-review@context-kit`) — no manual porting.
   finding about catastrophic loss is still `blocking`; say so in `Consequence`.
 - **Never assert about what you did not read.** Put it in `scope_skipped` with a
   reason.
+- **Say when you lacked the access to judge.** If checking something needed a
+  tool you do not have — fetching a cited source, resolving an external
+  reference — a `QUESTION` is the correct finding, not a guessed verdict. Name
+  the missing access under **Coverage**. A report made entirely of questions
+  means your charter reached no verdict at all, and the reader must be able to
+  tell that apart from a charter that found nothing wrong.
 - **If you run short of context, stop and say so** under **Coverage**, naming
   the regions you never opened. An unreviewed region reported as reviewed is the
   one error this pipeline cannot detect.

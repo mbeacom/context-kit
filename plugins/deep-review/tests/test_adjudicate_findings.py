@@ -611,6 +611,180 @@ class TestReviewFeedbackRegressions(Harness):
         )
 
 
+class TestFieldSynthesisGap(Harness):
+    """Regressions for a field report where the panel ran but adjudication
+    never did, and the resulting hand-written synthesis carried none of this
+    plugin's guarantees while looking exactly like one that did."""
+
+    QUESTION_ONLY = (
+        "- [QUESTION] [severity: note] `post.md:42`\n"
+        "  **Problem:** the cited statistic has no reachable primary source.\n"
+        "  **Resolution:** supply the source so the figure can be checked.\n"
+    )
+
+    def bundle(self, reports: dict[str, str], frame: dict | None = None):
+        """Run with every report concatenated into one file, which is what an
+        orchestrator holding inline worker output actually has."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        bundle = root / "findings.md"
+        bundle.write_text("\n".join(reports.values()), encoding="utf-8")
+        frame_data = (
+            frame
+            if frame is not None
+            else {
+                "schema": "context-kit/review-frame-v1",
+                "artifact": "repo@abc123",
+                "decision": "merge",
+                "stakes": "payment correctness",
+                "expected_lenses": sorted(reports),
+            }
+        )
+        frame_path = root / "frame.json"
+        frame_path.write_text(json.dumps(frame_data), encoding="utf-8")
+        out = root / "report"
+        code = adjudicate_findings.main(
+            [
+                "--frame",
+                str(frame_path),
+                "--findings-file",
+                str(bundle),
+                "--out-dir",
+                str(out),
+            ]
+        )
+        ledger = None
+        if (out / "ledger.json").exists():
+            ledger = json.loads((out / "ledger.json").read_text(encoding="utf-8"))
+        return code, ledger, out
+
+    def test_bundled_reports_adjudicate_like_separate_files(self) -> None:
+        reports = {
+            "adversarial": report("adversarial", DEFECT),
+            "operator": report(
+                "operator",
+                "- [RISK] [severity: major] `src/pay/gateway.ts:200`\n"
+                "  **Problem:** the retry loop has no idempotency key.\n"
+                "  **Consequence:** duplicate refunds during an outage.\n"
+                "  **Trigger:** gateway latency above the client timeout.\n"
+                "  **Resolution:** attach an idempotency key to each attempt.\n",
+            ),
+        }
+        from_dir_code, from_dir, _ = self.run_cli(reports)
+        bundled_code, bundled, _ = self.bundle(reports)
+        self.assertEqual(from_dir_code, 0)
+        self.assertEqual(bundled_code, 0)
+        self.assertEqual(bundled["lenses"]["reported"], from_dir["lenses"]["reported"])
+        self.assertEqual(bundled["counts"], from_dir["counts"])
+        self.assertEqual(bundled["routing"], from_dir["routing"])
+
+    def test_bundle_preserves_a_caller_defined_domain_lens(self) -> None:
+        code, ledger, _ = self.bundle(
+            {
+                "adversarial": report("adversarial", DEFECT),
+                "disclosure-risk": report("disclosure-risk", self.QUESTION_ONLY),
+            }
+        )
+        self.assertEqual(code, 0)
+        self.assertIn("disclosure-risk", ledger["lenses"]["reported"])
+
+    def test_bundle_with_no_report_is_rejected(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        bundle = root / "findings.md"
+        bundle.write_text("Here is my summary of the review.\n", encoding="utf-8")
+        frame = root / "frame.json"
+        frame.write_text(
+            json.dumps(
+                {
+                    "schema": "context-kit/review-frame-v1",
+                    "expected_lenses": ["adversarial"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        code = adjudicate_findings.main(
+            [
+                "--frame",
+                str(frame),
+                "--findings-file",
+                str(bundle),
+                "--out-dir",
+                str(root / "report"),
+            ]
+        )
+        self.assertEqual(code, 1)
+
+    def test_bundle_splitting_ignores_fenced_examples(self) -> None:
+        quoting = report(
+            "architect",
+            "- [JUDGMENT] [severity: note] `docs/contract.md:1`\n"
+            "  **Problem:** the contract example is stale.\n"
+            "  **Consequence:** workers copy an outdated header.\n"
+            "  **Resolution:** refresh the fenced example.\n",
+        ).replace(
+            "## Coverage\n\nRead the diff.\n",
+            "## Coverage\n\nRead the diff. The stale example reads:\n\n"
+            "```markdown\n---\nschema: context-kit/review-findings-v1\n"
+            "lens: ghost\n---\n```\n",
+        )
+        code, ledger, _ = self.bundle({"architect": quoting})
+        self.assertEqual(code, 0)
+        # The fenced sample must not be split out as a second `ghost` lens.
+        self.assertEqual(ledger["lenses"]["reported"], ["architect"])
+
+    def test_question_only_lens_is_flagged_not_read_as_clean(self) -> None:
+        """The field case: lenses without fetch tools returned only questions,
+        and the panel reported zero defects as though nothing was wrong."""
+        code, ledger, out = self.run_cli(
+            {
+                "adversarial": report("adversarial", self.QUESTION_ONLY),
+                "consumer": report("consumer", self.QUESTION_ONLY),
+            }
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            ledger["lenses"]["question_dominated"], ["adversarial", "consumer"]
+        )
+        text = (out / "review.md").read_text(encoding="utf-8")
+        self.assertIn("Degraded review", text)
+        self.assertIn("could not look", text)
+
+    def test_lens_with_no_findings_is_clean_not_question_dominated(self) -> None:
+        code, ledger, out = self.run_cli({"consumer": report("consumer", "None.")})
+        self.assertEqual(code, 0)
+        self.assertEqual(ledger["lenses"]["question_dominated"], [])
+        self.assertNotIn(
+            "Degraded review", (out / "review.md").read_text(encoding="utf-8")
+        )
+
+    def test_lens_that_judged_anything_is_not_flagged(self) -> None:
+        mixed = DEFECT + self.QUESTION_ONLY
+        _, ledger, _ = self.run_cli({"adversarial": report("adversarial", mixed)})
+        self.assertEqual(ledger["lenses"]["question_dominated"], [])
+
+    def test_both_input_modes_are_mutually_exclusive(self) -> None:
+        with self.assertRaises(SystemExit):
+            adjudicate_findings.main(
+                [
+                    "--frame",
+                    "f.json",
+                    "--findings-dir",
+                    "d",
+                    "--findings-file",
+                    "b.md",
+                    "--out-dir",
+                    "o",
+                ]
+            )
+
+    def test_an_input_source_is_required(self) -> None:
+        with self.assertRaises(SystemExit):
+            adjudicate_findings.main(["--frame", "f.json", "--out-dir", "o"])
+
+
 class TestSeverity(unittest.TestCase):
     def test_highest_severity_wins(self) -> None:
         self.assertEqual(

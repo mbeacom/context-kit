@@ -117,6 +117,48 @@ EVALUATION_BOUNDARY = (
 )
 
 
+def split_bundle(text: str) -> list[str]:
+    """Split a bundle holding several concatenated lens reports.
+
+    A worker returns its findings document inline, so an orchestrator often has
+    every report in context but none on disk. Requiring one file per lens turned
+    the deterministic spine into extra filesystem work, and in practice the
+    whole adjudication step got skipped instead. Accepting one bundled file
+    makes the honest path the cheap one.
+
+    A document starts at a `---` fence whose first field is `schema:`. Fenced
+    code blocks are tracked and ignored so a report quoting the contract does
+    not split itself in half.
+    """
+    lines = text.splitlines()
+    starts: list[int] = []
+    in_code = False
+    for index, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            in_code = not in_code
+            continue
+        if in_code or stripped != "---":
+            continue
+        following = next(
+            (
+                lines[j].strip()
+                for j in range(index + 1, len(lines))
+                if lines[j].strip()
+            ),
+            "",
+        )
+        if following.startswith("schema:"):
+            starts.append(index)
+    if not starts:
+        return []
+    bounds = starts + [len(lines)]
+    return [
+        "\n".join(lines[bounds[i] : bounds[i + 1]]).strip("\n")
+        for i in range(len(starts))
+    ]
+
+
 class AdjudicationError(Exception):
     """A degraded review. Reported as degraded, never quietly cleaned up."""
 
@@ -289,13 +331,20 @@ def parse_findings_section(
 def read_lens_report(
     path: Path, frame_artifact: str = ""
 ) -> tuple[dict[str, Any], list[str]]:
-    """Parse one lens report, returning the report and its contract errors."""
-    errors: list[str] = []
+    """Read and parse one lens report file."""
     label = path.name
     try:
         text = path.read_bytes().decode("utf-8")
     except (OSError, UnicodeDecodeError) as exc:
         return {}, [f"{label}: unreadable ({exc})"]
+    return parse_lens_report(text, label, frame_artifact)
+
+
+def parse_lens_report(
+    text: str, label: str, frame_artifact: str = ""
+) -> tuple[dict[str, Any], list[str]]:
+    """Parse one lens report, returning the report and its contract errors."""
+    errors: list[str] = []
 
     fields, body = parse_frontmatter(text)
     if fields is None:
@@ -614,6 +663,18 @@ def adjudicate(
     entries = merge_findings(accepted, merge_threshold)
     tradeoffs = find_tradeoff_candidates(entries, conflict_threshold)
 
+    # A lens that produced findings but only ever asked QUESTIONs never actually
+    # judged anything — it lacked the context or tooling to reach a verdict.
+    # Without this flag its zero defects read as "found no defects", when the
+    # truthful reading is "could not look". A lens with no findings at all is
+    # excluded: that is a genuine clean result, not a capability gap.
+    question_dominated = sorted(
+        lens
+        for lens in reported
+        if [f for f in accepted if f["lens"] == lens]
+        and all(f["type"] == "QUESTION" for f in accepted if f["lens"] == lens)
+    )
+
     return {
         "schema": LEDGER_SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -627,6 +688,7 @@ def adjudicate(
             "reported": reported,
             "missing": missing,
             "undeclared": undeclared,
+            "question_dominated": question_dominated,
         },
         "thresholds": {
             "merge": merge_threshold,
@@ -681,15 +743,24 @@ def render_markdown(ledger: dict[str, Any]) -> str:
     lines.append("")
 
     lenses = ledger["lenses"]
+    if lenses["missing"] or lenses.get("question_dominated"):
+        lines += ["## Degraded review", ""]
     if lenses["missing"]:
         lines += [
-            "## Degraded review",
-            "",
             "These declared lenses returned no usable report. This review says "
             "nothing about their charters — it does **not** report them clean:",
             "",
         ]
         lines += [f"- `{lens}`" for lens in lenses["missing"]]
+        lines.append("")
+    if lenses.get("question_dominated"):
+        lines += [
+            "These lenses only asked questions, so they judged nothing. Their "
+            "zero defects mean *could not look*, not *nothing to find* — answer "
+            "the questions or give the lens the access it lacked, then re-run it:",
+            "",
+        ]
+        lines += [f"- `{lens}`" for lens in lenses["question_dominated"]]
         lines.append("")
 
     lines += ["## Findings", ""]
@@ -760,22 +831,49 @@ def render_markdown(ledger: dict[str, Any]) -> str:
 
 
 def collect_reports(
-    findings_dir: Path, frame_artifact: str = ""
+    findings_dir: Path | None = None,
+    frame_artifact: str = "",
+    findings_file: Path | None = None,
 ) -> tuple[dict[str, dict[str, Any]], list[str]]:
-    if not findings_dir.is_dir():
-        raise AdjudicationError(f"findings directory not found: {findings_dir}")
+    """Gather lens reports from a directory of files or one bundled file."""
+    parsed: list[tuple[str, dict[str, Any], list[str]]] = []
+
+    if findings_file is not None:
+        if not findings_file.is_file():
+            raise AdjudicationError(f"findings file not found: {findings_file}")
+        try:
+            bundle = findings_file.read_bytes().decode("utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise AdjudicationError(
+                f"{findings_file.name} could not be read: {exc}"
+            ) from exc
+        documents = split_bundle(bundle)
+        if not documents:
+            raise AdjudicationError(
+                f"{findings_file.name} contains no `{FINDINGS_SCHEMA}` document; a "
+                "bundle holds each lens report verbatim, frontmatter included"
+            )
+        for index, document in enumerate(documents, start=1):
+            label = f"{findings_file.name}[{index}]"
+            report, report_errors = parse_lens_report(document, label, frame_artifact)
+            parsed.append((label, report, report_errors))
+    else:
+        if findings_dir is None or not findings_dir.is_dir():
+            raise AdjudicationError(f"findings directory not found: {findings_dir}")
+        for path in sorted(findings_dir.glob("*.md")):
+            report, report_errors = read_lens_report(path, frame_artifact)
+            parsed.append((path.name, report, report_errors))
+
     reports: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
-    for path in sorted(findings_dir.glob("*.md")):
-        report, report_errors = read_lens_report(path, frame_artifact)
+    for label, report, report_errors in parsed:
         errors.extend(report_errors)
         if not report:
             continue
         lens = report["lens"]
         if lens in reports:
             errors.append(
-                f"{path.name}: lens `{lens}` already reported by "
-                f"{reports[lens]['source']}"
+                f"{label}: lens `{lens}` already reported by {reports[lens]['source']}"
             )
             continue
         reports[lens] = report
@@ -787,7 +885,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         description="Adjudicate independent per-lens review findings."
     )
     parser.add_argument("--frame", required=True, type=Path)
-    parser.add_argument("--findings-dir", required=True, type=Path)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument(
+        "--findings-dir",
+        type=Path,
+        help="directory holding one <lens>.md report per lens",
+    )
+    source.add_argument(
+        "--findings-file",
+        type=Path,
+        help=(
+            "one file holding every lens report concatenated verbatim; use this "
+            "when workers returned their documents inline"
+        ),
+    )
     parser.add_argument("--out-dir", required=True, type=Path)
     parser.add_argument(
         "--merge-threshold", type=float, default=DEFAULT_MERGE_THRESHOLD
@@ -807,12 +918,20 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     try:
         frame = load_json_file(args.frame, FRAME_SCHEMA)
-        out_dir = resolve_output(args.out_dir, args.findings_dir)
+        # Only directory mode can re-read its own output on a later run; a
+        # bundle names exactly one file, so it needs no glob-collision guard.
+        out_dir = (
+            resolve_output(args.out_dir, args.findings_dir)
+            if args.findings_dir is not None
+            else args.out_dir.expanduser().resolve()
+        )
         frame_artifact = frame.get("artifact")
         frame_artifact = (
             frame_artifact.strip() if isinstance(frame_artifact, str) else ""
         )
-        reports, errors = collect_reports(args.findings_dir, frame_artifact)
+        reports, errors = collect_reports(
+            args.findings_dir, frame_artifact, args.findings_file
+        )
     except AdjudicationError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
