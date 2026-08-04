@@ -51,7 +51,14 @@ finding contract.
 Never show a worker another worker's findings. Independence is the only reason
 corroboration carries information.
 
-Persist each worker's returned document to `<work>/findings/<lens>.md`.
+Persist what each worker returned. Workers reply inline, so this step is what
+connects them to the deterministic spine — skipping it is how a panel ends up
+hand-synthesized. Either write one file per lens to `<work>/findings/<lens>.md`,
+or write every returned document verbatim, frontmatter included, into a single
+`<work>/findings.md` bundle. Do not summarize, reformat, or merge them here.
+
+Before continuing, confirm the number of persisted reports matches the roster in
+`expected_lenses`.
 
 ## 4. Adjudicate
 
@@ -62,10 +69,26 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/adjudicate-findings.py" \
   --out-dir "<work>/report"
 ```
 
+Pass `--findings-file "<work>/findings.md"` instead when you bundled the reports
+into one file.
+
+**Run this even when a finding already looks decisive.** Merging, conflict
+detection, and coverage accounting are not summaries of what you already read —
+they are the only things that catch a fix two lenses disagree about, and a lens
+that judged nothing. A blocking defect found early is a reason to run
+adjudication, not a reason to stop.
+
 A nonzero exit means the review is degraded, not that the artifact is bad: a
 declared lens is missing, a report is malformed, or a finding violates the
 contract. Re-dispatch the named lens rather than reporting a partial panel as
 complete.
+
+If you genuinely cannot run it — no Python, no write access — say so in the
+report under the heading **Unadjudicated synthesis**, and state plainly that
+corroboration was not merged, resolution conflicts were not detected, and
+coverage was not computed. A synthesis without the ledger may be useful, but it
+carries none of this plugin's guarantees, and a reader cannot tell the
+difference unless you write it down.
 
 ## 5. Route
 
@@ -85,7 +108,19 @@ Present, in order:
 2. Corroborated findings, naming which lenses converged.
 3. Unresolved tradeoffs awaiting a decision.
 4. The routing queue and any verdicts already returned.
-5. Coverage — what was reviewed, what was skipped, and any lens that failed.
+5. Coverage — what was reviewed, what was skipped, any lens that failed, and any
+   lens the ledger flagged as question-dominated.
 
 State findings and coverage together. A findings list alone reads as approval of
 everything it does not mention.
+
+A lens flagged `question_dominated` judged nothing: it asked questions and
+reached no verdict. Report its zero defects as *could not look*, never as
+*nothing to find*. That usually means the lens lacked access its charter needed
+— answer the questions or grant the access, then re-run that lens.
+
+Every report is one of two things, and it must say which. Either it carries the
+adjudicated ledger, or it is an **Unadjudicated synthesis** whose corroboration,
+conflicts, and coverage were never computed. Presenting the second as though it
+were the first is the exact failure this plugin exists to prevent, applied to
+the plugin itself.

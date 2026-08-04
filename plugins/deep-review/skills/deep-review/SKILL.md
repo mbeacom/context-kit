@@ -109,7 +109,11 @@ shared output anchors the later reviewer and destroys the corroboration signal
 that adjudication depends on. Independence is the whole reason to run more than
 one lens.
 
-Workers are read-only. They return findings; the caller persists them.
+Workers are read-only. They return findings **inline**; the caller persists
+them verbatim, either as `<work dir>/findings/<lens>.md` per lens or as one
+bundled `<work dir>/findings.md`. That persistence is the join between the
+workers and the deterministic spine — skip it and the panel silently becomes a
+hand-written summary.
 
 ### 4. Adjudicate
 
@@ -119,6 +123,14 @@ python3 "${CONTEXT_KIT_DEEP_REVIEW_ROOT}/scripts/adjudicate-findings.py" \
   --findings-dir "<work dir>/findings" \
   --out-dir "<work dir>/report"
 ```
+
+Use `--findings-file <work dir>/findings.md` instead of `--findings-dir` when
+the reports were bundled into one file.
+
+Run it even when a finding already looks decisive. Adjudication is not a
+summary of what you just read: it is the only step that catches a fix two
+lenses disagree about and a lens that judged nothing. An early blocking defect
+argues for running it, not for stopping.
 
 Adjudication validates each finding against the contract, fingerprints findings
 by type and location, merges corroborations into one finding carrying every
@@ -142,6 +154,15 @@ reported, never silently dropped. See `references/adjudication.md`.
 Report findings **and** the ledger together, including what was not reviewed. A
 findings list alone invites the reader to assume the whole artifact was read and
 that silence means approval.
+
+Treat a `question_dominated` lens as unresolved rather than clean: it asked and
+never judged, so its zero defects mean *could not look*.
+
+If adjudication could not run, label the output an **Unadjudicated synthesis**
+and name what is missing — corroboration unmerged, resolution conflicts
+undetected, coverage uncomputed. A hand-written synthesis is formally
+indistinguishable from an adjudicated one, so the disclosure is the only thing
+that keeps this plugin's own output honest about itself.
 
 ## Practices
 

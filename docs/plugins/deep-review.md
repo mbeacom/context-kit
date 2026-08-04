@@ -122,6 +122,10 @@ python3 "$ROOT/scripts/adjudicate-findings.py" \
   --frame ./work/frame.json \
   --findings-dir ./work/findings \
   --out-dir ./work/report
+
+# workers reply inline; if the reports are in context rather than on disk,
+# write them verbatim into one file and pass that instead:
+#   --findings-file ./work/findings.md
 ```
 
 Claude Code components may use `CLAUDE_PLUGIN_ROOT` as the plugin-root fallback.
@@ -146,6 +150,14 @@ prose resolutions genuinely conflict is not a deterministic operation, and the
 script does not pretend otherwise. The value is surfacing the collision instead
 of letting a synthesizer quietly pick a winner.
 
+!!! danger "No ledger means no guarantees"
+    A synthesis written without running the adjudicator has unmerged
+    corroboration, undetected resolution conflicts, and no coverage
+    accounting — and its shape is identical to an adjudicated one. Label it an
+    **Unadjudicated synthesis** and name what is missing. Skipping the step
+    because a finding already looks decisive is exactly when the merge and
+    conflict checks matter most.
+
 !!! warning "A missing lens is not a clean lens"
     The frame's `expected_lenses` roster is required. A declared lens with no
     report exits nonzero and appears under **Degraded review**. Without a
@@ -158,6 +170,9 @@ of letting a synthesizer quietly pick a winner.
   looked at; coverage gaps bound what silence means.
 - **Counts are not quality.** Ten `note` findings and one `blocking` finding is
   not eleven problems.
+- **A question-dominated lens judged nothing.** When a lens returns only
+  questions it reached no verdict — usually for want of access its charter
+  needed. The ledger flags it so zero defects read as *could not look*.
 - **Unrouted defects are unfinished work.** A `DEFECT` that has not been through
   `verify` is still a hypothesis.
 

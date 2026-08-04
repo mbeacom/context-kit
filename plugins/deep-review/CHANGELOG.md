@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.2.0 — 2026-08-04
+
+Field use surfaced the plugin's own version of the failure it exists to prevent:
+the four lenses ran, but their reports stayed inline, adjudication was skipped,
+and the resulting hand-written synthesis was formally indistinguishable from an
+adjudicated one. Only the operator's own footnote disclosed it.
+
+- **`--findings-file` accepts one bundled file** holding every report verbatim.
+  Workers reply inline, so requiring one file per lens put filesystem work
+  between the panel and its own guarantees, and skipping that work was the path
+  of least resistance. Bundled and per-file input produce identical ledgers.
+  Documents split on a `---` fence whose first field is `schema:`, with fenced
+  code blocks tracked so a report quoting the contract cannot split itself.
+- **A lens whose findings are all `QUESTION` is flagged `question_dominated`**
+  and named under "Degraded review". Lenses that lack the access their charter
+  needs correctly return questions rather than guesses, but a panel of nothing
+  but questions previously reported zero defects and read as clean. Its silence
+  now says *could not look*, not *nothing to find*. A lens with no findings at
+  all is untouched: that is a genuine clean result.
+- **A synthesis produced without the adjudicator must be labeled an
+  "Unadjudicated synthesis"** naming what is absent — corroboration unmerged,
+  resolution conflicts undetected, coverage uncomputed. Documented in the
+  command, skill, references, and both READMEs.
+- The command's persist step is now explicit and verified against the
+  `expected_lenses` roster instead of a single trailing sentence, and both the
+  command and skill state that an early decisive finding is a reason to run
+  adjudication rather than to stop.
+- The `review-lens` agent must name missing access under Coverage when a tool it
+  lacked forced a `QUESTION`, so the reader can separate an under-equipped lens
+  from an unclear artifact.
+
 ## 0.1.1 — 2026-08-04
 
 Review of the initial implementation found six ways the adjudicator could

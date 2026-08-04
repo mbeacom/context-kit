@@ -78,6 +78,10 @@ python3 "$ROOT/scripts/adjudicate-findings.py" \
   --frame ./work/frame.json \
   --findings-dir ./work/findings \
   --out-dir ./work/report
+
+# workers reply inline, so if you have every report in context rather than
+# on disk, write them verbatim into one file and use that instead:
+#   --findings-file ./work/findings.md
 ```
 
 Adjudication exits nonzero when a declared lens is missing, a report is
@@ -107,7 +111,12 @@ valuable output of a multi-perspective review.
 A fourth, borrowed from `corpus-review`: findings are reported with coverage. A
 findings list alone reads as approval of everything it does not mention, and a
 lens that crashed says nothing about its charter — it does not say the artifact
-is fine.
+is fine. The same holds for a lens that only asked questions: it judged
+nothing, so the ledger flags it rather than counting its zero defects as clean.
+
+And the rule applied to the tool itself: a synthesis written without running
+the adjudicator has none of these properties, and looks identical to one that
+does. Label it an **Unadjudicated synthesis** and say what is missing.
 
 ## Development
 

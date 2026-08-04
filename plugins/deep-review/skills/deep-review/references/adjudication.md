@@ -11,6 +11,20 @@ python3 "${CONTEXT_KIT_DEEP_REVIEW_ROOT}/scripts/adjudicate-findings.py" \
   --out-dir "<work dir>/report"
 ```
 
+## Input modes
+
+`--findings-dir` reads one `<lens>.md` per lens. `--findings-file` reads a
+single file holding every report concatenated verbatim, which is what an
+orchestrator has when workers returned their documents inline. Exactly one is
+required.
+
+The bundle mode exists because the per-file requirement had a cost: needing N
+writes before adjudication could run made skipping the step the path of least
+resistance, and a skipped adjudication produces a synthesis that carries none
+of the guarantees below while looking exactly like one that does. Documents
+split on a `---` fence whose first field is `schema:`, with fenced code blocks
+tracked so a report quoting the contract does not split itself.
+
 ## The frame is the denominator
 
 `frame.json` is a `context-kit/review-frame-v1` document naming the artifact,
@@ -89,6 +103,7 @@ The ledger is a `context-kit/review-ledger-v1` document reporting:
   so the ledger reports the queue rather than claiming the destination.
 - **Coverage** — per lens, the regions reviewed and the regions skipped with
   reasons, plus any declared lens that reported nothing.
+- **Question-dominated lenses** — lenses whose findings were *all* questions.
 
 ## Reading the ledger honestly
 
@@ -102,3 +117,11 @@ The ledger is a `context-kit/review-ledger-v1` document reporting:
 - **A missing lens invalidates its charter's silence.** If the operator lens
   failed, the review says nothing about operability — it does not say the
   artifact is operable.
+- **A question-dominated lens judged nothing.** A lens that only asked
+  questions reached no verdict, usually because it lacked access its charter
+  needed. Its zero defects mean *could not look*, not *nothing to find*.
+- **No ledger means no guarantees.** A synthesis written without running this
+  script has unmerged corroboration, undetected resolution conflicts, and no
+  coverage accounting. It may still be useful, but it must be labeled an
+  **Unadjudicated synthesis** — nothing in its shape distinguishes it from an
+  adjudicated one, so only the label keeps it honest.
