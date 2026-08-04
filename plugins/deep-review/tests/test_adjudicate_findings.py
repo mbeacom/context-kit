@@ -81,7 +81,7 @@ class Harness(unittest.TestCase):
 
 class TestParsing(unittest.TestCase):
     def test_parses_finding_fields_including_continuations(self) -> None:
-        findings, unparsed = adjudicate_findings.parse_findings_section(
+        findings, unparsed, _stray = adjudicate_findings.parse_findings_section(
             [
                 "- [RISK] [severity: minor] `a.py:1`",
                 "  **Problem:** something",
@@ -99,7 +99,7 @@ class TestParsing(unittest.TestCase):
         self.assertEqual(findings[0]["type"], "RISK")
 
     def test_counts_bullets_that_miss_the_contract(self) -> None:
-        _, unparsed = adjudicate_findings.parse_findings_section(
+        _, unparsed, _stray = adjudicate_findings.parse_findings_section(
             ["- [DEFECT] missing the severity block and citation"]
         )
         self.assertEqual(unparsed, 1)
@@ -397,7 +397,7 @@ class TestRoutingAndOutput(Harness):
         )
         self.assertEqual(code, 0)
         self.assertEqual(len(ledger["routing"]["verify"]), 1)
-        self.assertEqual(len(ledger["routing"]["runtime_evidence"]), 1)
+        self.assertEqual(len(ledger["routing"]["risk_triage"]), 1)
         self.assertIn("unverified", (out / "review.md").read_text(encoding="utf-8"))
 
     def test_coverage_records_skipped_regions(self) -> None:
@@ -460,6 +460,155 @@ class TestRoutingAndOutput(Harness):
             {"adversarial": report("adversarial", DEFECT)}, merge_threshold=1.5
         )
         self.assertEqual(code, 2)
+
+
+class TestReviewFeedbackRegressions(Harness):
+    """Regressions for defects found in review of the initial implementation."""
+
+    def test_agreement_on_problem_with_opposing_fixes_is_a_tradeoff(self) -> None:
+        """The worst failure this plugin could have: two lenses agree on the
+        problem, propose opposite fixes, and corroboration swallows the dissent.
+        """
+        shared_problem = (
+            "  **Problem:** the retry loop can double-charge the customer.\n"
+            "  **Consequence:** duplicate charges reach the ledger.\n"
+            "  **Falsification:** kill the gateway mid-retry.\n"
+        )
+        adversarial = (
+            "- [DEFECT] [severity: major] `src/a.ts:10`\n"
+            + shared_problem
+            + "  **Resolution:** make the whole charge path idempotent with a stored key.\n"
+        )
+        architect = (
+            "- [DEFECT] [severity: major] `src/a.ts:10`\n"
+            + shared_problem
+            + "  **Resolution:** delete retries entirely and surface failure to the caller.\n"
+        )
+        code, ledger, out = self.run_cli(
+            {
+                "adversarial": report("adversarial", adversarial),
+                "architect": report("architect", architect),
+            }
+        )
+        self.assertEqual(code, 0)
+        # Still one merged finding: they genuinely agree about the problem.
+        self.assertEqual(ledger["counts"]["merged_findings"], 1)
+        self.assertTrue(ledger["findings"][0]["corroborated"])
+        # But the disagreement about the fix must survive the merge.
+        self.assertEqual(len(ledger["tradeoff_candidates"]), 1)
+        candidate = ledger["tradeoff_candidates"][0]
+        self.assertTrue(candidate["within_finding"])
+        resolutions = {p["resolution"] for p in candidate["positions"]}
+        self.assertEqual(len(resolutions), 2)
+        self.assertIn(
+            "same problem, opposing fixes",
+            (out / "review.md").read_text(encoding="utf-8"),
+        )
+
+    def test_merged_entry_retains_every_lens_resolution(self) -> None:
+        echo = (
+            "- [DEFECT] [severity: major] `src/pay/refund.ts:118`\n"
+            "  **Problem:** refund amount is not clamped to the captured total.\n"
+            "  **Consequence:** overpayment.\n"
+            "  **Falsification:** refund above capture.\n"
+            "  **Resolution:** clamp the refund amount against the capture record.\n"
+        )
+        _, ledger, _ = self.run_cli(
+            {
+                "adversarial": report("adversarial", DEFECT),
+                "operator": report("operator", echo),
+            }
+        )
+        positions = ledger["findings"][0]["positions"]
+        self.assertEqual(len(positions), 2)
+        self.assertEqual(
+            sorted(p["lens"] for p in positions), ["adversarial", "operator"]
+        )
+
+    def test_stray_prose_in_findings_is_not_a_clean_report(self) -> None:
+        code, _, _ = self.run_cli(
+            {"consumer": report("consumer", "I ran out of context before finishing.")}
+        )
+        self.assertEqual(code, 1)
+
+    def test_none_placeholder_is_still_accepted(self) -> None:
+        code, ledger, _ = self.run_cli({"consumer": report("consumer", "None.")})
+        self.assertEqual(code, 0)
+        self.assertEqual(ledger["counts"]["merged_findings"], 0)
+
+    def test_report_from_another_revision_is_rejected(self) -> None:
+        stale = report("operator", DEFECT).replace(
+            "artifact: repo@abc123", "artifact: repo@deadbee"
+        )
+        code, _, _ = self.run_cli(
+            {
+                "adversarial": report("adversarial", DEFECT),
+                "operator": stale,
+            }
+        )
+        self.assertEqual(code, 1)
+
+    def test_missing_artifact_is_rejected(self) -> None:
+        headless = report("operator", "None.").replace(
+            "artifact: repo@abc123\n", "artifact:\n"
+        )
+        code, _, _ = self.run_cli({"operator": headless})
+        self.assertEqual(code, 1)
+
+    def test_malformed_scope_reviewed_is_rejected(self) -> None:
+        bad = report("operator", "None.").replace(
+            'scope_reviewed: ["src/pay/refund.ts"]', "scope_reviewed: src/"
+        )
+        code, _, _ = self.run_cli({"operator": bad})
+        self.assertEqual(code, 1)
+
+    def test_malformed_scope_skipped_entry_is_rejected(self) -> None:
+        bad = report("operator", "None.").replace(
+            "scope_skipped: []", 'scope_skipped: ["src/legacy"]'
+        )
+        code, _, _ = self.run_cli({"operator": bad})
+        self.assertEqual(code, 1)
+
+    def test_defect_cited_as_none_is_rejected(self) -> None:
+        bad = (
+            "- [DEFECT] [severity: blocking] `none`\n"
+            "  **Problem:** something is wrong somewhere.\n"
+            "  **Consequence:** unclear.\n"
+            "  **Falsification:** unclear.\n"
+            "  **Resolution:** find it.\n"
+        )
+        code, ledger, _ = self.run_cli({"adversarial": report("adversarial", bad)})
+        self.assertEqual(code, 1)
+        # It must not reach verify's queue without a location to look at.
+        self.assertEqual(ledger["routing"]["verify"], [])
+
+    def test_question_may_be_cited_as_none(self) -> None:
+        ok = (
+            "- [QUESTION] [severity: note] `none`\n"
+            "  **Problem:** no migration plan appears anywhere in the change.\n"
+            "  **Resolution:** point me at the migration plan, or confirm none exists.\n"
+        )
+        code, ledger, _ = self.run_cli({"architect": report("architect", ok)})
+        self.assertEqual(code, 0)
+        self.assertEqual(len(ledger["routing"]["answer"]), 1)
+
+    def test_risks_are_queued_for_triage_not_routed(self) -> None:
+        """A maintenance risk has a real trigger no command can reproduce, so
+        the ledger must not present every risk as runtime-settleable."""
+        risk = (
+            "- [RISK] [severity: minor] `src/a.ts:1`\n"
+            "  **Problem:** this pattern will be costly to evolve.\n"
+            "  **Consequence:** future contributors pay a tax on every change.\n"
+            "  **Trigger:** the next time a second backend is added.\n"
+            "  **Resolution:** extract the backend behind an interface now.\n"
+        )
+        code, ledger, out = self.run_cli({"architect": report("architect", risk)})
+        self.assertEqual(code, 0)
+        self.assertNotIn("runtime_evidence", ledger["routing"])
+        self.assertEqual(len(ledger["routing"]["risk_triage"]), 1)
+        self.assertIn(
+            "Risks to triage", (out / "review.md").read_text(encoding="utf-8")
+        )
 
 
 class TestSeverity(unittest.TestCase):

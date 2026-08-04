@@ -224,14 +224,22 @@ def _max_severity(values: Iterable[str]) -> str:
     return min(ranked, key=SEVERITIES.index)
 
 
-def parse_findings_section(lines: Sequence[str]) -> tuple[list[dict[str, Any]], int]:
-    """Return parsed findings and the count of bullets that failed to parse.
+def parse_findings_section(
+    lines: Sequence[str],
+) -> tuple[list[dict[str, Any]], int, list[str]]:
+    """Return parsed findings, malformed-bullet count, and stray content.
 
     An unparsed bullet is counted rather than dropped: a lens that wrote the
     marker slightly differently should surface a contract error, not vanish.
+
+    Stray content is any non-blank line outside a finding block that is not the
+    `None.` placeholder. Ignoring it would let a truncated or prose-only section
+    return zero findings and be reported as a clean lens, which is the one
+    error this pipeline cannot otherwise detect.
     """
     findings: list[dict[str, Any]] = []
     unparsed = 0
+    stray: list[str] = []
     current: dict[str, Any] | None = None
     field_key: str | None = None
 
@@ -257,9 +265,11 @@ def parse_findings_section(lines: Sequence[str]) -> tuple[list[dict[str, Any]], 
                 "text": stripped,
             }
             continue
-        if current is None:
-            continue
         if not stripped:
+            continue
+        if current is None:
+            if stripped.rstrip(".").strip().lower() != "none":
+                stray.append(stripped)
             continue
         field = FIELD_RE.match(stripped)
         if field is not None:
@@ -270,11 +280,15 @@ def parse_findings_section(lines: Sequence[str]) -> tuple[list[dict[str, Any]], 
             current["fields"][field_key] = (
                 f"{current['fields'][field_key]} {stripped}".strip()
             )
+            continue
+        stray.append(stripped)
     flush()
-    return findings, unparsed
+    return findings, unparsed, stray
 
 
-def read_lens_report(path: Path) -> tuple[dict[str, Any], list[str]]:
+def read_lens_report(
+    path: Path, frame_artifact: str = ""
+) -> tuple[dict[str, Any], list[str]]:
     """Parse one lens report, returning the report and its contract errors."""
     errors: list[str] = []
     label = path.name
@@ -293,6 +307,19 @@ def read_lens_report(path: Path) -> tuple[dict[str, Any], list[str]]:
         return {}, errors + [f"{label}: missing `lens`"]
     lens = lens.strip()
 
+    # A report from another revision cites lines that may not exist at the
+    # frame's revision, so merging it would present stale locations — and stale
+    # corroboration — under this panel's artifact.
+    artifact = fields.get("artifact")
+    artifact = artifact.strip() if isinstance(artifact, str) else ""
+    if not artifact:
+        errors.append(f"{label}: missing `artifact`")
+    elif frame_artifact and artifact != frame_artifact:
+        errors.append(
+            f"{label}: artifact `{artifact}` does not match the frame's "
+            f"`{frame_artifact}`"
+        )
+
     sections = split_sections(body)
     missing = sorted(REQUIRED_SECTIONS - set(sections))
     if missing:
@@ -300,11 +327,24 @@ def read_lens_report(path: Path) -> tuple[dict[str, Any], list[str]]:
         # cannot be read as "nothing to report".
         errors.append(f"{label}: missing required section(s) {', '.join(missing)}")
 
-    findings, unparsed = parse_findings_section(sections.get("findings", []))
+    findings, unparsed, stray = parse_findings_section(sections.get("findings", []))
     if unparsed:
         errors.append(
             f"{label}: {unparsed} finding bullet(s) did not match the contract"
         )
+    if stray:
+        errors.append(
+            f"{label}: Findings section has {len(stray)} line(s) outside any "
+            f"finding block, starting with {stray[0][:60]!r}"
+        )
+
+    scope_reviewed, reviewed_errors = _string_list(
+        fields.get("scope_reviewed"), f"{label}.scope_reviewed"
+    )
+    scope_skipped, skipped_errors = _region_list(
+        fields.get("scope_skipped"), f"{label}.scope_skipped"
+    )
+    errors.extend(reviewed_errors + skipped_errors)
 
     for index, finding in enumerate(findings, start=1):
         where = f"{label} finding {index}"
@@ -323,6 +363,13 @@ def read_lens_report(path: Path) -> tuple[dict[str, Any], list[str]]:
         if not finding["citation"]:
             errors.append(f"{where}: missing citation")
             finding["valid"] = False
+        elif finding["citation"].strip().lower() == "none" and ftype != "QUESTION":
+            # Only a QUESTION may ask about a thing that has no location. A
+            # DEFECT cited as `none` would reach verify with nowhere to look.
+            errors.append(
+                f"{where}: citation `none` is only valid for a QUESTION, not {ftype}"
+            )
+            finding["valid"] = False
         for required in REQUIRED_FIELDS[ftype]:
             if not finding["fields"].get(required):
                 errors.append(f"{where}: {ftype} requires a non-empty `{required}`")
@@ -330,9 +377,9 @@ def read_lens_report(path: Path) -> tuple[dict[str, Any], list[str]]:
 
     report = {
         "lens": lens,
-        "artifact": fields.get("artifact", ""),
-        "scope_reviewed": _string_list(fields.get("scope_reviewed")),
-        "scope_skipped": _region_list(fields.get("scope_skipped")),
+        "artifact": artifact,
+        "scope_reviewed": scope_reviewed,
+        "scope_skipped": scope_skipped,
         "summary": "\n".join(sections.get("summary", [])).strip(),
         "coverage": "\n".join(sections.get("coverage", [])).strip(),
         "findings": findings,
@@ -341,25 +388,50 @@ def read_lens_report(path: Path) -> tuple[dict[str, Any], list[str]]:
     return report, errors
 
 
-def _string_list(value: Any) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [item for item in value if isinstance(item, str)]
+def _string_list(value: Any, label: str) -> tuple[list[str], list[str]]:
+    """Coerce a JSON string list, reporting malformed shapes rather than
+    dropping them.
 
-
-def _region_list(value: Any) -> list[dict[str, str]]:
+    Coverage is what bounds how a reader may interpret silence, so a scope
+    field that silently becomes empty understates what went unreviewed.
+    """
+    if value is None:
+        return [], []
     if not isinstance(value, list):
-        return []
-    out: list[dict[str, str]] = []
+        return [], [f"{label} must be a JSON list of strings"]
+    out: list[str] = []
+    errors: list[str] = []
     for item in value:
-        if isinstance(item, dict) and isinstance(item.get("region"), str):
-            out.append(
-                {
-                    "region": item["region"],
-                    "reason": str(item.get("reason", "unspecified")),
-                }
-            )
-    return out
+        if isinstance(item, str):
+            out.append(item)
+        else:
+            errors.append(f"{label} entry {item!r} must be a string")
+    return out, errors
+
+
+def _region_list(value: Any, label: str) -> tuple[list[dict[str, str]], list[str]]:
+    """Coerce skipped-region entries, reporting malformed shapes.
+
+    A dropped skipped-region makes an unreviewed area invisible, which is
+    exactly the misreading the Coverage section exists to prevent.
+    """
+    if value is None:
+        return [], []
+    if not isinstance(value, list):
+        return [], [f"{label} must be a JSON list of objects"]
+    out: list[dict[str, str]] = []
+    errors: list[str] = []
+    for item in value:
+        if not isinstance(item, dict) or not isinstance(item.get("region"), str):
+            errors.append(f"{label} entry {item!r} must be an object with a `region`")
+            continue
+        out.append(
+            {
+                "region": item["region"],
+                "reason": str(item.get("reason", "unspecified")),
+            }
+        )
+    return out, errors
 
 
 def entry_id(ftype: str, citation: str, problem: str) -> str:
@@ -417,6 +489,18 @@ def merge_findings(
                 "corroborated": len(lenses) > 1,
                 "raised_by": len(cluster),
                 "fields": head["fields"],
+                # Every member's own resolution is retained. Agreement on a
+                # problem does not imply agreement on the fix, and keeping only
+                # the head's resolution would discard a dissenting lens's
+                # position before conflict detection could ever see it.
+                "positions": [
+                    {
+                        "lens": member["lens"],
+                        "severity": member["severity"],
+                        "resolution": member["fields"].get("resolution", ""),
+                    }
+                    for member in cluster
+                ],
                 "variants": [
                     member["fields"].get("problem", "")
                     for member in cluster[1:]
@@ -436,40 +520,66 @@ def find_tradeoff_candidates(
 ) -> list[dict[str, Any]]:
     """Flag two lenses wanting different things at the same location.
 
+    Comparison runs over individual lens *positions*, not over merged entries,
+    so a conflict is caught whether the lenses disagreed about separate problems
+    or agreed on one problem and split on the fix. Comparing merged entries
+    alone would let corroboration hide the second case entirely.
+
     Reported as candidates: deciding whether two prose resolutions genuinely
     contradict is not a deterministic operation, and the value here is surfacing
     the collision rather than letting a synthesizer pick a winner.
     """
+    positions: list[dict[str, Any]] = []
+    for entry in entries:
+        for position in entry["positions"]:
+            positions.append(
+                {
+                    "id": entry["id"],
+                    "citation": entry["citation"],
+                    "type": entry["type"],
+                    "lens": position["lens"],
+                    "severity": position["severity"],
+                    "resolution": position["resolution"],
+                }
+            )
+
     candidates: list[dict[str, Any]] = []
-    for i, left in enumerate(entries):
-        for right in entries[i + 1 :]:
+    for i, left in enumerate(positions):
+        for right in positions[i + 1 :]:
             if left["citation"] != right["citation"]:
                 continue
-            if set(left["lenses"]) & set(right["lenses"]):
-                continue  # same lens on both sides is not a panel disagreement
-            score = similarity(
-                left["fields"].get("resolution", ""),
-                right["fields"].get("resolution", ""),
-            )
+            if left["lens"] == right["lens"]:
+                continue  # one lens cannot disagree with itself
+            score = similarity(left["resolution"], right["resolution"])
             if score >= conflict_threshold:
                 continue
             candidates.append(
                 {
                     "citation": left["citation"],
                     "resolution_similarity": round(score, 3),
+                    # True when both lenses agreed the problem was the same and
+                    # split only on the fix — the case a merged view hides.
+                    "within_finding": left["id"] == right["id"],
                     "positions": [
                         {
-                            "id": entry["id"],
-                            "lenses": entry["lenses"],
-                            "type": entry["type"],
-                            "severity": entry["severity"],
-                            "resolution": entry["fields"].get("resolution", ""),
+                            "id": position["id"],
+                            "lenses": [position["lens"]],
+                            "type": position["type"],
+                            "severity": position["severity"],
+                            "resolution": position["resolution"],
                         }
-                        for entry in (left, right)
+                        for position in (left, right)
                     ],
                 }
             )
-    candidates.sort(key=lambda c: (c["citation"], c["positions"][0]["id"]))
+    candidates.sort(
+        key=lambda c: (
+            c["citation"],
+            c["positions"][0]["id"],
+            c["positions"][0]["lenses"][0],
+            c["positions"][1]["lenses"][0],
+        )
+    )
     return candidates
 
 
@@ -487,7 +597,11 @@ def adjudicate(
     conflict_threshold: float,
 ) -> dict[str, Any]:
     declared = [
-        lens for lens in _string_list(frame.get("expected_lenses")) if lens.strip()
+        lens
+        for lens in _string_list(frame.get("expected_lenses"), "frame.expected_lenses")[
+            0
+        ]
+        if lens.strip()
     ]
     reported = sorted(reports)
     missing = sorted(set(declared) - set(reported))
@@ -532,7 +646,13 @@ def adjudicate(
         "routing": {
             # DEFECT is an assertion this plugin refuses to settle itself.
             "verify": [e["id"] for e in entries if e["type"] == "DEFECT"],
-            "runtime_evidence": [e["id"] for e in entries if e["type"] == "RISK"],
+            # Risks are queued for triage, not routed. Only a risk whose trigger
+            # is *observable* can be settled by running something, and whether a
+            # prose trigger is observable is a judgment the routing step makes —
+            # a maintenance or adoption risk has a real trigger that no command
+            # can reproduce. Presenting these as routed would overstate what
+            # runtime evidence is able to settle.
+            "risk_triage": [e["id"] for e in entries if e["type"] == "RISK"],
             "answer": [e["id"] for e in entries if e["type"] == "QUESTION"],
         },
         "coverage": {
@@ -594,7 +714,10 @@ def render_markdown(ledger: dict[str, Any]) -> str:
     if not ledger["tradeoff_candidates"]:
         lines += ["None.", ""]
     for candidate in ledger["tradeoff_candidates"]:
-        lines.append(f"### `{candidate['citation']}`")
+        scope = (
+            " — same problem, opposing fixes" if candidate.get("within_finding") else ""
+        )
+        lines.append(f"### `{candidate['citation']}`{scope}")
         lines.append("")
         for position in candidate["positions"]:
             lines.append(
@@ -612,8 +735,9 @@ def render_markdown(ledger: dict[str, Any]) -> str:
         "until a verdict returns."
     )
     lines.append(
-        f"- **Runtime candidates:** {len(routing['runtime_evidence'])} risk(s) with a "
-        "stated trigger."
+        f"- **Risks to triage:** {len(routing['risk_triage'])} risk(s) with a stated "
+        "trigger. Only those whose trigger is observable can go to "
+        "`runtime-evidence`; classify them at the routing step."
     )
     lines.append(f"- **Awaiting an answer:** {len(routing['answer'])} question(s).")
     lines.append("")
@@ -635,13 +759,15 @@ def render_markdown(ledger: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def collect_reports(findings_dir: Path) -> tuple[dict[str, dict[str, Any]], list[str]]:
+def collect_reports(
+    findings_dir: Path, frame_artifact: str = ""
+) -> tuple[dict[str, dict[str, Any]], list[str]]:
     if not findings_dir.is_dir():
         raise AdjudicationError(f"findings directory not found: {findings_dir}")
     reports: dict[str, dict[str, Any]] = {}
     errors: list[str] = []
     for path in sorted(findings_dir.glob("*.md")):
-        report, report_errors = read_lens_report(path)
+        report, report_errors = read_lens_report(path, frame_artifact)
         errors.extend(report_errors)
         if not report:
             continue
@@ -682,12 +808,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         frame = load_json_file(args.frame, FRAME_SCHEMA)
         out_dir = resolve_output(args.out_dir, args.findings_dir)
-        reports, errors = collect_reports(args.findings_dir)
+        frame_artifact = frame.get("artifact")
+        frame_artifact = (
+            frame_artifact.strip() if isinstance(frame_artifact, str) else ""
+        )
+        reports, errors = collect_reports(args.findings_dir, frame_artifact)
     except AdjudicationError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    declared = _string_list(frame.get("expected_lenses"))
+    declared, declared_errors = _string_list(
+        frame.get("expected_lenses"), "frame.expected_lenses"
+    )
+    errors.extend(declared_errors)
     if not declared:
         print(
             "ERROR: frame must declare a non-empty `expected_lenses` roster; without "

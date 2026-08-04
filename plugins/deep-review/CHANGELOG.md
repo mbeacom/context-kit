@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.1.1 — 2026-08-04
+
+Review of the initial implementation found six ways the adjudicator could
+report a degraded panel as a clean one. All six are now regression-tested.
+
+- **Corroboration no longer swallows a conflicting fix.** Merging kept only the
+  cluster head's fields, so two lenses that agreed on a problem but proposed
+  opposite resolutions collapsed into one entry with the dissenting position
+  discarded and no tradeoff emitted — the exact outcome this plugin exists to
+  prevent. Each member's resolution is now retained on the entry, and conflict
+  detection runs over individual lens positions rather than merged entries. A
+  candidate found this way is marked `within_finding`.
+- Stray prose in a Findings section is rejected instead of parsed as zero
+  findings. A worker that stopped mid-report could previously exit clean.
+- A lens report must carry an `artifact` matching the frame's pinned revision,
+  so a stale report from another revision cannot contribute citations and
+  corroboration to this panel.
+- Malformed `scope_reviewed` / `scope_skipped` values are contract errors rather
+  than silently emptied lists, since coverage is what bounds how a reader may
+  interpret silence.
+- Citation `none` is rejected for every type except `QUESTION`, so a `DEFECT`
+  cannot reach `verify` with no location to inspect.
+- Risks are queued as `routing.risk_triage` rather than `routing.runtime_evidence`.
+  Only a risk whose trigger is observable can be settled by running something,
+  and a maintenance or adoption risk has a real trigger no command can
+  reproduce; the ledger now reports the queue instead of claiming the
+  destination.
+
 ## 0.1.0 — 2026-08-03
 
 - Initial release: multi-lens evaluative review as a capability distinct from

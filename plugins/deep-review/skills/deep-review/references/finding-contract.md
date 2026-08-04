@@ -78,6 +78,22 @@ execution detail that will not exist when someone reads the report.
 
 A finding whose citation is `none` is only valid as a `QUESTION` about a
 missing thing, and must say in `Problem` what was expected and where.
+Adjudication rejects `none` for every other type: a `DEFECT` routed to `verify`
+with no location gives the verifier nowhere to look.
+
+The report's `artifact` must be present and must match the frame's pinned
+revision. A report from another revision cites lines that may no longer exist,
+so merging it would present stale locations — and stale corroboration — under
+this panel's artifact.
+
+`scope_reviewed` and `scope_skipped` must be well-formed JSON. A malformed scope
+field is a contract error rather than an empty list, because coverage is what
+bounds how a reader may interpret the panel's silence.
+
+The Findings section must contain either the `None.` placeholder or fully parsed
+finding blocks. Stray prose there is rejected: a truncated report that returned
+no parsable findings would otherwise be indistinguishable from a lens that
+genuinely found nothing.
 
 ## Honesty rules
 

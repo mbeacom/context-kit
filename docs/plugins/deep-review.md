@@ -81,7 +81,7 @@ Every finding declares exactly one type, and the type decides how it is settled:
 | Type | Meaning | Required fields | Settled by |
 | --- | --- | --- | --- |
 | `DEFECT` | a checkable assertion that the artifact is wrong | + `Falsification` | `verify` |
-| `RISK` | a conditional prediction | + `Trigger` | judgment or `runtime-evidence` |
+| `RISK` | a conditional prediction | + `Trigger` | triage: judgment, or `runtime-evidence` when the trigger is observable |
 | `JUDGMENT` | a tradeoff with no fact of the matter | — | the author, who may decline |
 | `QUESTION` | the reviewer lacks context | — | an answer, not a fix |
 
@@ -138,7 +138,10 @@ A panel run with shared visibility produces agreement that means nothing.
 
 **Disagreement is preserved.** Two lenses at one citation whose resolutions are
 dissimilar surface as a *tradeoff candidate* routed to whoever owns the
-decision. These are candidates, not proven contradictions — deciding whether two
+decision. Every lens's own resolution is kept on the merged entry and conflict
+detection runs over those positions, so two lenses that agree on the problem
+but want opposite fixes still collide — merging a problem never merges away a
+fix. These are candidates, not proven contradictions — deciding whether two
 prose resolutions genuinely conflict is not a deterministic operation, and the
 script does not pretend otherwise. The value is surfacing the collision instead
 of letting a synthesizer quietly pick a winner.

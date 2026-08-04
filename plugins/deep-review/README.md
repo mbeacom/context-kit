@@ -100,7 +100,8 @@ no lens ever sees another's findings.
 
 **Disagreement is preserved, never resolved.** When two lenses want different
 things at the same location, that is a tradeoff candidate routed to whoever owns
-the decision. A synthesizer that quietly picks a winner discards the most
+the decision — including when they agreed on the problem and split only on the
+fix, since every lens's resolution survives the merge. A synthesizer that quietly picks a winner discards the most
 valuable output of a multi-perspective review.
 
 A fourth, borrowed from `corpus-review`: findings are reported with coverage. A

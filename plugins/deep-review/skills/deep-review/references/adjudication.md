@@ -46,15 +46,24 @@ converging on the same problem is the strongest signal a panel produces, and
 counting it three times destroys exactly that signal by making agreement
 indistinguishable from volume.
 
+Merging a problem never merges away a fix. Each member's own `Resolution` is
+retained on the entry, and conflict detection runs over those individual lens
+positions rather than over merged entries. Two lenses can agree completely
+about what is wrong and still want opposite things done about it; comparing
+only merged entries would let corroboration hide that disagreement entirely,
+which is the one outcome this pipeline must never produce.
+
 Corroboration is meaningful only because lenses cannot see each other. A panel
 run with shared visibility produces agreement that means nothing, and this
 number should be ignored.
 
 ## Tradeoff candidates
 
-Two findings from **different lenses** at the same citation whose `Resolution`
+Two positions from **different lenses** at the same citation whose `Resolution`
 texts are dissimilar are flagged as a **tradeoff candidate**: two lenses want
-different things in the same place.
+different things in the same place. This holds whether they raised separate
+findings or were merged into one — a candidate marked `within_finding` is the
+second case, where the lenses agreed on the problem and split on the fix.
 
 These are reported as candidates, not proven contradictions. Deciding whether
 two prose resolutions genuinely conflict is not a deterministic operation, and
@@ -73,8 +82,11 @@ The ledger is a `context-kit/review-ledger-v1` document reporting:
 - **Corroborated findings** — how many entries carry more than one lens.
 - **Tradeoff candidates** — collisions awaiting a human decision.
 - **Routing queue** — every `DEFECT`, listed for `verify` adjudication, and
-  every `RISK` whose trigger is observable, listed as a `runtime-evidence`
-  candidate.
+  every `RISK`, listed for triage. Risks are queued, not routed: only a risk
+  whose trigger is *observable* can be settled by running something, and a
+  maintenance or adoption risk has a real trigger that no command can
+  reproduce. Classifying a prose trigger is a judgment the routing step makes,
+  so the ledger reports the queue rather than claiming the destination.
 - **Coverage** — per lens, the regions reviewed and the regions skipped with
   reasons, plus any declared lens that reported nothing.
 

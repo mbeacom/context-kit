@@ -130,8 +130,10 @@ reported, never silently dropped. See `references/adjudication.md`.
 ### 5. Route
 
 - `defect` findings → `verify` for a verdict before anyone acts on them.
-- `risk` findings whose trigger is observable → `runtime-evidence`, only after
-  static verification leaves them unresolved.
+- `risk` findings are queued for triage, not routed. Decide here whether each
+  trigger is *observable*: only then can `runtime-evidence` settle it, and
+  only after static verification leaves it unresolved. A maintenance or
+  adoption risk has a real trigger that no command can reproduce.
 - Unresolved tradeoffs → the human who owns the decision. Do not pick a winner.
 - `question` findings → answer them, then re-run only the affected lens.
 
