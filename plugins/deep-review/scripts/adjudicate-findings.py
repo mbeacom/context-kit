@@ -56,11 +56,55 @@ TOKEN_RE = re.compile(r"[a-z0-9]+")
 # similarity between unrelated problems.
 STOPWORDS = frozenset(
     {
-        "a", "an", "and", "are", "as", "at", "be", "but", "by", "can", "could",
-        "do", "does", "for", "from", "has", "have", "if", "in", "into", "is",
-        "it", "its", "may", "might", "no", "not", "of", "on", "or", "should",
-        "so", "than", "that", "the", "their", "then", "there", "these", "they",
-        "this", "to", "was", "were", "when", "which", "will", "with", "would",
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "but",
+        "by",
+        "can",
+        "could",
+        "do",
+        "does",
+        "for",
+        "from",
+        "has",
+        "have",
+        "if",
+        "in",
+        "into",
+        "is",
+        "it",
+        "its",
+        "may",
+        "might",
+        "no",
+        "not",
+        "of",
+        "on",
+        "or",
+        "should",
+        "so",
+        "than",
+        "that",
+        "the",
+        "their",
+        "then",
+        "there",
+        "these",
+        "they",
+        "this",
+        "to",
+        "was",
+        "were",
+        "when",
+        "which",
+        "will",
+        "with",
+        "would",
     }
 )
 
@@ -81,7 +125,9 @@ def load_json_file(path: Path, schema: str) -> dict[str, Any]:
     try:
         data = json.loads(path.read_bytes().decode("utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise AdjudicationError(f"{path.name} could not be read as JSON: {exc}") from exc
+        raise AdjudicationError(
+            f"{path.name} could not be read as JSON: {exc}"
+        ) from exc
     if not isinstance(data, dict):
         raise AdjudicationError(f"{path.name} must be a JSON object")
     if data.get("schema") != schema:
@@ -256,7 +302,9 @@ def read_lens_report(path: Path) -> tuple[dict[str, Any], list[str]]:
 
     findings, unparsed = parse_findings_section(sections.get("findings", []))
     if unparsed:
-        errors.append(f"{label}: {unparsed} finding bullet(s) did not match the contract")
+        errors.append(
+            f"{label}: {unparsed} finding bullet(s) did not match the contract"
+        )
 
     for index, finding in enumerate(findings, start=1):
         where = f"{label} finding {index}"
@@ -336,7 +384,10 @@ def merge_findings(
         placed = False
         for cluster in clusters:
             head = cluster[0]
-            if head["type"] != finding["type"] or head["citation"] != finding["citation"]:
+            if (
+                head["type"] != finding["type"]
+                or head["citation"] != finding["citation"]
+            ):
                 continue
             score = similarity(
                 head["fields"].get("problem", ""), finding["fields"].get("problem", "")
@@ -374,7 +425,9 @@ def merge_findings(
                 ],
             }
         )
-    entries.sort(key=lambda e: (SEVERITIES.index(e["severity"]), e["type"], e["citation"]))
+    entries.sort(
+        key=lambda e: (SEVERITIES.index(e["severity"]), e["type"], e["citation"])
+    )
     return entries
 
 
@@ -395,7 +448,8 @@ def find_tradeoff_candidates(
             if set(left["lenses"]) & set(right["lenses"]):
                 continue  # same lens on both sides is not a panel disagreement
             score = similarity(
-                left["fields"].get("resolution", ""), right["fields"].get("resolution", "")
+                left["fields"].get("resolution", ""),
+                right["fields"].get("resolution", ""),
             )
             if score >= conflict_threshold:
                 continue
@@ -609,7 +663,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--frame", required=True, type=Path)
     parser.add_argument("--findings-dir", required=True, type=Path)
     parser.add_argument("--out-dir", required=True, type=Path)
-    parser.add_argument("--merge-threshold", type=float, default=DEFAULT_MERGE_THRESHOLD)
+    parser.add_argument(
+        "--merge-threshold", type=float, default=DEFAULT_MERGE_THRESHOLD
+    )
     parser.add_argument(
         "--conflict-threshold", type=float, default=DEFAULT_CONFLICT_THRESHOLD
     )

@@ -48,20 +48,27 @@ class Harness(unittest.TestCase):
         findings.mkdir()
         for name, text in reports.items():
             (findings / f"{name}.md").write_text(text, encoding="utf-8")
-        frame_data = frame if frame is not None else {
-            "schema": "context-kit/review-frame-v1",
-            "artifact": "repo@abc123",
-            "decision": "merge",
-            "stakes": "payment correctness",
-            "expected_lenses": sorted(reports),
-        }
+        frame_data = (
+            frame
+            if frame is not None
+            else {
+                "schema": "context-kit/review-frame-v1",
+                "artifact": "repo@abc123",
+                "decision": "merge",
+                "stakes": "payment correctness",
+                "expected_lenses": sorted(reports),
+            }
+        )
         frame_path = root / "frame.json"
         frame_path.write_text(json.dumps(frame_data), encoding="utf-8")
         out = root / "report"
         argv = [
-            "--frame", str(frame_path),
-            "--findings-dir", str(findings),
-            "--out-dir", str(out),
+            "--frame",
+            str(frame_path),
+            "--findings-dir",
+            str(findings),
+            "--out-dir",
+            str(out),
         ]
         for key, value in kwargs.items():
             argv += [f"--{key.replace('_', '-')}", str(value)]
@@ -106,13 +113,16 @@ class TestParsing(unittest.TestCase):
 class TestContract(Harness):
     def test_clean_panel_passes(self) -> None:
         code, ledger, out = self.run_cli(
-            {"adversarial": report("adversarial", DEFECT), "architect": report(
-                "architect",
-                "- [JUDGMENT] [severity: minor] `src/pay/refund.ts:12`\n"
-                "  **Problem:** helper duplicates the ledger module.\n"
-                "  **Consequence:** two places to change on a pricing update.\n"
-                "  **Resolution:** reuse the ledger helper.\n",
-            )},
+            {
+                "adversarial": report("adversarial", DEFECT),
+                "architect": report(
+                    "architect",
+                    "- [JUDGMENT] [severity: minor] `src/pay/refund.ts:12`\n"
+                    "  **Problem:** helper duplicates the ledger module.\n"
+                    "  **Consequence:** two places to change on a pricing update.\n"
+                    "  **Resolution:** reuse the ledger helper.\n",
+                ),
+            },
         )
         self.assertEqual(code, 0)
         self.assertEqual(ledger["counts"]["merged_findings"], 2)
@@ -148,10 +158,7 @@ class TestContract(Harness):
         self.assertEqual(code, 1)
 
     def test_unknown_type_is_rejected(self) -> None:
-        bogus = (
-            "- [NITPICK] [severity: note] `src/a.ts:1`\n"
-            "  **Problem:** naming.\n"
-        )
+        bogus = "- [NITPICK] [severity: note] `src/a.ts:1`\n" "  **Problem:** naming.\n"
         code, ledger, _ = self.run_cli({"consumer": report("consumer", bogus)})
         self.assertEqual(code, 1)
         # Rejected findings are counted, not merged: an unfalsified defect must
@@ -179,7 +186,9 @@ class TestRosterHonesty(Harness):
         )
         self.assertEqual(code, 1)
         self.assertEqual(ledger["lenses"]["missing"], ["operator"])
-        self.assertIn("Degraded review", (out / "review.md").read_text(encoding="utf-8"))
+        self.assertIn(
+            "Degraded review", (out / "review.md").read_text(encoding="utf-8")
+        )
 
     def test_undeclared_lens_fails(self) -> None:
         frame = {
@@ -232,9 +241,12 @@ class TestRosterHonesty(Harness):
         )
         code = adjudicate_findings.main(
             [
-                "--frame", str(frame),
-                "--findings-dir", str(findings),
-                "--out-dir", str(root / "report"),
+                "--frame",
+                str(frame),
+                "--findings-dir",
+                str(findings),
+                "--out-dir",
+                str(root / "report"),
             ]
         )
         self.assertEqual(code, 1)
@@ -285,10 +297,16 @@ class TestCorroboration(Harness):
     def test_merge_is_order_independent(self) -> None:
         echo = DEFECT.replace("[severity: major]", "[severity: minor]")
         first, _, _ = self.run_cli(
-            {"adversarial": report("adversarial", DEFECT), "operator": report("operator", echo)}
+            {
+                "adversarial": report("adversarial", DEFECT),
+                "operator": report("operator", echo),
+            }
         )
         second, ledger_b, _ = self.run_cli(
-            {"operator": report("operator", echo), "adversarial": report("adversarial", DEFECT)}
+            {
+                "operator": report("operator", echo),
+                "adversarial": report("adversarial", DEFECT),
+            }
         )
         self.assertEqual(first, 0)
         self.assertEqual(second, 0)
@@ -417,9 +435,12 @@ class TestRoutingAndOutput(Harness):
         )
         code = adjudicate_findings.main(
             [
-                "--frame", str(frame),
-                "--findings-dir", str(findings),
-                "--out-dir", str(findings / "report"),
+                "--frame",
+                str(frame),
+                "--findings-dir",
+                str(findings),
+                "--out-dir",
+                str(findings / "report"),
             ]
         )
         self.assertEqual(code, 1)
@@ -427,7 +448,10 @@ class TestRoutingAndOutput(Harness):
     def test_wrong_frame_schema_is_rejected(self) -> None:
         code, _, _ = self.run_cli(
             {"adversarial": report("adversarial", DEFECT)},
-            frame={"schema": "context-kit/other-v1", "expected_lenses": ["adversarial"]},
+            frame={
+                "schema": "context-kit/other-v1",
+                "expected_lenses": ["adversarial"],
+            },
         )
         self.assertEqual(code, 1)
 
