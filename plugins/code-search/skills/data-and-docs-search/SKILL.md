@@ -1,6 +1,6 @@
 ---
 name: data-and-docs-search
-description: "Use when searching non-code corpora: query JSON/YAML/config (jq, yq, gron), tabular data files (duckdb, sqlite-utils), or content inside PDFs/Office/archives (rga, pandoc, pdftotext)."
+description: "Use when searching non-code corpora: query JSON/YAML/config (jq, yq, gron), tabular data files (duckdb, sqlite-utils), or content inside PDFs/Office/archives (rga, pandoc)."
 license: MIT
 compatibility: "Optional tools: jq, yq, gron, duckdb, sqlite-utils, rga (ripgrep-all), pandoc, pdftotext."
 metadata:

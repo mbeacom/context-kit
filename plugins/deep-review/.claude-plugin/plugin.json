@@ -2,12 +2,30 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "deep-review",
   "displayName": "Deep Review",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Multi-lens evaluative review of a change, design, or plan. Independent adversarial, architect, consumer, and operator lenses return typed findings; adjudication merges corroboration, preserves conflicts as explicit tradeoffs, routes checkable defects to verify, and reports what was not reviewed.",
-  "author": { "name": "Mark Beacom" },
+  "author": {
+    "name": "Mark Beacom"
+  },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",
   "license": "MIT",
-  "keywords": ["review", "critique", "adversarial", "red-team", "architecture", "tradeoffs", "findings", "severity", "code-review", "design-review", "claude-code", "copilot"],
-  "dependencies": ["plan-execute", "verify"]
+  "keywords": [
+    "review",
+    "critique",
+    "adversarial",
+    "red-team",
+    "architecture",
+    "tradeoffs",
+    "findings",
+    "severity",
+    "code-review",
+    "design-review",
+    "claude-code",
+    "copilot"
+  ],
+  "dependencies": [
+    "plan-execute",
+    "verify"
+  ]
 }

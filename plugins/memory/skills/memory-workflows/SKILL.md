@@ -1,6 +1,6 @@
 ---
 name: memory-workflows
-description: "Use when capturing, recalling, reviewing, or consolidating durable project memory across sessions, especially decisions, constraints, procedures, and episodes that must retain provenance and freshness."
+description: "Use when capturing, recalling, reviewing, or consolidating durable project memory across sessions — decisions, constraints, procedures, and episodes that must retain provenance and freshness."
 license: MIT
 compatibility: "Python 3 is required for the bundled validator/provider adapter. Offline semantic recall uses the bundled local-rag dependency (needs its venv bootstrap plus ollama). MemPalace is optional and installed separately."
 metadata:

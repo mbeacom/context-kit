@@ -2,11 +2,20 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "plan-execute",
   "displayName": "Plan / Execute",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Plan-big / execute-small orchestration: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a scripted Workflow, a strategy skill, and a cheap executor subagent.",
-  "author": { "name": "Mark Beacom" },
+  "author": {
+    "name": "Mark Beacom"
+  },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",
   "license": "MIT",
-  "keywords": ["orchestration", "workflow", "subagents", "planning", "delegation", "multi-agent"]
+  "keywords": [
+    "orchestration",
+    "workflow",
+    "subagents",
+    "planning",
+    "delegation",
+    "multi-agent"
+  ]
 }

@@ -1,0 +1,17 @@
+# Agent Package Manager (APM) manifest — https://github.com/microsoft/apm
+# Keep name/version in sync with .claude-plugin/plugin.json; description is a
+# concise APM/CLI listing variant.
+name: token-economics
+version: 0.2.1
+description: Measure agent token usage and prove tool savings with controlled A/B runs instead of quoting a vendor percentage.
+author: Mark Beacom
+license: MIT
+homepage: https://github.com/mbeacom/context-kit
+repository: https://github.com/mbeacom/context-kit
+keywords: [tokens, cost, usage, telemetry, benchmark, measurement, cache, claude-code, copilot]
+
+dependencies:
+  apm:
+    # A savings number is a claim. verify owns claim verdicts and already pulls
+    # retrieval-core.
+    - path: ../verify

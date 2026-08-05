@@ -1,6 +1,6 @@
 ---
 name: verifier
-description: "Use to verify claims against the codebase — a migration note, plan, or PR description — or from a runtime observation report. Read-only; per-claim verdicts (confirmed/dubious/refuted/unable-to-check) with file:line evidence."
+description: "Use to verify claims against the codebase — a migration note, plan, or PR description — or from a runtime observation report. Read-only; per-claim verdicts with file:line evidence."
 model: sonnet
 tools: Read, Grep, Glob
 skills: verify-before-trust

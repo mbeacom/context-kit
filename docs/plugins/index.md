@@ -1,9 +1,10 @@
 # Plugins
 
-The marketplace ships thirteen plugins. The **spine** is retrieval — a routing
+The marketplace ships fourteen plugins. The **spine** is retrieval — a routing
 agent that picks and composes modalities — surrounded by plugins for
 orchestration, steering, verification and impact analysis, multi-lens review,
-exhaustive corpus review, controlled runtime evidence, cross-session handoff, and authoring.
+exhaustive corpus review, controlled runtime evidence, token economics,
+cross-session handoff, and authoring.
 
 !!! tip "Start from the task"
     Use the [cookbook](../cookbook.md) for multi-plugin journeys, the
@@ -123,6 +124,15 @@ exhaustive corpus review, controlled runtime evidence, cross-session handoff, an
 
     `continuity` · shipped
 
+-   :material-scale-balance:{ .lg .middle } **[token-economics](token-economics.md)**
+
+    ---
+
+    Measure token spend from local host records, and prove a tool's savings
+    with a controlled A/B that must preserve the answer.
+
+    `measurement` · shipped
+
 -   :material-hammer-wrench:{ .lg .middle } **[plugin-forge](plugin-forge.md)**
 
     ---
@@ -209,4 +219,5 @@ graph TD
 | [deep-review](deep-review.md) | verification | skill + command + subagent + stdlib adjudicator | `plan-execute`, `verify` → `retrieval-core` |
 | [context-handoff](context-handoff.md) | continuity | skill + 2 commands + subagent + stdlib validator | `verify` → `retrieval-core` |
 | [memory](memory.md) | continuity | skill + 4 commands + stdlib adapter + opt-in Claude hooks | `context-handoff` → `verify` → `retrieval-core`; MemPalace optional |
+| [token-economics](token-economics.md) | measurement | 2 skills + 2 commands + 2 stdlib scripts | `verify` → `retrieval-core` |
 | [plugin-forge](plugin-forge.md) | authoring | skill + command + validators/tests | — |

@@ -69,7 +69,10 @@ class McpProtocolTests(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def converse(
-        self, messages: list[dict[str, object]], *, project: str | None = "mbeacom/context-kit"
+        self,
+        messages: list[dict[str, object]],
+        *,
+        project: str | None = "mbeacom/context-kit",
     ) -> list[dict[str, object]]:
         env = dict(os.environ)
         env["CONTEXT_KIT_MEMORY_HOME"] = str(self.home)
@@ -137,7 +140,9 @@ class McpProtocolTests(unittest.TestCase):
         )
 
     @staticmethod
-    def call(request_id: int, name: str, arguments: dict[str, object]) -> dict[str, object]:
+    def call(
+        request_id: int, name: str, arguments: dict[str, object]
+    ) -> dict[str, object]:
         return {
             "jsonrpc": "2.0",
             "id": request_id,
@@ -169,14 +174,10 @@ class McpProtocolTests(unittest.TestCase):
         self.assertEqual("context-kit-memory", initialized["serverInfo"]["name"])
         self.assertIn("tools", initialized["capabilities"])
         listed = [tool["name"] for tool in responses[1]["result"]["tools"]]
-        self.assertEqual(
-            ["memory_recall", "memory_capture", "memory_review"], listed
-        )
+        self.assertEqual(["memory_recall", "memory_capture", "memory_review"], listed)
 
     def test_malformed_input_does_not_end_the_session(self) -> None:
-        responses = self.converse(
-            [{"jsonrpc": "2.0", "id": 1, "method": "ping"}]
-        )
+        responses = self.converse([{"jsonrpc": "2.0", "id": 1, "method": "ping"}])
         self.assertEqual({}, responses[0]["result"])
 
         env = dict(os.environ, CONTEXT_KIT_MEMORY_HOME=str(self.home))
@@ -206,7 +207,11 @@ class McpProtocolTests(unittest.TestCase):
 
     def test_capture_persists_a_proposed_record(self) -> None:
         responses = self.converse(
-            [self.call(1, "memory_capture", {"record": self.record("retry", "proposed")})]
+            [
+                self.call(
+                    1, "memory_capture", {"record": self.record("retry", "proposed")}
+                )
+            ]
         )
         result = responses[0]["result"]
         self.assertFalse(result["isError"], self.text(responses[0]))
@@ -221,7 +226,9 @@ class McpProtocolTests(unittest.TestCase):
                 responses = self.converse(
                     [
                         self.call(
-                            1, "memory_capture", {"record": self.record("retry", review)}
+                            1,
+                            "memory_capture",
+                            {"record": self.record("retry", review)},
                         )
                     ]
                 )
@@ -231,7 +238,9 @@ class McpProtocolTests(unittest.TestCase):
     def test_a_captured_proposal_is_inert_in_recall(self) -> None:
         responses = self.converse(
             [
-                self.call(1, "memory_capture", {"record": self.record("retry", "proposed")}),
+                self.call(
+                    1, "memory_capture", {"record": self.record("retry", "proposed")}
+                ),
                 self.call(2, "memory_recall", {"query": "retry policy gateway"}),
             ]
         )
@@ -271,7 +280,9 @@ class McpProtocolTests(unittest.TestCase):
     def test_review_is_read_only_and_takes_no_arguments(self) -> None:
         responses = self.converse(
             [
-                self.call(1, "memory_capture", {"record": self.record("retry", "proposed")}),
+                self.call(
+                    1, "memory_capture", {"record": self.record("retry", "proposed")}
+                ),
                 self.call(2, "memory_review", {}),
                 self.call(3, "memory_review", {"unexpected": True}),
             ]
@@ -289,7 +300,11 @@ class McpProtocolTests(unittest.TestCase):
 
     def test_projects_are_isolated_from_one_another(self) -> None:
         self.converse(
-            [self.call(1, "memory_capture", {"record": self.record("retry", "proposed")})]
+            [
+                self.call(
+                    1, "memory_capture", {"record": self.record("retry", "proposed")}
+                )
+            ]
         )
         other = self.converse(
             [self.call(1, "memory_review", {})], project="someone/else"

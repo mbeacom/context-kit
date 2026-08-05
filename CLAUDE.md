@@ -99,6 +99,16 @@ Copilot setup notes.
   archive commands, and a stdlib adapter for an optional separately installed
   MemPalace CLI. Provider storage is project-isolated; Claude lifecycle hooks are
   inert unless explicitly enabled. Declares `dependencies: ["context-handoff"]`.
+- `token-economics` — measurement, as a capability distinct from retrieval and
+  verification: what an agent actually spent, and whether a tool caused a saving.
+  A stdlib reader deduplicates Claude Code's replayed responses on
+  `(requestId, message.id)` and decomposes cache traffic per host, since
+  Copilot's `input_tokens` includes cache while Claude Code's excludes it. Cost
+  is reported only in the unit a host recorded. Savings claims run through a
+  controlled A/B requiring a preserved-answer assertion — discarding output
+  "saves" 100% — and a run without one is `unverified` rather than quotable.
+  Every figure carries a counting grade and an attribution grade; telemetry is
+  always observational. Declares `dependencies: ["verify"]`.
 - `plugin-forge` — authoring toolkit for portable plugins: the
   `authoring-portable-plugins` skill, `/scaffold-plugin`, manifest/frontmatter
   validators, and a deterministic aggregate catalog-quality gate with regression
@@ -133,6 +143,7 @@ Copilot setup notes.
   `python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/deep-review/tests -p 'test_*.py'` ·
+  `python3 -m unittest discover -s plugins/token-economics/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/plugin-forge/tests -p 'test_command_frontmatter.py'` ·
   `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
 - Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`

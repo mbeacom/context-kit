@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Thirteen context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, orchestration, steering, verification, multi-lens review, exhaustive corpus review, runtime evidence, handoff, and portable plugin authoring."
+    "description": "Fourteen context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, orchestration, steering, verification, multi-lens review, exhaustive corpus review, runtime evidence, token economics, handoff, and portable plugin authoring."
   },
   "plugins": [
     {
@@ -77,7 +77,7 @@
     {
       "name": "context-steering",
       "source": "./plugins/context-steering",
-      "description": "Choose where guidance lives — always-on memory, path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — to steer agents while keeping the always-on context budget small.",
+      "description": "Choose where guidance lives \u2014 always-on memory, path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks \u2014 to steer agents while keeping the always-on context budget small.",
       "category": "steering",
       "tags": [
         "steering",
@@ -180,6 +180,24 @@
         "retrieval",
         "provenance",
         "continuity"
+      ]
+    },
+    {
+      "name": "token-economics",
+      "source": "./plugins/token-economics",
+      "description": "Measure agent token usage from local host records, and settle tool savings claims with controlled A/B runs that require a preserved answer.",
+      "category": "measurement",
+      "tags": [
+        "tokens",
+        "cost",
+        "usage",
+        "telemetry",
+        "benchmark",
+        "measurement",
+        "cache",
+        "savings",
+        "rtk",
+        "headroom"
       ]
     },
     {

@@ -182,9 +182,7 @@ def _tool_memory_capture(arguments: dict[str, Any]) -> str:
         )
     review = _frontmatter_value(record, "review")
     if review is None:
-        raise ToolError(
-            "record is missing flat YAML frontmatter with a `review` field"
-        )
+        raise ToolError("record is missing flat YAML frontmatter with a `review` field")
     if review != "proposed":
         # `capture` takes the initial state from frontmatter, so without this
         # guard an agent could write `review: accepted` and activate a memory

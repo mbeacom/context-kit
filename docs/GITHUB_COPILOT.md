@@ -23,6 +23,9 @@ copilot plugin install verify@context-kit           # auto-installs retrieval-co
 copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
 copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
 copilot plugin install memory@context-kit           # pulls handoff, verify, retrieval-core
+copilot plugin install corpus-review@context-kit  # pulls plan-execute, verify
+copilot plugin install deep-review@context-kit    # pulls plan-execute, verify
+copilot plugin install token-economics@context-kit # pulls verify, retrieval-core
 copilot plugin install plugin-forge@context-kit
 ```
 
@@ -90,6 +93,9 @@ Supported neutral environment variables:
 | `CONTEXT_KIT_MEMORY_PROJECT` | explicit durable-memory project scope | `CLAUDE_PLUGIN_OPTION_PROJECT` |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | opt-in Claude lifecycle forwarding | `CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE` |
 | `CONTEXT_KIT_MEMORY_ROOT` | installed memory plugin root | `CLAUDE_PLUGIN_ROOT` |
+| `CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` | installed token-economics root | `CLAUDE_PLUGIN_ROOT` |
+| `CONTEXT_KIT_CLAUDE_PROJECTS` | Claude Code transcript dir to read | — |
+| `CONTEXT_KIT_COPILOT_DB` | Copilot CLI session store to read | — |
 
 The Claude-specific variables remain supported so existing plugin installs keep
 working. The `CONTEXT_KIT_*` names are preferred for portable docs and

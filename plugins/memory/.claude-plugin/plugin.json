@@ -4,12 +4,24 @@
   "displayName": "Durable Memory",
   "version": "0.3.0",
   "description": "Provenance-bound durable memory across sessions: immutable records, append-only review state, active-only recall, offline semantic recall via a first-party rag provider, and explicit provider reconciliation.",
-  "author": { "name": "Mark Beacom" },
+  "author": {
+    "name": "Mark Beacom"
+  },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",
   "license": "MIT",
-  "keywords": ["memory", "mempalace", "rag", "retrieval", "provenance", "continuity"],
-  "dependencies": ["context-handoff", "local-rag"],
+  "keywords": [
+    "memory",
+    "mempalace",
+    "rag",
+    "retrieval",
+    "provenance",
+    "continuity"
+  ],
+  "dependencies": [
+    "context-handoff",
+    "local-rag"
+  ],
   "userConfig": {
     "provider": {
       "type": "string",

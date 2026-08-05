@@ -1,6 +1,6 @@
 ---
 name: corpus-review
-description: "Use when every unit of a corpus must be accounted for rather than merely searched — auditing a document set, log archive, or file tree with provable coverage and gaps split into truly absent versus undecidable."
+description: "Use when every unit of a corpus must be accounted for rather than searched — auditing a document set, log archive, or file tree with provable coverage, splitting gaps into absent versus undecidable."
 license: MIT
 compatibility: "The bundled scripts require Python 3 and use only the standard library. Extraction of non-text units (PDF, Office, archives) depends on separately installed tools from the data-and-docs-search skill."
 metadata:

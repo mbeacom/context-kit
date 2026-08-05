@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.8 — 2026-08-04
+
+- Shorten the `plan-execute-strategy` skill and `execution-worker` agent triggers to free aggregate discovery budget for the new
+  `token-economics` components. Scope and routing are unchanged; the removed
+  text was enumeration detail already covered in the skill body, and the
+  catalog budget stays at 4096 characters rather than being raised.
+
 ## 0.1.7 — 2026-08-03
 
 - Shorten the discovery description(s) to free aggregate budget for the new
