@@ -73,6 +73,31 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
 Records default to `~/.local/share/context-kit/memory`; override
 `CONTEXT_KIT_MEMORY_HOME`.
 
+## Semantic recall with the first-party `rag` provider
+
+Local recall is lexical. The bundled `rag` provider adds **offline semantic
+recall** using `local-rag`, which `memory` hard-depends on, so no external tool
+is needed:
+
+```bash
+bash plugins/local-rag/scripts/bootstrap.sh   # Claude runs this on SessionStart
+ollama pull nomic-embed-text
+
+export CONTEXT_KIT_MEMORY_PROVIDER=rag
+export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
+
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" sync-provider --apply
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
+  search "why did we change retry policy" --results 8
+```
+
+The index is a rebuildable projection of accepted/current records, never the
+system of record: hits are bound back to the local records, so review,
+freshness, `source`, and `source_hash` come from the immutable artifacts. When
+the provider is unreachable, `search` falls back to lexical local search and
+labels it `degraded_from`; a stale index refuses instead of degrading.
+
 ## Optional MemPalace provider
 
 [MemPalace](https://github.com/MemPalace/mempalace) is installed separately:
@@ -133,12 +158,13 @@ capture unless the user separately configures a native MemPalace integration.
 
 | Variable | Purpose |
 | --- | --- |
-| `CONTEXT_KIT_MEMORY_PROVIDER` | `none` (default) or `mempalace`. |
+| `CONTEXT_KIT_MEMORY_PROVIDER` | `none` (default), `rag`, or `mempalace`. |
 | `CONTEXT_KIT_MEMORY_HOME` | Reviewed records and project-isolated provider data. |
 | `CONTEXT_KIT_MEMORY_PROJECT` | Required explicit project scope. |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | Enables Claude lifecycle forwarding when truthy. |
 | `CONTEXT_KIT_MEMORY_ROOT` | Installed plugin root for portable command use. |
 | `CONTEXT_KIT_MEMPALACE_BIN` | Optional absolute MemPalace executable override. |
+| `CONTEXT_KIT_RAG_BIN` | Optional absolute `rag` executable override. |
 
 ## Safety defaults
 

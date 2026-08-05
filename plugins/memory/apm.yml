@@ -1,8 +1,8 @@
 # Agent Package Manager manifest. Keep name/version synchronized with plugin.json.
 # APM does not run Claude hooks; explicit commands remain portable.
 name: memory
-version: 0.2.2
-description: Provenance-bound durable memory with immutable records, append-only review state, and explicit MemPalace reconciliation.
+version: 0.3.0
+description: Provenance-bound durable memory with immutable records, append-only review state, and offline semantic recall via a first-party rag provider.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit
@@ -12,3 +12,7 @@ keywords: [memory, mempalace, rag, retrieval, provenance, continuity]
 dependencies:
   apm:
     - path: ../context-handoff
+    # The `rag` provider is this repository's own local-rag plugin, so offline
+    # semantic recall never depends on an external tool. This mirrors the
+    # plugin.json "dependencies" entry, which APM does not read.
+    - path: ../local-rag

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.0 — 2026-08-04
+
+- Separate venv resolution from index-data location. `CONTEXT_KIT_LOCAL_RAG_HOME`
+  now locates the bootstrapped venv (and its `pyproject.sha` stamp), while
+  `CONTEXT_KIT_DATA` continues to locate index data. Previously both were derived
+  from `CONTEXT_KIT_DATA`, so a caller redirecting index data to an isolated
+  store also relocated the venv and `bin/rag` failed with "venv missing". The new
+  variable is optional and falls back to the existing `CONTEXT_KIT_DATA` chain,
+  so default single-user behavior is unchanged.
+- Add `rag --version`, so an integrating adapter can report and pin a provider
+  version the same way it does for other retrieval backends.
+
 ## 0.3.3 — 2026-08-03
 
 - Shorten the discovery description(s) to free aggregate budget for the new

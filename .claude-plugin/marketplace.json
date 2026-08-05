@@ -171,7 +171,7 @@
     {
       "name": "memory",
       "source": "./plugins/memory",
-      "description": "Provenance-bound durable memory with immutable records, append-only review state, active-only recall, explicit MemPalace reconciliation, and opt-in capture.",
+      "description": "Provenance-bound durable memory with immutable records, append-only review state, active-only recall, and offline semantic recall via a first-party rag provider.",
       "category": "continuity",
       "tags": [
         "memory",

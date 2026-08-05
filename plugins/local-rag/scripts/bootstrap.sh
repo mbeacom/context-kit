@@ -2,10 +2,14 @@
 # Idempotent uv-based venv bootstrap into the plugin data dir.
 set -euo pipefail
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# CONTEXT_KIT_DATA locates *index data*; CONTEXT_KIT_LOCAL_RAG_HOME locates the
+# venv. They are the same directory by default. Keeping the seam explicit lets a
+# caller redirect index data (for project isolation) without relocating the venv.
 DATA="${CONTEXT_KIT_DATA:-${PRODUCTIVITY_SKILLS_DATA:-${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/local-rag}}}"
-mkdir -p "$DATA"
-VENV="$DATA/venv"
-STAMP="$DATA/pyproject.sha"
+HOME_DIR="${CONTEXT_KIT_LOCAL_RAG_HOME:-$DATA}"
+mkdir -p "$HOME_DIR"
+VENV="$HOME_DIR/venv"
+STAMP="$HOME_DIR/pyproject.sha"
 SRC_PROJECT="$PLUGIN_ROOT/pyproject.toml"
 
 if ! command -v uv >/dev/null 2>&1; then

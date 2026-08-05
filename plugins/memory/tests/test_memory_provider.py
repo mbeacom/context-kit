@@ -1147,7 +1147,7 @@ class MemoryProviderTests(unittest.TestCase):
         real_replace = os.replace
 
         def fail_stage_swap(source, target):
-            if Path(source).name.startswith(".palace-rebuild-"):
+            if Path(source).name.startswith(".store-rebuild-"):
                 raise OSError("simulated stage swap failure")
             return real_replace(source, target)
 
@@ -1175,7 +1175,7 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual(2, result)
         self.assertEqual("failed", receipt["outcome"])
         self.assertIsNone(receipt["backup_path"])
-        self.assertEqual("restored-to-live-palace", receipt["recovery_status"])
+        self.assertEqual("restored-to-live-store", receipt["recovery_status"])
         self.assertEqual("old palace", (palace / "old.txt").read_text(encoding="utf-8"))
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
@@ -1196,7 +1196,7 @@ class MemoryProviderTests(unittest.TestCase):
             ),
             patch.object(
                 memory_provider,
-                "_run_mempalace",
+                "_run_provider",
                 side_effect=fail_after_version,
             ),
         ):

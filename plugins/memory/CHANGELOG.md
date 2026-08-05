@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.3.0 — 2026-08-04
+
+- Add a first-party `rag` memory provider backed by the bundled `local-rag`
+  plugin, so **offline semantic recall no longer requires an external tool**.
+  MemPalace becomes genuinely optional rather than the only route to
+  meaning-based recall.
+- Declare a hard dependency on `local-rag` in `plugin.json` and `apm.yml`, so
+  installing `memory` deploys the retrieval engine on every host.
+- Generalize the provider layer behind a declarative `ProviderSpec`. The
+  projection, staging, atomic swap, projection marker, receipt, and backup
+  pruning path is now shared by every provider. MemPalace behavior is unchanged
+  and its test suite is the regression guard.
+- `search` under `rag` binds hits back to local records, returning review,
+  freshness, `source`, and `source_hash` with each result, and reports hits it
+  cannot bind in `unmatched_hits` instead of dropping them.
+- `search` degrades explicitly: when a provider is unreachable it falls back to
+  lexical local search annotated with `degraded_from`, `degraded_reason`, and
+  `degraded_detail`. Reconciliation is checked first, so a stale index refuses
+  rather than being masked by a quiet fallback.
+- `wake` reports `not-applicable` under `rag` without invoking the provider.
+- Receipts now carry a provider-neutral `store_path`, and `provider` reflects
+  the configured provider. MemPalace receipts keep the `palace_path` key for
+  continuity. The `recovery_status` value `restored-to-live-palace` is now
+  `restored-to-live-store`.
+- `capture` and `archive-handoff` record provider receipts for any configured
+  provider, not only MemPalace.
+
 ## 0.2.2 — 2026-07-27
 
 - Shorten the discovery description(s) to free aggregate budget for the new

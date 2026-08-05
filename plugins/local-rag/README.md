@@ -74,8 +74,15 @@ Portable environment variables:
 | Variable | Purpose | Claude fallback |
 | --- | --- | --- |
 | `CONTEXT_KIT_DATA` | venv and index storage | `CLAUDE_PLUGIN_DATA` |
+| `CONTEXT_KIT_LOCAL_RAG_HOME` | venv location only, when it must differ from index storage | — (defaults to `CONTEXT_KIT_DATA`) |
 | `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
 | `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
+
+`CONTEXT_KIT_DATA` normally holds both the venv and the indexes. Set
+`CONTEXT_KIT_LOCAL_RAG_HOME` only when a caller needs to redirect *index data*
+to an isolated store while still using one shared bootstrapped venv — the
+`memory` plugin does this to keep each project's index inside its own
+project-isolated provider directory. When it is unset, behavior is unchanged.
 
 The pre-rename `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias
 (`CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback).

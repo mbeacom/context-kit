@@ -64,6 +64,13 @@ FRESHNESS_TRANSITIONS = {
 # compatibility matrix and how `doctor` reports drift.
 MEMPALACE_TESTED_VERSION = (3, 6, 0)
 MEMPALACE_TESTED_RELEASE_LINE = "3.6.x"
+# The first-party `rag` provider is this repository's own `local-rag` plugin.
+# `CONTEXT_KIT_LOCAL_RAG_HOME` (local-rag >= 0.4.0) separates venv resolution
+# from index-data location, which is what lets this adapter redirect index data
+# into a project-isolated store without relocating the shared venv.
+RAG_TESTED_VERSION = (0, 4, 0)
+RAG_TESTED_RELEASE_LINE = "0.4.x"
+RAG_INDEX_NAME = "memory"
 SEMVER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 REQUIRED_FIELDS = (
     "schema",
@@ -116,6 +123,147 @@ class Refusal(ValueError):
 
 
 @dataclass(frozen=True)
+class CapabilityProbe:
+    """One exact-argv help surface the adapter depends on."""
+
+    name: str
+    argv: tuple[str, ...]
+    contract: str
+    required_tokens: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ProviderSpec:
+    """Everything that differs between external providers.
+
+    Keeping the differences declarative means `sync-provider`, `search`, and
+    `doctor` share one projection, staging, swap, marker, and receipt path
+    regardless of which provider is configured.
+    """
+
+    name: str
+    # Live store directory under providers/<name>/<project-key>/. This is the
+    # unit that is atomically swapped, so it must be a directory the adapter
+    # owns exclusively.
+    store_dirname: str
+    backup_prefix: str
+    bin_env: str
+    executable: str
+    install_hint: str
+    tested_version: tuple[int, int, int]
+    tested_release_line: str
+    capabilities: tuple[CapabilityProbe, ...]
+
+    def index_argv(self, projection: Path, project_key: str) -> list[str]:
+        raise NotImplementedError
+
+    def search_argv(self, query: str, results: int) -> list[str]:
+        raise NotImplementedError
+
+    def store_env(self, store: Path) -> dict[str, str]:
+        """Environment that points the provider at `store` for this call only."""
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class MemPalaceSpec(ProviderSpec):
+    def index_argv(self, projection: Path, project_key: str) -> list[str]:
+        return ["mine", str(projection), "--wing", project_key]
+
+    def search_argv(self, query: str, results: int) -> list[str]:
+        return ["search", query, "--results", str(results)]
+
+    def store_env(self, store: Path) -> dict[str, str]:
+        return {"MEMPALACE_PALACE_PATH": str(store)}
+
+
+@dataclass(frozen=True)
+class RagSpec(ProviderSpec):
+    def index_argv(self, projection: Path, project_key: str) -> list[str]:
+        # The store is already project-isolated by `store_env`, so a constant
+        # index name keeps the on-disk layout readable.
+        return ["index", str(projection), "--name", RAG_INDEX_NAME]
+
+    def search_argv(self, query: str, results: int) -> list[str]:
+        return ["query", query, "--name", RAG_INDEX_NAME, "--k", str(results), "--json"]
+
+    def store_env(self, store: Path) -> dict[str, str]:
+        # CONTEXT_KIT_DATA relocates *index data* into the isolated store.
+        # CONTEXT_KIT_LOCAL_RAG_HOME pins the venv to its normal location so
+        # redirecting data does not make `bin/rag` look for a venv that only
+        # exists in the shared local-rag home.
+        return {
+            "CONTEXT_KIT_DATA": str(store),
+            "CONTEXT_KIT_LOCAL_RAG_HOME": str(_local_rag_home()),
+        }
+
+
+PROVIDER_SPECS: dict[str, ProviderSpec] = {
+    "mempalace": MemPalaceSpec(
+        name="mempalace",
+        store_dirname="palace",
+        backup_prefix="palace-backup-",
+        bin_env="CONTEXT_KIT_MEMPALACE_BIN",
+        executable="mempalace",
+        install_hint="install it separately with `uv tool install mempalace`",
+        tested_version=MEMPALACE_TESTED_VERSION,
+        tested_release_line=MEMPALACE_TESTED_RELEASE_LINE,
+        # Each probe mirrors an exact argv the adapter actually invokes.
+        # Probing `--help` (never the mutating command itself) lets `doctor`
+        # catch upstream CLI drift without importing provider internals or
+        # writing to a store.
+        capabilities=(
+            CapabilityProbe(
+                name="capture",
+                argv=("mine", "--help"),
+                contract="mine <dir> --wing <project-key>",
+                required_tokens=("--wing",),
+            ),
+            CapabilityProbe(
+                name="search",
+                argv=("search", "--help"),
+                contract="search <query> --results <n>",
+                required_tokens=("--results",),
+            ),
+            CapabilityProbe(
+                name="wake",
+                argv=("wake-up", "--help"),
+                contract="wake-up",
+            ),
+        ),
+    ),
+    "rag": RagSpec(
+        name="rag",
+        store_dirname="store",
+        backup_prefix="store-backup-",
+        bin_env="CONTEXT_KIT_RAG_BIN",
+        executable="rag",
+        install_hint=(
+            "install the context-kit `local-rag` plugin and run "
+            "`bash plugins/local-rag/scripts/bootstrap.sh`"
+        ),
+        tested_version=RAG_TESTED_VERSION,
+        tested_release_line=RAG_TESTED_RELEASE_LINE,
+        capabilities=(
+            CapabilityProbe(
+                name="capture",
+                argv=("index", "--help"),
+                contract="index <dir> --name <index>",
+                required_tokens=("--name",),
+            ),
+            CapabilityProbe(
+                name="search",
+                argv=("query", "--help"),
+                contract="query <text> --name <index> --k <n> --json",
+                required_tokens=("--name", "--k", "--json"),
+            ),
+        ),
+    ),
+}
+PROVIDERS = ("none", *sorted(PROVIDER_SPECS))
+
+
+@dataclass(frozen=True)
 class Config:
     provider: str
     home: Path
@@ -135,7 +283,27 @@ class Config:
         return f"{prefix[:PROJECT_SLUG_PREFIX_LENGTH]}-{digest}"
 
     @property
+    def spec(self) -> ProviderSpec:
+        try:
+            return PROVIDER_SPECS[self.provider]
+        except KeyError:
+            raise Refusal(
+                f"operation requires an external provider; configured: {self.provider}"
+            ) from None
+
+    @property
+    def provider_root(self) -> Path:
+        return self.home / "providers" / self.spec.name / self.project_slug
+
+    @property
+    def store_path(self) -> Path:
+        """The project-isolated directory swapped atomically on reconciliation."""
+        return self.provider_root / self.spec.store_dirname
+
+    @property
     def palace_path(self) -> Path:
+        # Retained name for the MemPalace layout; `store_path` is the
+        # provider-neutral accessor used by the shared reconciliation path.
         return self.home / "providers" / "mempalace" / self.project_slug / "palace"
 
     @property
@@ -163,6 +331,23 @@ def _truthy(value: str | None) -> bool:
     return bool(value and value.strip().lower() in {"1", "true", "yes", "on"})
 
 
+def _local_rag_home() -> Path:
+    """Where local-rag keeps its bootstrapped venv.
+
+    This mirrors local-rag's own resolution order and is read from the *ambient*
+    environment, before this adapter redirects `CONTEXT_KIT_DATA` at the store.
+    """
+    configured = _first_env(
+        "CONTEXT_KIT_LOCAL_RAG_HOME",
+        "CONTEXT_KIT_DATA",
+        "PRODUCTIVITY_SKILLS_DATA",
+        "CLAUDE_PLUGIN_DATA",
+    )
+    if configured:
+        return Path(configured).expanduser()
+    return Path.home() / ".claude/plugins/data/local-rag"
+
+
 def _config(args: argparse.Namespace) -> Config:
     provider = (
         getattr(args, "provider", None)
@@ -172,8 +357,8 @@ def _config(args: argparse.Namespace) -> Config:
         )
         or "none"
     ).lower()
-    if provider not in {"none", "mempalace"}:
-        raise Refusal("memory provider must be 'none' or 'mempalace'")
+    if provider not in PROVIDERS:
+        raise Refusal("memory provider must be one of: " + ", ".join(PROVIDERS))
 
     home_value = (
         getattr(args, "home", None)
@@ -865,11 +1050,11 @@ def _provider_receipt(
         "schema": RECEIPT_SCHEMA,
         "receipt_id": uuid.uuid4().hex,
         "timestamp": _utc_timestamp(),
-        "provider": "mempalace",
+        "provider": config.spec.name,
         "provider_version": provider_version,
         "project": config.project,
         "project_key": config.project_slug,
-        "palace_path": str(config.palace_path),
+        "store_path": str(config.store_path),
         "operation": operation,
         "artifact_hash": artifact_hash,
         "projection_hash": projection_hash,
@@ -879,69 +1064,54 @@ def _provider_receipt(
         "backup_path": str(backup_path) if backup_path else None,
         "recovery_status": recovery_status,
     }
+    if config.spec.name == "mempalace":
+        # Retained for continuity with receipts written before the adapter
+        # supported more than one provider.
+        payload["palace_path"] = str(config.store_path)
     return _write_json_once(config.receipts_path, payload)
 
 
-def _mempalace_executable() -> str:
-    override = _first_env("CONTEXT_KIT_MEMPALACE_BIN")
+def _provider_executable(spec: ProviderSpec) -> str:
+    override = _first_env(spec.bin_env)
     if override:
         candidate = Path(override).expanduser()
         if not candidate.is_absolute():
-            raise Refusal("CONTEXT_KIT_MEMPALACE_BIN must be an absolute path")
+            raise Refusal(f"{spec.bin_env} must be an absolute path")
         if not candidate.is_file() or not os.access(candidate, os.X_OK):
             raise Refusal(
-                f"configured MemPalace executable is not runnable: {candidate}"
+                f"configured {spec.name} executable is not runnable: {candidate}"
             )
         return str(candidate)
-    executable = shutil.which("mempalace")
-    if not executable:
-        raise Refusal(
-            "MemPalace provider selected but `mempalace` is not installed; "
-            "install it separately with `uv tool install mempalace`"
-        )
-    return executable
-
-
-@dataclass(frozen=True)
-class CapabilityProbe:
-    """One exact-argv help surface the adapter depends on."""
-
-    name: str
-    argv: tuple[str, ...]
-    contract: str
-    required_tokens: tuple[str, ...] = ()
-
-
-def _required_mempalace_capabilities() -> tuple[CapabilityProbe, ...]:
-    # Each probe mirrors an exact argv the adapter actually invokes elsewhere
-    # in this module (`_sync_provider`, `_search`, and `_wake`).
-    # Probing `--help` (never the mutating command itself) lets `doctor` catch
-    # upstream CLI drift without importing MemPalace internals or writing to a
-    # palace.
-    return (
-        CapabilityProbe(
-            name="capture",
-            argv=("mine", "--help"),
-            contract="mine <dir> --wing <project-key>",
-            required_tokens=("--wing",),
-        ),
-        CapabilityProbe(
-            name="search",
-            argv=("search", "--help"),
-            contract="search <query> --results <n>",
-            required_tokens=("--results",),
-        ),
-        CapabilityProbe(
-            name="wake",
-            argv=("wake-up", "--help"),
-            contract="wake-up",
-        ),
+    executable = shutil.which(spec.executable)
+    if executable:
+        return executable
+    bundled = _bundled_executable(spec)
+    if bundled is not None:
+        return str(bundled)
+    raise Refusal(
+        f"{spec.name} provider selected but `{spec.executable}` is not installed; "
+        f"{spec.install_hint}"
     )
 
 
-def _probe_mempalace_capability(
+def _bundled_executable(spec: ProviderSpec) -> Path | None:
+    """Resolve a sibling context-kit plugin launcher that is not on PATH.
+
+    `memory` hard-depends on `local-rag`, so the two plugins are deployed as
+    siblings and `bin/rag` is reachable without a PATH entry.
+    """
+    if spec.name != "rag":
+        return None
+    candidate = Path(__file__).resolve().parents[2] / "local-rag" / "bin" / "rag"
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return candidate
+    return None
+
+
+def _probe_capability(
     executable: str,
     config: Config,
+    spec: ProviderSpec,
     probe: CapabilityProbe,
     *,
     timeout: float = 10.0,
@@ -986,7 +1156,7 @@ def _probe_mempalace_capability(
     return report
 
 
-def _parse_mempalace_version(raw: str) -> tuple[int, int, int] | None:
+def _parse_provider_version(raw: str) -> tuple[int, int, int] | None:
     match = SEMVER_RE.search(raw)
     if not match:
         return None
@@ -994,35 +1164,36 @@ def _parse_mempalace_version(raw: str) -> tuple[int, int, int] | None:
     return (major, minor, patch)
 
 
-def _mempalace_version_status(parsed: tuple[int, int, int] | None) -> str:
+def _provider_version_status(
+    parsed: tuple[int, int, int] | None, spec: ProviderSpec
+) -> str:
     if parsed is None:
         return "unknown"
-    if parsed[:2] == MEMPALACE_TESTED_VERSION[:2]:
+    if parsed[:2] == spec.tested_version[:2]:
         return "tested"
-    if parsed[:2] < MEMPALACE_TESTED_VERSION[:2]:
+    if parsed[:2] < spec.tested_version[:2]:
         return "older-than-tested"
     return "newer-than-tested"
 
 
-def _provider_env(config: Config, palace_path: Path | None = None) -> dict[str, str]:
+def _provider_env(config: Config, store_path: Path | None = None) -> dict[str, str]:
     env = os.environ.copy()
-    path = palace_path or config.palace_path
+    path = store_path or config.store_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    env["MEMPALACE_PALACE_PATH"] = str(path)
+    env.update(config.spec.store_env(path))
     return env
 
 
-def _run_mempalace(
+def _run_provider(
     config: Config,
     argv: list[str],
     *,
     input_bytes: bytes | None = None,
     timeout: float = 120.0,
-    palace_path: Path | None = None,
+    store_path: Path | None = None,
 ) -> subprocess.CompletedProcess[bytes]:
-    if config.provider != "mempalace":
-        raise Refusal("this operation requires CONTEXT_KIT_MEMORY_PROVIDER=mempalace")
-    executable = _mempalace_executable()
+    spec = config.spec
+    executable = _provider_executable(spec)
     try:
         result = subprocess.run(
             [executable, *argv],
@@ -1030,14 +1201,14 @@ def _run_mempalace(
             capture_output=True,
             check=False,
             timeout=timeout,
-            env=_provider_env(config, palace_path),
+            env=_provider_env(config, store_path),
         )
     except subprocess.TimeoutExpired as exc:
-        raise Refusal(f"MemPalace command timed out after {timeout:g}s") from exc
+        raise Refusal(f"{spec.name} command timed out after {timeout:g}s") from exc
     if result.returncode != 0:
         error = result.stderr.decode("utf-8", errors="replace").strip()
         raise Refusal(
-            f"MemPalace exited {result.returncode}: {error or 'no error output'}"
+            f"{spec.name} exited {result.returncode}: {error or 'no error output'}"
         )
     return result
 
@@ -1046,9 +1217,9 @@ def _write_stdout(raw: bytes) -> None:
     sys.stdout.write(raw.decode("utf-8", errors="replace"))
 
 
-def _mempalace_version(config: Config) -> tuple[str, str]:
-    executable = _mempalace_executable()
-    version = _run_mempalace(config, ["--version"], timeout=20.0)
+def _provider_version(config: Config) -> tuple[str, str]:
+    executable = _provider_executable(config.spec)
+    version = _run_provider(config, ["--version"], timeout=20.0)
     return executable, version.stdout.decode("utf-8", errors="replace").strip()
 
 
@@ -1064,7 +1235,7 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
     archive_outcome = "not-selected"
     receipt: Path | None = None
     effective = effective_state(metadata, config)
-    if config.provider == "mempalace" and not args.local_only:
+    if config.provider != "none" and not args.local_only:
         if _is_active(effective):
             archive_reason = (
                 "eligible for provider indexing but pending explicit "
@@ -1137,7 +1308,7 @@ def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
     archived = False
     archive_reason = "provider not selected"
     receipt: Path | None = None
-    if config.provider == "mempalace" and not args.local_only:
+    if config.provider != "none" and not args.local_only:
         archive_reason = (
             "skipped: handoffs are local historical evidence, not active memory"
         )
@@ -1173,7 +1344,12 @@ def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
-def _local_search(args: argparse.Namespace, config: Config) -> int:
+def _local_search(
+    args: argparse.Namespace,
+    config: Config,
+    *,
+    annotations: dict[str, object] | None = None,
+) -> int:
     terms = {term.lower() for term in TOKEN_RE.findall(args.query)}
     if not terms:
         raise Refusal("search query must contain at least one searchable term")
@@ -1221,15 +1397,80 @@ def _local_search(args: argparse.Namespace, config: Config) -> int:
                 }
             )
     results.sort(key=lambda item: (-int(item["score"]), str(item["id"])))
+    payload: dict[str, object] = {
+        "provider": "local",
+        "project": config.project_slug,
+        "records": results[: args.results],
+        "invalid_records": invalid_records,
+        "inactive_records": inactive_records,
+        "include_inactive": args.include_inactive,
+    }
+    # A degraded provider search annotates the local result rather than
+    # silently presenting lexical hits as semantic recall.
+    payload.update(annotations or {})
+    print(json.dumps(payload))
+    return 0
+
+
+def _provider_search(args: argparse.Namespace, config: Config) -> int:
+    """Run a reconciled provider query. MemPalace streams; rag is enriched."""
+    spec = config.spec
+    if spec.name != "rag":
+        result = _run_provider(config, spec.search_argv(args.query, args.results))
+        _write_stdout(result.stdout)
+        return 0
+
+    records, _ = _active_projection(config)
+    by_id = {str(metadata["id"]): metadata for _, metadata in records}
+    result = _run_provider(config, spec.search_argv(args.query, args.results))
+    raw = result.stdout.decode("utf-8", errors="replace").strip()
+    try:
+        hits = json.loads(raw) if raw else []
+    except json.JSONDecodeError as exc:
+        raise Refusal(f"rag returned output that is not valid JSON: {exc}") from exc
+    if not isinstance(hits, list):
+        raise Refusal("rag returned an unexpected JSON shape; expected a list")
+
+    found: list[dict[str, object]] = []
+    unmatched: list[str] = []
+    for hit in hits:
+        if not isinstance(hit, dict):
+            continue
+        # The projection materializes each record as `<record-id>.md`, so a hit
+        # path maps back to exactly one record id.
+        path = str(hit.get("path", ""))
+        record_id = path[:-3] if path.endswith(".md") else path
+        metadata = by_id.get(record_id)
+        if metadata is None:
+            unmatched.append(path)
+            continue
+        state = effective_state(metadata, config)
+        found.append(
+            {
+                "id": metadata["id"],
+                "type": metadata["type"],
+                "freshness": state["freshness"],
+                "review": state["review"],
+                "primary_memory": metadata["primary_memory"],
+                "cue_anchors": metadata["cue_anchors"],
+                "source": metadata["source"],
+                "source_hash": metadata["source_hash"],
+                "source_state": _source_state(metadata),
+                "score": hit.get("score"),
+                "retrieval_mode": hit.get("retrieval_mode"),
+                "heading": hit.get("heading"),
+            }
+        )
     print(
         json.dumps(
             {
-                "provider": "local",
+                "provider": spec.name,
                 "project": config.project_slug,
-                "records": results[: args.results],
-                "invalid_records": invalid_records,
-                "inactive_records": inactive_records,
-                "include_inactive": args.include_inactive,
+                "records": found,
+                # A hit the adapter cannot bind to a current record is reported,
+                # never dropped: it means the index is ahead of the ledger.
+                "unmatched_hits": sorted(unmatched),
+                "include_inactive": False,
             }
         )
     )
@@ -1246,22 +1487,54 @@ def _search(args: argparse.Namespace, config: Config) -> int:
         )
     records, _ = _active_projection(config)
     projection_hash = _projection_hash(records)
+    # Reconciliation is a correctness gate, not an availability problem, so it
+    # refuses outright and is deliberately outside the degradation path below.
     if not _has_current_provider_projection(config, projection_hash):
         raise Refusal(
             "provider index is not reconciled with accepted/current records; "
             "run sync-provider --apply or use --provider none for local recall"
         )
-    result = _run_mempalace(
-        config,
-        ["search", args.query, "--results", str(args.results)],
-    )
-    _write_stdout(result.stdout)
-    return 0
+    try:
+        return _provider_search(args, config)
+    except Refusal as exc:
+        return _local_search(
+            args,
+            config,
+            annotations={
+                "degraded_from": config.provider,
+                "degraded_reason": str(exc),
+                "degraded_detail": (
+                    "semantic recall was unavailable; these are lexical matches "
+                    "over primary memories and cue anchors only"
+                ),
+            },
+        )
 
 
 def _wake(config: Config) -> int:
-    config.project_slug
-    result = _run_mempalace(config, ["wake-up"])
+    spec = config.spec
+    if spec.name != "mempalace":
+        records, _ = _active_projection(config)
+        print(
+            json.dumps(
+                {
+                    "provider": spec.name,
+                    "project": config.project_slug,
+                    "status": "not-applicable",
+                    "detail": (
+                        "`wake` is a MemPalace session-priming command; "
+                        f"the {spec.name} provider has no equivalent"
+                    ),
+                    "store_path": str(config.store_path),
+                    "active_records": len(records),
+                    "reconciled": _has_current_provider_projection(
+                        config, _projection_hash(records)
+                    ),
+                }
+            )
+        )
+        return 0
+    result = _run_provider(config, ["wake-up"])
     _write_stdout(result.stdout)
     return 0
 
@@ -1284,36 +1557,39 @@ def _doctor(config: Config) -> int:
         print(json.dumps(result))
         return 0
     config.project_slug
-    executable = _mempalace_executable()
-    version_result = _run_mempalace(config, ["--version"], timeout=20.0)
+    spec = config.spec
+    executable = _provider_executable(spec)
+    version_result = _run_provider(config, ["--version"], timeout=20.0)
     raw_version = version_result.stdout.decode("utf-8", errors="replace").strip()
-    parsed_version = _parse_mempalace_version(raw_version)
-    version_status = _mempalace_version_status(parsed_version)
+    parsed_version = _parse_provider_version(raw_version)
+    version_status = _provider_version_status(parsed_version, spec)
     capabilities = [
-        _probe_mempalace_capability(executable, config, probe)
-        for probe in _required_mempalace_capabilities()
+        _probe_capability(executable, config, spec, probe)
+        for probe in spec.capabilities
     ]
     missing = [c for c in capabilities if c["status"] != "ok"]
-    compatibility = {
+    compatibility: dict[str, object] = {
         "detected_version": raw_version,
         "parsed_version": (
             ".".join(str(part) for part in parsed_version) if parsed_version else None
         ),
         "version_status": version_status,
-        "tested_release_line": MEMPALACE_TESTED_RELEASE_LINE,
-        "tested_version": ".".join(str(part) for part in MEMPALACE_TESTED_VERSION),
+        "tested_release_line": spec.tested_release_line,
+        "tested_version": ".".join(str(part) for part in spec.tested_version),
         "executable": executable,
-        "palace_path": str(config.palace_path),
+        "store_path": str(config.store_path),
         "capabilities": capabilities,
     }
+    if spec.name == "mempalace":
+        compatibility["palace_path"] = str(config.store_path)
     result["compatibility"] = compatibility
     if missing:
         summary = "; ".join(
             f"{c['name']} ({c['command']}): {c['detail']}" for c in missing
         )
         raise Refusal(
-            "MemPalace CLI is missing required capabilities for this adapter "
-            f"(tested against {MEMPALACE_TESTED_RELEASE_LINE}, detected "
+            f"{spec.name} CLI is missing required capabilities for this adapter "
+            f"(tested against {spec.tested_release_line}, detected "
             f"{raw_version or 'unknown version'}): {summary}"
         )
     # A patch/minor version different from the tested line is not on its own
@@ -1322,10 +1598,12 @@ def _doctor(config: Config) -> int:
         {
             "status": "ready",
             "executable": executable,
-            "palace_path": str(config.palace_path),
+            "store_path": str(config.store_path),
             "version": raw_version,
         }
     )
+    if spec.name == "mempalace":
+        result["palace_path"] = str(config.store_path)
     print(json.dumps(result))
     return 0
 
@@ -1489,7 +1767,7 @@ def _write_projection_marker(
 
 
 def _has_current_provider_projection(config: Config, projection_hash: str) -> bool:
-    marker = config.palace_path / PROJECTION_MARKER_NAME
+    marker = config.store_path / PROJECTION_MARKER_NAME
     try:
         payload = json.loads(marker.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -1518,11 +1796,11 @@ def _has_current_provider_projection(config: Config, projection_hash: str) -> bo
     )
 
 
-def _prune_provider_backups(parent: Path, keep: Path | None) -> list[str]:
+def _prune_provider_backups(
+    parent: Path, keep: Path | None, prefix: str = "palace-backup-"
+) -> list[str]:
     backups = [
-        path
-        for path in parent.glob("palace-backup-*")
-        if path.is_dir() and path != keep
+        path for path in parent.glob(f"{prefix}*") if path.is_dir() and path != keep
     ]
     if keep is None:
         backups.sort(
@@ -1537,37 +1815,44 @@ def _prune_provider_backups(parent: Path, keep: Path | None) -> list[str]:
 
 
 def _sync_provider(args: argparse.Namespace, config: Config) -> int:
-    if config.provider != "mempalace":
-        raise Refusal("sync-provider requires --provider mempalace")
+    if config.provider == "none":
+        raise Refusal(
+            "sync-provider requires an external provider; choose one of: "
+            + ", ".join(sorted(PROVIDER_SPECS))
+        )
+    spec = config.spec
     records, excluded = _active_projection(config)
     projection_hash = _projection_hash(records)
     ledger_hash = _ledger_hash(config)
     plan: dict[str, object] = {
         "project": config.project_slug,
-        "palace_path": str(config.palace_path),
+        "provider": spec.name,
+        "store_path": str(config.store_path),
         "active_record_ids": [str(metadata["id"]) for _, metadata in records],
         "excluded_records": excluded,
         "projection_hash": projection_hash,
         "apply": bool(args.apply),
     }
+    if spec.name == "mempalace":
+        plan["palace_path"] = str(config.store_path)
     if not args.apply:
         plan["status"] = "dry-run"
         plan["safety"] = (
-            "apply builds a fresh project-isolated palace, preserves a backup, "
-            "then swaps only after MemPalace succeeds"
+            "apply builds a fresh project-isolated store, preserves a backup, "
+            f"then swaps only after {spec.name} succeeds"
         )
         print(json.dumps(plan))
         return 0
     if os.name != "posix":
         raise Refusal(
             "safe provider replacement is supported only on POSIX; "
-            "dry-run was not applied and no palace was changed"
+            "dry-run was not applied and no store was changed"
         )
 
-    parent = config.palace_path.parent
+    parent = config.store_path.parent
     parent.mkdir(parents=True, exist_ok=True)
     projection = Path(tempfile.mkdtemp(prefix=".projection-", dir=parent))
-    stage = parent / f".palace-rebuild-{uuid.uuid4().hex}"
+    stage = parent / f".store-rebuild-{uuid.uuid4().hex}"
     backup: Path | None = None
     executable = ""
     version = "unknown"
@@ -1576,16 +1861,16 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
     try:
         _materialize_projection(records, projection)
         stage.mkdir(mode=0o700)
-        executable, version = _mempalace_version(config)
-        argv = [executable, "mine", str(projection), "--wing", config.project_slug]
-        _run_mempalace(
+        executable, version = _provider_version(config)
+        argv = [executable, *spec.index_argv(projection, config.project_slug)]
+        _run_provider(
             config,
             argv[1:],
             timeout=300.0,
-            palace_path=stage,
+            store_path=stage,
         )
         if not stage.is_dir():
-            raise Refusal("MemPalace did not leave a valid staged palace")
+            raise Refusal(f"{spec.name} did not leave a valid staged store")
         _write_projection_marker(
             stage,
             config,
@@ -1593,16 +1878,16 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
             ledger_hash,
             version,
         )
-        if config.palace_path.exists():
-            backup = parent / f"palace-backup-{uuid.uuid4().hex}"
-            os.replace(config.palace_path, backup)
+        if config.store_path.exists():
+            backup = parent / f"{spec.backup_prefix}{uuid.uuid4().hex}"
+            os.replace(config.store_path, backup)
         try:
-            os.replace(stage, config.palace_path)
+            os.replace(stage, config.store_path)
         except OSError:
-            if backup is not None and not config.palace_path.exists():
-                os.replace(backup, config.palace_path)
+            if backup is not None and not config.store_path.exists():
+                os.replace(backup, config.store_path)
                 backup = None
-                recovery_status = "restored-to-live-palace"
+                recovery_status = "restored-to-live-store"
             elif backup is not None:
                 recovery_status = "backup-preserved"
             raise
@@ -1624,7 +1909,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         ) from exc
     finally:
         shutil.rmtree(projection, ignore_errors=True)
-        if stage.exists() and stage != config.palace_path:
+        if stage.exists() and stage != config.store_path:
             shutil.rmtree(stage, ignore_errors=True)
     receipt = _provider_receipt(
         config,
@@ -1638,7 +1923,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         backup_path=backup,
     )
     try:
-        removed_backups = _prune_provider_backups(parent, backup)
+        removed_backups = _prune_provider_backups(parent, backup, spec.backup_prefix)
     except OSError as exc:
         raise Refusal(
             "provider synchronized but backup retention failed; "
@@ -1684,7 +1969,7 @@ def _run_hook(event: str, config: Config, payload: bytes) -> int:
 
 
 def _add_config_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--provider", choices=("none", "mempalace"))
+    parser.add_argument("--provider", choices=PROVIDERS)
     parser.add_argument("--home")
     parser.add_argument("--project")
 
