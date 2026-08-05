@@ -1,5 +1,5 @@
 {
-  "aggregate_description_max_chars": 4608,
+  "aggregate_description_max_chars": 4096,
   "aggregate_description_warn_ratio": 0.95,
   "component_description_max_chars": 384,
   "similarity_threshold": 0.72,

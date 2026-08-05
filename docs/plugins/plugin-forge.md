@@ -38,7 +38,7 @@
 | **`scripts/check-release-readiness.sh`** | Validates shipped catalog sources, release metadata/assets, latest changelog versions, and direct/transitive dependency graph parity. |
 | **`scripts/check-version-bump.sh`** | CI-only. Fails when a plugin's shipped content changed across `merge-base..HEAD` without a strictly-greater `plugin.json` version. |
 | **`scripts/check-skills.sh`** | Checks skill/agent discovery frontmatter, names, trigger phrasing, and per-description limits. |
-| **`scripts/check-catalog-quality.sh`** | Enforces the 4608-character aggregate discovery budget with a 95% warning band and a 384-character per-component ceiling, description-overlap policy, centralized fixture coverage, retrieval route/composition contracts, and agent output contracts. |
+| **`scripts/check-catalog-quality.sh`** | Enforces the 4096-character aggregate discovery budget with a 95% warning band and a 384-character per-component ceiling, description-overlap policy, centralized fixture coverage, retrieval route/composition contracts, and agent output contracts. |
 | **`scripts/test-catalog-quality.sh`** | Runs stdlib regression tests and a mocked, no-network plan-execute workflow smoke test. |
 | **`scripts/test-release-readiness.sh`** | Runs hermetic release-readiness regression tests. |
 | **`scripts/test-version-bump.sh`** | Runs hermetic version-bump gate regression tests. |
@@ -78,7 +78,7 @@ bash plugins/plugin-forge/scripts/check-version-bump.sh --base main
     The validator fails on `name`/`version` drift so the two never diverge.
 
 The catalog gate treats discovery metadata as shared always-on context. It checks
-all skill/agent descriptions against a 4608-character aggregate budget and a
+all skill/agent descriptions against a 4096-character aggregate budget and a
 384-character per-component ceiling, warns (without failing) once the aggregate
 reaches 95% of the budget so near-capacity surfaces before the next author hits
 it, flags near-duplicate descriptions unless an exact pair is justified in

@@ -2,12 +2,25 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "code-search",
   "displayName": "Code Search",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Fast CLI search across modalities: lexical (rg/fd), structural (ast-grep/semgrep), code-intelligence (LSP/global/ctags), structured-data (jq/yq/gron), history (git pickaxe), structured rewrite (comby), data files (duckdb), metrics (tokei/scc), and non-code docs (rga/pandoc/pdftotext).",
-  "author": { "name": "Mark Beacom" },
+  "author": {
+    "name": "Mark Beacom"
+  },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",
   "license": "MIT",
-  "keywords": ["ripgrep", "ast-grep", "semgrep", "fd", "jq", "search", "code", "rga"],
-  "dependencies": ["retrieval-core"]
+  "keywords": [
+    "ripgrep",
+    "ast-grep",
+    "semgrep",
+    "fd",
+    "jq",
+    "search",
+    "code",
+    "rga"
+  ],
+  "dependencies": [
+    "retrieval-core"
+  ]
 }

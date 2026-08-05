@@ -1,17 +1,14 @@
 # Changelog
 
-## 0.8.0 — 2026-08-04
+## 0.7.2 — 2026-08-04
 
-- Raise `aggregate_description_max_chars` from 4096 to 4608. This is a deliberate
-  policy review, not a routine edit: the catalog's fourteenth plugin,
-  `token-economics`, introduces a capability neither retrieval nor verification
-  covers, and no existing description could be shortened enough to fit it without
-  blurring a routing boundary. The 95% warning band and the 384-character
-  per-component ceiling are unchanged, so the pressure toward short, specific
-  triggers and progressive-disclosure references remains.
 - Register discovery fixtures for the `token-accounting` and
   `tool-savings-benchmark` skills, including near-miss negatives that separate
   reporting already-spent tokens from measuring whether a tool reduces them.
+- The aggregate budget stays at 4096 characters. Fitting a fourteenth plugin
+  meant shortening ten existing descriptions instead, which is the pressure the
+  fixed budget is meant to apply: triggers and scope are unchanged, and the text
+  removed was enumeration detail that belongs in the skill body.
 
 ## 0.7.1 — 2026-08-03
 

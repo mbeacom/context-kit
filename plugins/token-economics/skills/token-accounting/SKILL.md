@@ -1,6 +1,6 @@
 ---
 name: token-accounting
-description: "Use when measuring or reporting agent token usage, cost, cache efficiency, or context growth from Claude Code or GitHub Copilot local session records."
+description: "Use when measuring or reporting agent token usage, cost, or cache efficiency from Claude Code or GitHub Copilot session records."
 license: MIT
 compatibility: "Reads local host files only. Requires Python 3 and, for the Copilot host, a readable SQLite session store. Neither host guarantees these formats; the reader degrades to a disclosed gap rather than a wrong number."
 metadata:

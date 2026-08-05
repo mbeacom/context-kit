@@ -1,6 +1,6 @@
 ---
 name: tool-savings-benchmark
-description: "Use when claiming, testing, or comparing whether a tool, flag, or output wrapper reduces tokens, before quoting any savings percentage."
+description: "Use when testing whether a tool, flag, or output wrapper reduces tokens, before quoting a savings percentage."
 license: MIT
 compatibility: "Requires Python 3. The tools under comparison must be installed locally; a missing binary fails the run instead of downgrading it. Optional tiktoken improves counting for OpenAI-family models only."
 metadata:

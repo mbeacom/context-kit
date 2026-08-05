@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 — 2026-08-04
+
+- Shorten the `memory-workflows` skill trigger to free aggregate discovery budget for the new
+  `token-economics` components. Scope and routing are unchanged; the removed
+  text was enumeration detail already covered in the skill body, and the
+  catalog budget stays at 4096 characters rather than being raised.
+
 ## 0.2.2 — 2026-07-27
 
 - Shorten the discovery description(s) to free aggregate budget for the new

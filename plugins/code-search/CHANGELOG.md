@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3 — 2026-08-04
+
+- Shorten the `code-search` skill trigger to free aggregate discovery budget for the new
+  `token-economics` components. Scope and routing are unchanged; the removed
+  text was enumeration detail already covered in the skill body, and the
+  catalog budget stays at 4096 characters rather than being raised.
+
 ## 0.3.2 — 2026-08-03
 
 - Shorten the discovery description(s) to free aggregate budget for the new

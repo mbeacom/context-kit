@@ -196,7 +196,7 @@ suites.
 - **Skill granularity:** prefer few well-scoped skills with `references/` for
   detail over many fine-grained skills (always-on token cost scales with skill
   count). `code-search` uses two skills split by corpus (code vs data/docs). The
-  cost is capped by a fixed 4608-character aggregate discovery budget plus a
+  cost is capped by a fixed 4096-character aggregate discovery budget plus a
   384-character per-component ceiling; `check-catalog-quality.sh` warns at 95%
   and fails above the limit. See `AGENTS.md` and
   `plugins/plugin-forge/skills/authoring-portable-plugins/references/catalog-quality.md`.

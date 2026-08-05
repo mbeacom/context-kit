@@ -1,6 +1,6 @@
 ---
 name: code-search
-description: "Use when searching source code with ripgrep, ast-grep, semgrep, LSP/ctags, or comby: text/regex, structural/AST patterns, symbol definitions/references/callers, when/why code changed in git history, rewrites, or size/complexity."
+description: "Use when searching source code with ripgrep, ast-grep, semgrep, LSP/ctags, or comby: text/regex, structural/AST patterns, symbol definitions/references/callers, code changed in git history, or rewrites."
 license: MIT
 compatibility: "Requires ripgrep (rg). Optional: fd, ast-grep (sg), semgrep, comby, difftastic, tokei, scc, GNU Global (global), universal-ctags (ctags), and rtk (rtk-ai/rtk) for compact rg/git output."
 metadata:
