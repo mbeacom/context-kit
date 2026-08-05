@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -11,7 +12,6 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-REPO_ROOT = PLUGIN_ROOT.parents[1]
 SCRIPT = PLUGIN_ROOT / "scripts" / "memory-provider.py"
 SPEC = importlib.util.spec_from_file_location("memory_provider_mining", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
@@ -264,6 +264,7 @@ class ProposeFromSessionTests(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name)
         self.home = self.root / "memory"
+        self.repo = self.make_repo()
         self.session = self.root / "session"
         self.session.mkdir()
         self.log = self.session / "events.jsonl"
@@ -275,6 +276,28 @@ class ProposeFromSessionTests(unittest.TestCase):
                 event("user.message", content="subagent", parentAgentTaskId="t-1"),
             ]
         )
+
+    def make_repo(self) -> Path:
+        """A hermetic repo on a named branch.
+
+        The tests must not read the surrounding checkout: CI checks out pull
+        requests at a detached HEAD, which has no branch anchor and is
+        correctly refused by the tool.
+        """
+        repo = self.root / "repo"
+        repo.mkdir()
+        run = lambda *argv: subprocess.run(  # noqa: E731 - local helper
+            ["git", "-C", str(repo), *argv],
+            capture_output=True,
+            check=True,
+            timeout=30,
+        )
+        run("init", "-q", "-b", "main")
+        run("config", "user.email", "tests@example.invalid")
+        run("config", "user.name", "context-kit tests")
+        run("commit", "-q", "--allow-empty", "-m", "root")
+        run("remote", "add", "origin", "https://github.com/mbeacom/context-kit.git")
+        return repo
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -296,7 +319,7 @@ class ProposeFromSessionTests(unittest.TestCase):
             "--project",
             "mbeacom/context-kit",
             "--repo",
-            str(REPO_ROOT),
+            str(self.repo),
         ]
 
     def candidates(self) -> list[Path]:
@@ -400,6 +423,29 @@ class ProposeFromSessionTests(unittest.TestCase):
         self.assertEqual(2, result)
         self.assertIn("does not exist", stderr)
 
+    def test_a_detached_checkout_is_refused_with_an_actionable_message(self) -> None:
+        # A project record needs a branch anchor, and CI checks out pull
+        # requests detached. Refusing is correct; refusing legibly is the fix.
+        head = subprocess.run(
+            ["git", "-C", str(self.repo), "rev-parse", "HEAD"],
+            capture_output=True,
+            check=True,
+            text=True,
+            timeout=30,
+        ).stdout.strip()
+        subprocess.run(
+            ["git", "-C", str(self.repo), "checkout", "-q", "--detach", head],
+            capture_output=True,
+            check=True,
+            timeout=30,
+        )
+        result, _, stderr = self.invoke(
+            ["propose-from-session", str(self.log), *self.base_args()]
+        )
+        self.assertEqual(2, result)
+        self.assertIn("detached HEAD", stderr)
+        self.assertIn("named branch", stderr)
+
     def test_project_mismatch_is_refused(self) -> None:
         result, _, stderr = self.invoke(
             [
@@ -410,7 +456,7 @@ class ProposeFromSessionTests(unittest.TestCase):
                 "--project",
                 "someone/else",
                 "--repo",
-                str(REPO_ROOT),
+                str(self.repo),
             ]
         )
         self.assertEqual(2, result)

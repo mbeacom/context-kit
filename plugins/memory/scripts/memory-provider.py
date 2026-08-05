@@ -2226,6 +2226,15 @@ def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
     _assert_project_matches({"repository": repository, "scope": "project"}, config)
     branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
     head = _git(repo, "rev-parse", "HEAD")
+    if branch == "HEAD":
+        # Detached checkouts (CI PR builds, a worktree at a tag, bisect) have no
+        # branch anchor, and a project record requires one. Say so plainly
+        # instead of refusing with a generic name-format error.
+        raise Refusal(
+            f"{repo} is in a detached HEAD state, so there is no branch anchor "
+            "for a project record. Check out a named branch, or pass --repo "
+            "pointing at a checkout that is on one."
+        )
     _validate_branch(branch)
 
     planned: list[dict[str, object]] = []
