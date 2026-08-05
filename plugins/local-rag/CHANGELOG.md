@@ -18,6 +18,11 @@
 - `--check` reports a **stale** venv (one built from different `pyproject.toml`
   metadata) as loudly as a missing one. Previously a stale venv ran outdated
   code silently, because the launcher never consulted the stamp.
+- `--check` decides venv state before considering `uv`, and reports
+  `venv_status` and `uv` as separate fields. `uv` is only needed to *build* the
+  venv, so an already-usable runtime now reports `ready` on a machine without
+  `uv` instead of sending the user after an irrelevant install; `uv-missing` is
+  returned only when the venv genuinely needs rebuilding.
 
 ## 0.3.3 — 2026-08-03
 

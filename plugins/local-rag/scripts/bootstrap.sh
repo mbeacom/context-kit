@@ -32,22 +32,25 @@ STAMP="$HOME_DIR/pyproject.sha"
 SRC_PROJECT="$PLUGIN_ROOT/pyproject.toml"
 
 report() {
-  # report <status> [detail]
+  # report <status> <venv_status> [detail]
+  # `status` is the actionable answer; `venv_status` is the raw venv state,
+  # which stays accurate even when uv is unavailable to rebuild it.
   printf 'status=%s\n' "$1"
+  printf 'venv_status=%s\n' "$2"
+  printf 'uv=%s\n' "$HAVE_UV"
   printf 'home=%s\n' "$HOME_DIR"
   printf 'venv=%s\n' "$VENV"
   printf 'plugin_root=%s\n' "$PLUGIN_ROOT"
   printf 'bootstrap_command=bash %s/scripts/bootstrap.sh\n' "$PLUGIN_ROOT"
-  if [[ -n "${2:-}" ]]; then
-    printf 'detail=%s\n' "$2"
+  if [[ -n "${3:-}" ]]; then
+    printf 'detail=%s\n' "$3"
   fi
 }
 
-if ! command -v uv >/dev/null 2>&1; then
-  if (( CHECK_ONLY )); then
-    report uv-missing "install uv: https://docs.astral.sh/uv/"
-    exit 3
-  fi
+HAVE_UV=present
+command -v uv >/dev/null 2>&1 || HAVE_UV=missing
+
+if [[ "$HAVE_UV" == missing && $CHECK_ONLY -eq 0 ]]; then
   echo "local-rag: 'uv' not found. Install uv: https://docs.astral.sh/uv/ " >&2
   exit 1
 fi
@@ -61,18 +64,27 @@ fi
 old_sha="$(cat "$STAMP" 2>/dev/null || true)"
 
 if (( CHECK_ONLY )); then
+  # Venv state is decided first. A usable venv needs no uv, so reporting
+  # "uv-missing" for a working runtime would be wrong.
   if [[ ! -x "$VENV/bin/python" ]]; then
-    report missing "no interpreter at $VENV/bin/python"
-    exit 3
-  fi
-  if [[ "$cur_sha" != "$old_sha" ]]; then
+    venv_status=missing
+    detail="no interpreter at $VENV/bin/python"
+  elif [[ "$cur_sha" != "$old_sha" ]]; then
     # A venv built from different project metadata runs stale code silently,
     # so this is reported as loudly as a missing one.
-    report stale "venv was built from different pyproject.toml metadata"
+    venv_status=stale
+    detail="venv was built from different pyproject.toml metadata"
+  else
+    report ready ready
+    exit 0
+  fi
+  # Only an unusable venv actually needs uv, and then it is the first blocker.
+  if [[ "$HAVE_UV" == missing ]]; then
+    report uv-missing "$venv_status" "$detail; and uv is not installed: https://docs.astral.sh/uv/"
     exit 3
   fi
-  report ready
-  exit 0
+  report "$venv_status" "$venv_status" "$detail"
+  exit 3
 fi
 
 mkdir -p "$HOME_DIR"

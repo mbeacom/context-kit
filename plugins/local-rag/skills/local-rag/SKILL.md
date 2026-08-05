@@ -34,7 +34,9 @@ bash scripts/bootstrap.sh --check   # exit 0 ready, 3 needs bootstrap
 
 It prints `status=ready|missing|stale|uv-missing` plus the venv path and the
 exact bootstrap command. `stale` means the venv was built from different
-`pyproject.toml` metadata and would run outdated code.
+`pyproject.toml` metadata and would run outdated code. `venv_status` and `uv`
+are reported separately, so a usable venv reports `ready` even without `uv`
+installed.
 
 Portable environment variables prefer `CONTEXT_KIT_DATA`,
 `CONTEXT_KIT_EMBED_MODEL`, and `CONTEXT_KIT_OLLAMA_HOST`; Claude

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import json
@@ -580,10 +581,12 @@ class RagBootstrapCheckTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
 
-    def check(self) -> tuple[int, dict[str, str]]:
+    def check(self, *, path: str | None = None) -> tuple[int, dict[str, str]]:
         import subprocess
 
         env = dict(os.environ, CONTEXT_KIT_LOCAL_RAG_HOME=str(self.home))
+        if path is not None:
+            env["PATH"] = path
         result = subprocess.run(
             ["bash", str(self.SCRIPT), "--check"],
             capture_output=True,
@@ -601,10 +604,29 @@ class RagBootstrapCheckTests(unittest.TestCase):
     def test_reports_missing_without_creating_anything(self) -> None:
         code, report = self.check()
         self.assertEqual(3, code)
-        self.assertEqual("missing", report["status"])
+        # `venv_status` is the raw state and stays accurate whether or not uv
+        # is installed; `status` folds in "you cannot rebuild it yet".
+        self.assertEqual("missing", report["venv_status"])
+        self.assertIn(report["status"], {"missing", "uv-missing"})
         self.assertIn("bootstrap.sh", report["bootstrap_command"])
         # A readiness check must not have side effects.
         self.assertFalse(self.home.exists())
+
+    def test_a_usable_venv_is_ready_even_without_uv(self) -> None:
+        # uv only builds the venv. Reporting "uv-missing" for a runtime that
+        # already works would send the user chasing an irrelevant install.
+        (self.home / "venv" / "bin").mkdir(parents=True)
+        interpreter = self.home / "venv" / "bin" / "python"
+        interpreter.write_text("#!/bin/sh\n", encoding="utf-8")
+        interpreter.chmod(0o700)
+        project = self.SCRIPT.parents[1] / "pyproject.toml"
+        digest = hashlib.sha256(project.read_bytes()).hexdigest()
+        (self.home / "pyproject.sha").write_text(digest + "\n", encoding="utf-8")
+
+        code, report = self.check(path="/usr/bin:/bin")
+        self.assertEqual(0, code)
+        self.assertEqual("ready", report["status"])
+        self.assertEqual("missing", report["uv"])
 
     def test_reports_stale_when_the_stamp_does_not_match(self) -> None:
         (self.home / "venv" / "bin").mkdir(parents=True)
@@ -617,7 +639,8 @@ class RagBootstrapCheckTests(unittest.TestCase):
 
         code, report = self.check()
         self.assertEqual(3, code)
-        self.assertEqual("stale", report["status"])
+        self.assertEqual("stale", report["venv_status"])
+        self.assertIn(report["status"], {"stale", "uv-missing"})
 
     def test_rejects_an_unknown_flag(self) -> None:
         import subprocess

@@ -61,6 +61,12 @@ otherwise run outdated code silently, so it is treated as loudly as a missing
 one. `unknown` (local-rag not found as a sibling) does not block, since the
 configured CLI may still work.
 
+The probe also reports `venv_status` (`ready`/`missing`/`stale`) and `uv`
+(`present`/`missing`) separately. `uv` only builds the venv, so a venv that is
+already usable reports `ready` even when `uv` is absent; `uv-missing` is
+returned only when the venv actually needs rebuilding and `uv` is unavailable
+to do it.
+
 The check applies only to the bundled `bin/rag` launcher. If you point
 `CONTEXT_KIT_RAG_BIN` at your own executable, it manages its own runtime and is
 not gated.

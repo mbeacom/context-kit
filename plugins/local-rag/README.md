@@ -42,11 +42,13 @@ bash scripts/bootstrap.sh --check   # exit 0 ready, 3 needs bootstrap
 ```
 
 It prints `KEY=VALUE` lines: `status` (`ready`, `missing`, `stale`,
-`uv-missing`), the resolved `home`/`venv` paths, and the exact
-`bootstrap_command`. A `stale` venv was built from different `pyproject.toml`
-metadata and would run outdated code, so it is reported as clearly as a missing
-one. Dependent tooling uses this to detect an unusable runtime on hosts that do
-not run Claude hooks.
+`uv-missing`), the raw `venv_status` and `uv` availability as separate fields,
+the resolved `home`/`venv` paths, and the exact `bootstrap_command`. A `stale`
+venv was built from different `pyproject.toml` metadata and would run outdated
+code, so it is reported as clearly as a missing one. Because `uv` is only
+needed to *build* the venv, an already-usable venv reports `ready` even when
+`uv` is absent. Dependent tooling uses this to detect an unusable runtime on
+hosts that do not run Claude hooks.
 
 ## Usage
 
