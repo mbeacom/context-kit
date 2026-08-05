@@ -136,6 +136,7 @@ nav:
       - runtime-evidence: plugins/runtime-evidence.md
       - context-handoff: plugins/context-handoff.md
       - memory: plugins/memory.md
+      - token-economics: plugins/token-economics.md
       - plugin-forge: plugins/plugin-forge.md
   - Host guides:
       - GitHub Copilot: GITHUB_COPILOT.md

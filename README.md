@@ -17,9 +17,10 @@ allowlisted commands can still reach external systems. Around that spine it adds
 **deep-review** (multi-lens critique whose findings are typed and whose
 disagreements survive),
 **context-handoff** (bounded cross-session task state), **memory**
-(provenance-bound durable recall with an optional MemPalace provider), and
+(provenance-bound durable recall with an optional MemPalace provider),
+**token-economics** (measure token spend and prove tool savings), and
 **plugin-forge** (author and quality-check portable plugins). The marketplace
-ships thirteen plugins.
+ships fourteen plugins.
 
 📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
 guides, architecture, and a page for every plugin.
@@ -110,6 +111,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 /plugin install deep-review@context-kit       # multi-lens critique (pulls plan-execute + verify)
 /plugin install context-handoff@context-kit   # manual cross-session handoffs (pulls verify)
 /plugin install memory@context-kit            # durable memory + optional MemPalace provider
+/plugin install token-economics@context-kit   # measure token spend + prove tool savings
 /plugin install plugin-forge@context-kit      # author portable plugins
 ```
 
@@ -129,7 +131,8 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 | **deep-review** | **Multi-lens judgment**: asks whether a work product is good and what will go wrong, which is neither a truth question nor a coverage question. Independent charters (`adversarial`, `architect`, `consumer`, `operator`, plus domain lenses) drive one parameterized worker, and each charter's stated non-scope is what stops four lenses from filing the same complaint. Findings are typed: a `DEFECT` must carry a concrete falsification and is routed to `verify` rather than graded here, a `RISK` must name its trigger, and a `JUDGMENT` is a preference the author may decline. A stdlib adjudicator merges corroborating findings into one entry keeping the highest severity asserted, surfaces conflicting resolutions at one location as unresolved tradeoffs instead of picking a winner, and exits nonzero when a declared lens produced no report — a crashed lens is reported, never read as clean. |
 | **context-handoff** | **Session continuity**: manual-first `/write-handoff` and `/resume-handoff`, a read-only compiler, and a deterministic Python 3 validator for bounded task state. Defaults to `.context-kit/handoff.md` or `CONTEXT_KIT_HANDOFF_PATH`; detects invalid, mismatched, and stale state. It has no lifecycle hooks or automatic RAG/memory ingestion. |
 | **memory** | **Durable recall**: reviewed `context-kit/memory-v1` records with immutable evidence, primary memories, cue anchors, freshness, and supersession. Ships capture/recall/review/archive commands, a stdlib adapter for optional MemPalace, project-isolated storage, and opt-in Claude capture hooks. |
-| **plugin-forge** | **Authoring quality**: portable-plugin conventions, `/scaffold-plugin`, manifest and discovery checks, a 4096-character aggregate discovery budget with a 95% warning band and a 384-character per-component ceiling, overlap/fixture/agent-contract checks, regression tests, and a mocked no-network workflow smoke test. Static fixtures check catalog hygiene, not model routing. |
+| **token-economics** | **Measurement**: reports what an agent actually spent, and settles whether a tool caused a saving. A stdlib reader deduplicates Claude Code's replayed responses on `(requestId, message.id)` and decomposes cache traffic per host — Copilot's `input_tokens` includes cache while Claude Code's excludes it, so the naive reading is wrong in opposite directions. Cost is reported only in the unit a host recorded: Copilot rows carry their own per-model rate card, and Claude Code records none. Savings claims go through a controlled A/B that requires a preserved-answer assertion, because discarding output "saves" 100%; a run without one is `unverified` and not quotable. Every figure carries a counting grade and an attribution grade — telemetry is always observational and can never attribute a change to a tool. |
+| **plugin-forge** | **Authoring quality**: portable-plugin conventions, `/scaffold-plugin`, manifest and discovery checks, a 4608-character aggregate discovery budget with a 95% warning band and a 384-character per-component ceiling, overlap/fixture/agent-contract checks, regression tests, and a mocked no-network workflow smoke test. Static fixtures check catalog hygiene, not model routing. |
 
 ## Requirements
 

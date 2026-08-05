@@ -36,10 +36,10 @@ code-intelligence, structured-data, history, semantic (RAG), graph, and durable
 memory — plus a routing agent that picks and composes them. Default workflows
 keep indexes and reviewed records on your machine; configured model endpoints,
 providers, and allowlisted commands can reach external systems. Around that
-retrieval spine, thirteen shipped plugins add
+retrieval spine, fourteen shipped plugins add
 orchestration, steering, read-only verification and change-impact analysis,
 multi-lens evaluative review, exhaustive corpus review, controlled runtime
-evidence, cross-session handoff, and authoring quality.
+evidence, token economics, cross-session handoff, and authoring quality.
 
 ## Why context-kit
 
