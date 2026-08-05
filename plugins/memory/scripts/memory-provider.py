@@ -42,6 +42,34 @@ FRESHNESS_STATES = {"current", "stale", "superseded", "revoked"}
 REVIEW_STATES = {"proposed", "accepted", "rejected"}
 STATE_SCHEMA = "context-kit/memory-state-v1"
 RECEIPT_SCHEMA = "context-kit/memory-provider-receipt-v1"
+CANDIDATE_SCHEMA = "context-kit/memory-candidate-v1"
+# Session mining recognizes GitHub Copilot CLI event logs
+# (`~/.copilot/session-state/<session-id>/events.jsonl`).
+SESSION_PRODUCER = "github-copilot-cli"
+# `session_id` arrives from the session log and is used to name a candidate
+# file, so it is validated as a single safe path component before use.
+SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+MAX_TURN_CHARS = 2000
+MAX_CANDIDATE_TURNS = 400
+# Detection only. Each pattern names a high-signal credential shape so a
+# finding can be reported precisely and, with --redact, masked in place.
+SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("aws-access-key-id", re.compile(r"AKIA[0-9A-Z]{16}")),
+    ("github-token", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}")),
+    ("slack-token", re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}")),
+    ("private-key-block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+    (
+        "json-web-token",
+        re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
+    ),
+    (
+        "assigned-credential",
+        re.compile(
+            r"(?i)\b(?:api[_-]?key|secret|password|passwd|access[_-]?token|bearer)\b"
+            r"\s*[:=]\s*[\"']?[A-Za-z0-9/+_.-]{16,}"
+        ),
+    ),
+)
 PROJECTION_MARKER_SCHEMA = "context-kit/memory-provider-projection-v1"
 PROJECTION_MARKER_NAME = ".context-kit-projection.json"
 STATE_SEQUENCE_WIDTH = 20
@@ -64,6 +92,16 @@ FRESHNESS_TRANSITIONS = {
 # compatibility matrix and how `doctor` reports drift.
 MEMPALACE_TESTED_VERSION = (3, 6, 0)
 MEMPALACE_TESTED_RELEASE_LINE = "3.6.x"
+# The first-party `rag` provider is this repository's own `local-rag` plugin.
+# `CONTEXT_KIT_LOCAL_RAG_HOME` (local-rag >= 0.4.0) separates venv resolution
+# from index-data location, which is what lets this adapter redirect index data
+# into a project-isolated store without relocating the shared venv.
+RAG_TESTED_VERSION = (0, 4, 0)
+RAG_TESTED_RELEASE_LINE = "0.4.x"
+RAG_INDEX_NAME = "memory"
+# One record spans several indexed chunks, so ask for more chunks than the
+# caller asked for records and deduplicate back down.
+RAG_CHUNKS_PER_RECORD = 4
 SEMVER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 REQUIRED_FIELDS = (
     "schema",
@@ -116,6 +154,147 @@ class Refusal(ValueError):
 
 
 @dataclass(frozen=True)
+class CapabilityProbe:
+    """One exact-argv help surface the adapter depends on."""
+
+    name: str
+    argv: tuple[str, ...]
+    contract: str
+    required_tokens: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class ProviderSpec:
+    """Everything that differs between external providers.
+
+    Keeping the differences declarative means `sync-provider`, `search`, and
+    `doctor` share one projection, staging, swap, marker, and receipt path
+    regardless of which provider is configured.
+    """
+
+    name: str
+    # Live store directory under providers/<name>/<project-key>/. This is the
+    # unit that is atomically swapped, so it must be a directory the adapter
+    # owns exclusively.
+    store_dirname: str
+    backup_prefix: str
+    bin_env: str
+    executable: str
+    install_hint: str
+    tested_version: tuple[int, int, int]
+    tested_release_line: str
+    capabilities: tuple[CapabilityProbe, ...]
+
+    def index_argv(self, projection: Path, project_key: str) -> list[str]:
+        raise NotImplementedError
+
+    def search_argv(self, query: str, results: int) -> list[str]:
+        raise NotImplementedError
+
+    def store_env(self, store: Path) -> dict[str, str]:
+        """Environment that points the provider at `store` for this call only."""
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class MemPalaceSpec(ProviderSpec):
+    def index_argv(self, projection: Path, project_key: str) -> list[str]:
+        return ["mine", str(projection), "--wing", project_key]
+
+    def search_argv(self, query: str, results: int) -> list[str]:
+        return ["search", query, "--results", str(results)]
+
+    def store_env(self, store: Path) -> dict[str, str]:
+        return {"MEMPALACE_PALACE_PATH": str(store)}
+
+
+@dataclass(frozen=True)
+class RagSpec(ProviderSpec):
+    def index_argv(self, projection: Path, project_key: str) -> list[str]:
+        # The store is already project-isolated by `store_env`, so a constant
+        # index name keeps the on-disk layout readable.
+        return ["index", str(projection), "--name", RAG_INDEX_NAME]
+
+    def search_argv(self, query: str, results: int) -> list[str]:
+        return ["query", query, "--name", RAG_INDEX_NAME, "--k", str(results), "--json"]
+
+    def store_env(self, store: Path) -> dict[str, str]:
+        # CONTEXT_KIT_DATA relocates *index data* into the isolated store.
+        # CONTEXT_KIT_LOCAL_RAG_HOME pins the venv to its normal location so
+        # redirecting data does not make `bin/rag` look for a venv that only
+        # exists in the shared local-rag home.
+        return {
+            "CONTEXT_KIT_DATA": str(store),
+            "CONTEXT_KIT_LOCAL_RAG_HOME": str(_local_rag_home()),
+        }
+
+
+PROVIDER_SPECS: dict[str, ProviderSpec] = {
+    "mempalace": MemPalaceSpec(
+        name="mempalace",
+        store_dirname="palace",
+        backup_prefix="palace-backup-",
+        bin_env="CONTEXT_KIT_MEMPALACE_BIN",
+        executable="mempalace",
+        install_hint="install it separately with `uv tool install mempalace`",
+        tested_version=MEMPALACE_TESTED_VERSION,
+        tested_release_line=MEMPALACE_TESTED_RELEASE_LINE,
+        # Each probe mirrors an exact argv the adapter actually invokes.
+        # Probing `--help` (never the mutating command itself) lets `doctor`
+        # catch upstream CLI drift without importing provider internals or
+        # writing to a store.
+        capabilities=(
+            CapabilityProbe(
+                name="capture",
+                argv=("mine", "--help"),
+                contract="mine <dir> --wing <project-key>",
+                required_tokens=("--wing",),
+            ),
+            CapabilityProbe(
+                name="search",
+                argv=("search", "--help"),
+                contract="search <query> --results <n>",
+                required_tokens=("--results",),
+            ),
+            CapabilityProbe(
+                name="wake",
+                argv=("wake-up", "--help"),
+                contract="wake-up",
+            ),
+        ),
+    ),
+    "rag": RagSpec(
+        name="rag",
+        store_dirname="store",
+        backup_prefix="store-backup-",
+        bin_env="CONTEXT_KIT_RAG_BIN",
+        executable="rag",
+        install_hint=(
+            "install the context-kit `local-rag` plugin and run "
+            "`bash plugins/local-rag/scripts/bootstrap.sh`"
+        ),
+        tested_version=RAG_TESTED_VERSION,
+        tested_release_line=RAG_TESTED_RELEASE_LINE,
+        capabilities=(
+            CapabilityProbe(
+                name="capture",
+                argv=("index", "--help"),
+                contract="index <dir> --name <index>",
+                required_tokens=("--name",),
+            ),
+            CapabilityProbe(
+                name="search",
+                argv=("query", "--help"),
+                contract="query <text> --name <index> --k <n> --json",
+                required_tokens=("--name", "--k", "--json"),
+            ),
+        ),
+    ),
+}
+PROVIDERS = ("none", *sorted(PROVIDER_SPECS))
+
+
+@dataclass(frozen=True)
 class Config:
     provider: str
     home: Path
@@ -135,7 +314,27 @@ class Config:
         return f"{prefix[:PROJECT_SLUG_PREFIX_LENGTH]}-{digest}"
 
     @property
+    def spec(self) -> ProviderSpec:
+        try:
+            return PROVIDER_SPECS[self.provider]
+        except KeyError:
+            raise Refusal(
+                f"operation requires an external provider; configured: {self.provider}"
+            ) from None
+
+    @property
+    def provider_root(self) -> Path:
+        return self.home / "providers" / self.spec.name / self.project_slug
+
+    @property
+    def store_path(self) -> Path:
+        """The project-isolated directory swapped atomically on reconciliation."""
+        return self.provider_root / self.spec.store_dirname
+
+    @property
     def palace_path(self) -> Path:
+        # Retained name for the MemPalace layout; `store_path` is the
+        # provider-neutral accessor used by the shared reconciliation path.
         return self.home / "providers" / "mempalace" / self.project_slug / "palace"
 
     @property
@@ -150,6 +349,11 @@ class Config:
     def receipts_path(self) -> Path:
         return self.home / "receipts" / self.project_slug
 
+    @property
+    def candidates_path(self) -> Path:
+        """Reviewable session extractions. Never active memory."""
+        return self.home / "candidates" / self.project_slug
+
 
 def _first_env(*names: str) -> str | None:
     for name in names:
@@ -163,6 +367,25 @@ def _truthy(value: str | None) -> bool:
     return bool(value and value.strip().lower() in {"1", "true", "yes", "on"})
 
 
+def _local_rag_home() -> Path:
+    """Where local-rag keeps its bootstrapped venv.
+
+    This mirrors local-rag's own resolution order, minus the plugin-scoped
+    Claude variable: inside this plugin `CLAUDE_PLUGIN_DATA` points at
+    *memory's* data directory, not the sibling local-rag directory where its
+    SessionStart hook built the venv. It is read from the *ambient*
+    environment, before this adapter redirects `CONTEXT_KIT_DATA` at the store.
+    """
+    configured = _first_env(
+        "CONTEXT_KIT_LOCAL_RAG_HOME",
+        "CONTEXT_KIT_DATA",
+        "PRODUCTIVITY_SKILLS_DATA",
+    )
+    if configured:
+        return Path(configured).expanduser()
+    return Path.home() / ".claude/plugins/data/local-rag"
+
+
 def _config(args: argparse.Namespace) -> Config:
     provider = (
         getattr(args, "provider", None)
@@ -172,8 +395,8 @@ def _config(args: argparse.Namespace) -> Config:
         )
         or "none"
     ).lower()
-    if provider not in {"none", "mempalace"}:
-        raise Refusal("memory provider must be 'none' or 'mempalace'")
+    if provider not in PROVIDERS:
+        raise Refusal("memory provider must be one of: " + ", ".join(PROVIDERS))
 
     home_value = (
         getattr(args, "home", None)
@@ -865,11 +1088,11 @@ def _provider_receipt(
         "schema": RECEIPT_SCHEMA,
         "receipt_id": uuid.uuid4().hex,
         "timestamp": _utc_timestamp(),
-        "provider": "mempalace",
+        "provider": config.spec.name,
         "provider_version": provider_version,
         "project": config.project,
         "project_key": config.project_slug,
-        "palace_path": str(config.palace_path),
+        "store_path": str(config.store_path),
         "operation": operation,
         "artifact_hash": artifact_hash,
         "projection_hash": projection_hash,
@@ -879,69 +1102,118 @@ def _provider_receipt(
         "backup_path": str(backup_path) if backup_path else None,
         "recovery_status": recovery_status,
     }
+    if config.spec.name == "mempalace":
+        # Retained for continuity with receipts written before the adapter
+        # supported more than one provider.
+        payload["palace_path"] = str(config.store_path)
     return _write_json_once(config.receipts_path, payload)
 
 
-def _mempalace_executable() -> str:
-    override = _first_env("CONTEXT_KIT_MEMPALACE_BIN")
+def _provider_executable(spec: ProviderSpec) -> str:
+    override = _first_env(spec.bin_env)
     if override:
         candidate = Path(override).expanduser()
         if not candidate.is_absolute():
-            raise Refusal("CONTEXT_KIT_MEMPALACE_BIN must be an absolute path")
+            raise Refusal(f"{spec.bin_env} must be an absolute path")
         if not candidate.is_file() or not os.access(candidate, os.X_OK):
             raise Refusal(
-                f"configured MemPalace executable is not runnable: {candidate}"
+                f"configured {spec.name} executable is not runnable: {candidate}"
             )
         return str(candidate)
-    executable = shutil.which("mempalace")
-    if not executable:
-        raise Refusal(
-            "MemPalace provider selected but `mempalace` is not installed; "
-            "install it separately with `uv tool install mempalace`"
-        )
-    return executable
-
-
-@dataclass(frozen=True)
-class CapabilityProbe:
-    """One exact-argv help surface the adapter depends on."""
-
-    name: str
-    argv: tuple[str, ...]
-    contract: str
-    required_tokens: tuple[str, ...] = ()
-
-
-def _required_mempalace_capabilities() -> tuple[CapabilityProbe, ...]:
-    # Each probe mirrors an exact argv the adapter actually invokes elsewhere
-    # in this module (`_sync_provider`, `_search`, and `_wake`).
-    # Probing `--help` (never the mutating command itself) lets `doctor` catch
-    # upstream CLI drift without importing MemPalace internals or writing to a
-    # palace.
-    return (
-        CapabilityProbe(
-            name="capture",
-            argv=("mine", "--help"),
-            contract="mine <dir> --wing <project-key>",
-            required_tokens=("--wing",),
-        ),
-        CapabilityProbe(
-            name="search",
-            argv=("search", "--help"),
-            contract="search <query> --results <n>",
-            required_tokens=("--results",),
-        ),
-        CapabilityProbe(
-            name="wake",
-            argv=("wake-up", "--help"),
-            contract="wake-up",
-        ),
+    executable = shutil.which(spec.executable)
+    if executable:
+        return executable
+    bundled = _bundled_executable(spec)
+    if bundled is not None:
+        return str(bundled)
+    raise Refusal(
+        f"{spec.name} provider selected but `{spec.executable}` is not installed; "
+        f"{spec.install_hint}"
     )
 
 
-def _probe_mempalace_capability(
+def _local_rag_root() -> Path | None:
+    """The sibling local-rag plugin root, when deployed alongside `memory`.
+
+    `memory` hard-depends on `local-rag`, so both are installed together and
+    the dependency's launcher and bootstrap are reachable without a PATH entry
+    or extra configuration.
+    """
+    candidate = Path(__file__).resolve().parents[2] / "local-rag"
+    if (candidate / "scripts" / "bootstrap.sh").is_file():
+        return candidate
+    return None
+
+
+def _bundled_executable(spec: ProviderSpec) -> Path | None:
+    """Resolve a sibling context-kit plugin launcher that is not on PATH."""
+    if spec.name != "rag":
+        return None
+    root = _local_rag_root()
+    if root is None:
+        return None
+    candidate = root / "bin" / "rag"
+    if candidate.is_file() and os.access(candidate, os.X_OK):
+        return candidate
+    return None
+
+
+def _rag_runtime_status(*, bootstrap: bool = False) -> dict[str, object]:
+    """Report whether the local-rag venv is usable, optionally building it.
+
+    Claude Code bootstraps local-rag from a `SessionStart` hook. GitHub Copilot
+    and APM do not run Claude hooks, so readiness is checked explicitly here
+    rather than surfacing later as an opaque provider failure. A venv built
+    from different project metadata is reported as loudly as a missing one,
+    because it otherwise runs stale code silently.
+    """
+    root = _local_rag_root()
+    if root is None:
+        return {
+            "status": "unknown",
+            "detail": "the local-rag plugin was not found next to memory; "
+            "runtime readiness could not be checked",
+        }
+    script = root / "scripts" / "bootstrap.sh"
+    env = os.environ.copy()
+    env["CONTEXT_KIT_LOCAL_RAG_HOME"] = str(_local_rag_home())
+    if bootstrap:
+        try:
+            built = subprocess.run(
+                ["bash", str(script)],
+                capture_output=True,
+                check=False,
+                timeout=900.0,
+                env=env,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            raise Refusal(f"local-rag bootstrap could not run: {exc}") from exc
+        if built.returncode != 0:
+            detail = built.stderr.decode("utf-8", errors="replace").strip()
+            raise Refusal(f"local-rag bootstrap failed: {detail or 'no error output'}")
+    try:
+        checked = subprocess.run(
+            ["bash", str(script), "--check"],
+            capture_output=True,
+            check=False,
+            timeout=60.0,
+            env=env,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return {"status": "unknown", "detail": f"readiness check failed: {exc}"}
+    report: dict[str, object] = {}
+    for line in checked.stdout.decode("utf-8", errors="replace").splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            report[key.strip()] = value.strip()
+    report.setdefault("status", "unknown")
+    return report
+
+
+def _probe_capability(
     executable: str,
     config: Config,
+    spec: ProviderSpec,
     probe: CapabilityProbe,
     *,
     timeout: float = 10.0,
@@ -986,7 +1258,7 @@ def _probe_mempalace_capability(
     return report
 
 
-def _parse_mempalace_version(raw: str) -> tuple[int, int, int] | None:
+def _parse_provider_version(raw: str) -> tuple[int, int, int] | None:
     match = SEMVER_RE.search(raw)
     if not match:
         return None
@@ -994,35 +1266,36 @@ def _parse_mempalace_version(raw: str) -> tuple[int, int, int] | None:
     return (major, minor, patch)
 
 
-def _mempalace_version_status(parsed: tuple[int, int, int] | None) -> str:
+def _provider_version_status(
+    parsed: tuple[int, int, int] | None, spec: ProviderSpec
+) -> str:
     if parsed is None:
         return "unknown"
-    if parsed[:2] == MEMPALACE_TESTED_VERSION[:2]:
+    if parsed[:2] == spec.tested_version[:2]:
         return "tested"
-    if parsed[:2] < MEMPALACE_TESTED_VERSION[:2]:
+    if parsed[:2] < spec.tested_version[:2]:
         return "older-than-tested"
     return "newer-than-tested"
 
 
-def _provider_env(config: Config, palace_path: Path | None = None) -> dict[str, str]:
+def _provider_env(config: Config, store_path: Path | None = None) -> dict[str, str]:
     env = os.environ.copy()
-    path = palace_path or config.palace_path
+    path = store_path or config.store_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    env["MEMPALACE_PALACE_PATH"] = str(path)
+    env.update(config.spec.store_env(path))
     return env
 
 
-def _run_mempalace(
+def _run_provider(
     config: Config,
     argv: list[str],
     *,
     input_bytes: bytes | None = None,
     timeout: float = 120.0,
-    palace_path: Path | None = None,
+    store_path: Path | None = None,
 ) -> subprocess.CompletedProcess[bytes]:
-    if config.provider != "mempalace":
-        raise Refusal("this operation requires CONTEXT_KIT_MEMORY_PROVIDER=mempalace")
-    executable = _mempalace_executable()
+    spec = config.spec
+    executable = _provider_executable(spec)
     try:
         result = subprocess.run(
             [executable, *argv],
@@ -1030,14 +1303,14 @@ def _run_mempalace(
             capture_output=True,
             check=False,
             timeout=timeout,
-            env=_provider_env(config, palace_path),
+            env=_provider_env(config, store_path),
         )
     except subprocess.TimeoutExpired as exc:
-        raise Refusal(f"MemPalace command timed out after {timeout:g}s") from exc
+        raise Refusal(f"{spec.name} command timed out after {timeout:g}s") from exc
     if result.returncode != 0:
         error = result.stderr.decode("utf-8", errors="replace").strip()
         raise Refusal(
-            f"MemPalace exited {result.returncode}: {error or 'no error output'}"
+            f"{spec.name} exited {result.returncode}: {error or 'no error output'}"
         )
     return result
 
@@ -1046,9 +1319,9 @@ def _write_stdout(raw: bytes) -> None:
     sys.stdout.write(raw.decode("utf-8", errors="replace"))
 
 
-def _mempalace_version(config: Config) -> tuple[str, str]:
-    executable = _mempalace_executable()
-    version = _run_mempalace(config, ["--version"], timeout=20.0)
+def _provider_version(config: Config) -> tuple[str, str]:
+    executable = _provider_executable(config.spec)
+    version = _run_provider(config, ["--version"], timeout=20.0)
     return executable, version.stdout.decode("utf-8", errors="replace").strip()
 
 
@@ -1064,7 +1337,7 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
     archive_outcome = "not-selected"
     receipt: Path | None = None
     effective = effective_state(metadata, config)
-    if config.provider == "mempalace" and not args.local_only:
+    if config.provider != "none" and not args.local_only:
         if _is_active(effective):
             archive_reason = (
                 "eligible for provider indexing but pending explicit "
@@ -1113,7 +1386,7 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
                 },
                 "provider_reconciliation": (
                     "required: run sync-provider --apply"
-                    if config.provider == "mempalace" and _is_active(effective)
+                    if config.provider != "none" and _is_active(effective)
                     else "not-required"
                 ),
                 "effective_state": effective,
@@ -1137,7 +1410,7 @@ def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
     archived = False
     archive_reason = "provider not selected"
     receipt: Path | None = None
-    if config.provider == "mempalace" and not args.local_only:
+    if config.provider != "none" and not args.local_only:
         archive_reason = (
             "skipped: handoffs are local historical evidence, not active memory"
         )
@@ -1173,7 +1446,12 @@ def _archive_handoff(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
-def _local_search(args: argparse.Namespace, config: Config) -> int:
+def _local_search(
+    args: argparse.Namespace,
+    config: Config,
+    *,
+    annotations: dict[str, object] | None = None,
+) -> int:
     terms = {term.lower() for term in TOKEN_RE.findall(args.query)}
     if not terms:
         raise Refusal("search query must contain at least one searchable term")
@@ -1221,15 +1499,95 @@ def _local_search(args: argparse.Namespace, config: Config) -> int:
                 }
             )
     results.sort(key=lambda item: (-int(item["score"]), str(item["id"])))
+    payload: dict[str, object] = {
+        "provider": "local",
+        "project": config.project_slug,
+        "records": results[: args.results],
+        "invalid_records": invalid_records,
+        "inactive_records": inactive_records,
+        "include_inactive": args.include_inactive,
+    }
+    # A degraded provider search annotates the local result rather than
+    # silently presenting lexical hits as semantic recall.
+    payload.update(annotations or {})
+    print(json.dumps(payload))
+    return 0
+
+
+def _provider_search(args: argparse.Namespace, config: Config) -> int:
+    """Run a reconciled provider query. MemPalace streams; rag is enriched."""
+    spec = config.spec
+    if spec.name != "rag":
+        result = _run_provider(config, spec.search_argv(args.query, args.results))
+        _write_stdout(result.stdout)
+        return 0
+
+    records, _ = _active_projection(config)
+    by_id = {str(metadata["id"]): metadata for _, metadata in records}
+    # rag indexes each markdown section separately, so one record yields hits
+    # for Primary Memory, Cue Anchors, Evidence, and so on. Over-fetch chunks
+    # so that deduplicating back to records can still fill the requested
+    # number of *records* rather than being consumed by one verbose memory.
+    chunk_budget = min(50, max(args.results * RAG_CHUNKS_PER_RECORD, args.results))
+    result = _run_provider(config, spec.search_argv(args.query, chunk_budget))
+    raw = result.stdout.decode("utf-8", errors="replace").strip()
+    try:
+        hits = json.loads(raw) if raw else []
+    except json.JSONDecodeError as exc:
+        raise Refusal(f"rag returned output that is not valid JSON: {exc}") from exc
+    if not isinstance(hits, list):
+        raise Refusal("rag returned an unexpected JSON shape; expected a list")
+
+    found: list[dict[str, object]] = []
+    seen: dict[str, dict[str, object]] = {}
+    unmatched: list[str] = []
+    for hit in hits:
+        if not isinstance(hit, dict):
+            continue
+        # The projection materializes each record as `<record-id>.md`, so a hit
+        # path maps back to exactly one record id.
+        path = str(hit.get("path", ""))
+        record_id = path[:-3] if path.endswith(".md") else path
+        metadata = by_id.get(record_id)
+        if metadata is None:
+            if path not in unmatched:
+                unmatched.append(path)
+            continue
+        if record_id in seen:
+            # Keep the strongest chunk for a record; count the rest.
+            entry = seen[record_id]
+            entry["matched_chunks"] = int(entry["matched_chunks"]) + 1
+            continue
+        state = effective_state(metadata, config)
+        entry = {
+            "id": metadata["id"],
+            "type": metadata["type"],
+            "freshness": state["freshness"],
+            "review": state["review"],
+            "primary_memory": metadata["primary_memory"],
+            "cue_anchors": metadata["cue_anchors"],
+            "source": metadata["source"],
+            "source_hash": metadata["source_hash"],
+            "source_state": _source_state(metadata),
+            "score": hit.get("score"),
+            "retrieval_mode": hit.get("retrieval_mode"),
+            "heading": hit.get("heading"),
+            "matched_chunks": 1,
+        }
+        seen[record_id] = entry
+        found.append(entry)
+        if len(found) >= args.results:
+            break
     print(
         json.dumps(
             {
-                "provider": "local",
+                "provider": spec.name,
                 "project": config.project_slug,
-                "records": results[: args.results],
-                "invalid_records": invalid_records,
-                "inactive_records": inactive_records,
-                "include_inactive": args.include_inactive,
+                "records": found,
+                # A hit the adapter cannot bind to a current record is reported,
+                # never dropped: it means the index is ahead of the ledger.
+                "unmatched_hits": sorted(unmatched),
+                "include_inactive": False,
             }
         )
     )
@@ -1246,27 +1604,59 @@ def _search(args: argparse.Namespace, config: Config) -> int:
         )
     records, _ = _active_projection(config)
     projection_hash = _projection_hash(records)
+    # Reconciliation is a correctness gate, not an availability problem, so it
+    # refuses outright and is deliberately outside the degradation path below.
     if not _has_current_provider_projection(config, projection_hash):
         raise Refusal(
             "provider index is not reconciled with accepted/current records; "
             "run sync-provider --apply or use --provider none for local recall"
         )
-    result = _run_mempalace(
-        config,
-        ["search", args.query, "--results", str(args.results)],
-    )
-    _write_stdout(result.stdout)
-    return 0
+    try:
+        return _provider_search(args, config)
+    except Refusal as exc:
+        return _local_search(
+            args,
+            config,
+            annotations={
+                "degraded_from": config.provider,
+                "degraded_reason": str(exc),
+                "degraded_detail": (
+                    "semantic recall was unavailable; these are lexical matches "
+                    "over primary memories and cue anchors only"
+                ),
+            },
+        )
 
 
 def _wake(config: Config) -> int:
-    config.project_slug
-    result = _run_mempalace(config, ["wake-up"])
+    spec = config.spec
+    if spec.name != "mempalace":
+        records, _ = _active_projection(config)
+        print(
+            json.dumps(
+                {
+                    "provider": spec.name,
+                    "project": config.project_slug,
+                    "status": "not-applicable",
+                    "detail": (
+                        "`wake` is a MemPalace session-priming command; "
+                        f"the {spec.name} provider has no equivalent"
+                    ),
+                    "store_path": str(config.store_path),
+                    "active_records": len(records),
+                    "reconciled": _has_current_provider_projection(
+                        config, _projection_hash(records)
+                    ),
+                }
+            )
+        )
+        return 0
+    result = _run_provider(config, ["wake-up"])
     _write_stdout(result.stdout)
     return 0
 
 
-def _doctor(config: Config) -> int:
+def _doctor(args: argparse.Namespace, config: Config) -> int:
     result: dict[str, object] = {
         "provider": config.provider,
         "home": str(config.home),
@@ -1284,36 +1674,64 @@ def _doctor(config: Config) -> int:
         print(json.dumps(result))
         return 0
     config.project_slug
-    executable = _mempalace_executable()
-    version_result = _run_mempalace(config, ["--version"], timeout=20.0)
+    spec = config.spec
+    executable = _provider_executable(spec)
+    if spec.name == "rag":
+        # The venv only backs the bundled `bin/rag` launcher. A user-supplied
+        # executable (CONTEXT_KIT_RAG_BIN or one on PATH) manages its own
+        # runtime, so gating on our bootstrap would be wrong there.
+        bundled = _bundled_executable(spec)
+        if bundled is not None and str(bundled) == executable:
+            # Checked before the version and capability probes: without a
+            # usable venv those fail with an opaque launcher error instead of
+            # the actionable "run the bootstrap" answer.
+            runtime = _rag_runtime_status(
+                bootstrap=bool(getattr(args, "bootstrap", False))
+            )
+            result["runtime"] = runtime
+            status = str(runtime.get("status"))
+            if status not in {"ready", "unknown"}:
+                command = runtime.get("bootstrap_command") or (
+                    "bash plugins/local-rag/scripts/bootstrap.sh"
+                )
+                raise Refusal(
+                    f"the local-rag runtime is {status} "
+                    f"({runtime.get('detail', 'no detail')}); run: {command} "
+                    "— Claude Code bootstraps this on SessionStart, but GitHub "
+                    "Copilot and APM do not run Claude hooks. Re-run `doctor "
+                    "--bootstrap` to build it now."
+                )
+    version_result = _run_provider(config, ["--version"], timeout=20.0)
     raw_version = version_result.stdout.decode("utf-8", errors="replace").strip()
-    parsed_version = _parse_mempalace_version(raw_version)
-    version_status = _mempalace_version_status(parsed_version)
+    parsed_version = _parse_provider_version(raw_version)
+    version_status = _provider_version_status(parsed_version, spec)
     capabilities = [
-        _probe_mempalace_capability(executable, config, probe)
-        for probe in _required_mempalace_capabilities()
+        _probe_capability(executable, config, spec, probe)
+        for probe in spec.capabilities
     ]
     missing = [c for c in capabilities if c["status"] != "ok"]
-    compatibility = {
+    compatibility: dict[str, object] = {
         "detected_version": raw_version,
         "parsed_version": (
             ".".join(str(part) for part in parsed_version) if parsed_version else None
         ),
         "version_status": version_status,
-        "tested_release_line": MEMPALACE_TESTED_RELEASE_LINE,
-        "tested_version": ".".join(str(part) for part in MEMPALACE_TESTED_VERSION),
+        "tested_release_line": spec.tested_release_line,
+        "tested_version": ".".join(str(part) for part in spec.tested_version),
         "executable": executable,
-        "palace_path": str(config.palace_path),
+        "store_path": str(config.store_path),
         "capabilities": capabilities,
     }
+    if spec.name == "mempalace":
+        compatibility["palace_path"] = str(config.store_path)
     result["compatibility"] = compatibility
     if missing:
         summary = "; ".join(
             f"{c['name']} ({c['command']}): {c['detail']}" for c in missing
         )
         raise Refusal(
-            "MemPalace CLI is missing required capabilities for this adapter "
-            f"(tested against {MEMPALACE_TESTED_RELEASE_LINE}, detected "
+            f"{spec.name} CLI is missing required capabilities for this adapter "
+            f"(tested against {spec.tested_release_line}, detected "
             f"{raw_version or 'unknown version'}): {summary}"
         )
     # A patch/minor version different from the tested line is not on its own
@@ -1322,10 +1740,12 @@ def _doctor(config: Config) -> int:
         {
             "status": "ready",
             "executable": executable,
-            "palace_path": str(config.palace_path),
+            "store_path": str(config.store_path),
             "version": raw_version,
         }
     )
+    if spec.name == "mempalace":
+        result["palace_path"] = str(config.store_path)
     print(json.dumps(result))
     return 0
 
@@ -1489,7 +1909,7 @@ def _write_projection_marker(
 
 
 def _has_current_provider_projection(config: Config, projection_hash: str) -> bool:
-    marker = config.palace_path / PROJECTION_MARKER_NAME
+    marker = config.store_path / PROJECTION_MARKER_NAME
     try:
         payload = json.loads(marker.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -1518,11 +1938,11 @@ def _has_current_provider_projection(config: Config, projection_hash: str) -> bo
     )
 
 
-def _prune_provider_backups(parent: Path, keep: Path | None) -> list[str]:
+def _prune_provider_backups(
+    parent: Path, keep: Path | None, prefix: str = "palace-backup-"
+) -> list[str]:
     backups = [
-        path
-        for path in parent.glob("palace-backup-*")
-        if path.is_dir() and path != keep
+        path for path in parent.glob(f"{prefix}*") if path.is_dir() and path != keep
     ]
     if keep is None:
         backups.sort(
@@ -1537,37 +1957,44 @@ def _prune_provider_backups(parent: Path, keep: Path | None) -> list[str]:
 
 
 def _sync_provider(args: argparse.Namespace, config: Config) -> int:
-    if config.provider != "mempalace":
-        raise Refusal("sync-provider requires --provider mempalace")
+    if config.provider == "none":
+        raise Refusal(
+            "sync-provider requires an external provider; choose one of: "
+            + ", ".join(sorted(PROVIDER_SPECS))
+        )
+    spec = config.spec
     records, excluded = _active_projection(config)
     projection_hash = _projection_hash(records)
     ledger_hash = _ledger_hash(config)
     plan: dict[str, object] = {
         "project": config.project_slug,
-        "palace_path": str(config.palace_path),
+        "provider": spec.name,
+        "store_path": str(config.store_path),
         "active_record_ids": [str(metadata["id"]) for _, metadata in records],
         "excluded_records": excluded,
         "projection_hash": projection_hash,
         "apply": bool(args.apply),
     }
+    if spec.name == "mempalace":
+        plan["palace_path"] = str(config.store_path)
     if not args.apply:
         plan["status"] = "dry-run"
         plan["safety"] = (
-            "apply builds a fresh project-isolated palace, preserves a backup, "
-            "then swaps only after MemPalace succeeds"
+            "apply builds a fresh project-isolated store, preserves a backup, "
+            f"then swaps only after {spec.name} succeeds"
         )
         print(json.dumps(plan))
         return 0
     if os.name != "posix":
         raise Refusal(
             "safe provider replacement is supported only on POSIX; "
-            "dry-run was not applied and no palace was changed"
+            "dry-run was not applied and no store was changed"
         )
 
-    parent = config.palace_path.parent
+    parent = config.store_path.parent
     parent.mkdir(parents=True, exist_ok=True)
     projection = Path(tempfile.mkdtemp(prefix=".projection-", dir=parent))
-    stage = parent / f".palace-rebuild-{uuid.uuid4().hex}"
+    stage = parent / f".store-rebuild-{uuid.uuid4().hex}"
     backup: Path | None = None
     executable = ""
     version = "unknown"
@@ -1576,16 +2003,16 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
     try:
         _materialize_projection(records, projection)
         stage.mkdir(mode=0o700)
-        executable, version = _mempalace_version(config)
-        argv = [executable, "mine", str(projection), "--wing", config.project_slug]
-        _run_mempalace(
+        executable, version = _provider_version(config)
+        argv = [executable, *spec.index_argv(projection, config.project_slug)]
+        _run_provider(
             config,
             argv[1:],
             timeout=300.0,
-            palace_path=stage,
+            store_path=stage,
         )
         if not stage.is_dir():
-            raise Refusal("MemPalace did not leave a valid staged palace")
+            raise Refusal(f"{spec.name} did not leave a valid staged store")
         _write_projection_marker(
             stage,
             config,
@@ -1593,16 +2020,16 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
             ledger_hash,
             version,
         )
-        if config.palace_path.exists():
-            backup = parent / f"palace-backup-{uuid.uuid4().hex}"
-            os.replace(config.palace_path, backup)
+        if config.store_path.exists():
+            backup = parent / f"{spec.backup_prefix}{uuid.uuid4().hex}"
+            os.replace(config.store_path, backup)
         try:
-            os.replace(stage, config.palace_path)
+            os.replace(stage, config.store_path)
         except OSError:
-            if backup is not None and not config.palace_path.exists():
-                os.replace(backup, config.palace_path)
+            if backup is not None and not config.store_path.exists():
+                os.replace(backup, config.store_path)
                 backup = None
-                recovery_status = "restored-to-live-palace"
+                recovery_status = "restored-to-live-store"
             elif backup is not None:
                 recovery_status = "backup-preserved"
             raise
@@ -1624,7 +2051,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         ) from exc
     finally:
         shutil.rmtree(projection, ignore_errors=True)
-        if stage.exists() and stage != config.palace_path:
+        if stage.exists() and stage != config.store_path:
             shutil.rmtree(stage, ignore_errors=True)
     receipt = _provider_receipt(
         config,
@@ -1638,7 +2065,7 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         backup_path=backup,
     )
     try:
-        removed_backups = _prune_provider_backups(parent, backup)
+        removed_backups = _prune_provider_backups(parent, backup, spec.backup_prefix)
     except OSError as exc:
         raise Refusal(
             "provider synchronized but backup retention failed; "
@@ -1653,6 +2080,347 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
         }
     )
     print(json.dumps(plan))
+    return 0
+
+
+def _extract_copilot_session(raw: bytes) -> dict[str, object] | None:
+    """Extract the human-visible conversation from a Copilot CLI event log.
+
+    Copilot records *all* session activity in one event stream, so most events
+    are not conversation. Attribution matters more than volume here: a subagent
+    task prompt is written by the orchestrating model, not by the person, and
+    storing it as a user turn silently misattributes authorship.
+
+    Measured across a real 115-session corpus, only 24 of 729 `user.message`
+    events were human-authored; 611 carried `parentAgentTaskId` (subagent task
+    prompts) and 94 carried a `source` (generated skill/agent/command/system
+    context). Every distinct `source` value observed was generated context, so
+    the presence of the field — not a specific prefix — is the reliable signal.
+
+    Returns None when the input is not a recognized Copilot session. A
+    recognized session with no conversational turns returns an empty turn list
+    rather than None, so the caller can record it as empty instead of falling
+    back to raw event JSON.
+    """
+    text = raw.decode("utf-8", errors="replace")
+    session_id: str | None = None
+    started_at: str | None = None
+    producer: str | None = None
+    turns: list[dict[str, str]] = []
+    dropped: dict[str, int] = {
+        "user_subagent_prompt": 0,
+        "user_generated_context": 0,
+        "user_empty": 0,
+        "assistant_tool_nested": 0,
+        "assistant_subagent": 0,
+        "assistant_empty": 0,
+        "non_conversational_event": 0,
+        "unparsable_line": 0,
+    }
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            dropped["unparsable_line"] += 1
+            continue
+        if not isinstance(event, dict):
+            dropped["unparsable_line"] += 1
+            continue
+        kind = event.get("type", "")
+        data = event.get("data", {})
+        if not isinstance(data, dict):
+            dropped["non_conversational_event"] += 1
+            continue
+
+        if kind == "session.start":
+            candidate_id = data.get("sessionId")
+            if isinstance(candidate_id, str) and candidate_id:
+                session_id = candidate_id
+                start_time = data.get("startTime")
+                if isinstance(start_time, str) and start_time:
+                    started_at = start_time
+                produced_by = data.get("producer")
+                if isinstance(produced_by, str) and produced_by:
+                    producer = produced_by
+            continue
+
+        if session_id is None:
+            # Nothing before a recognized session.start is trusted.
+            dropped["non_conversational_event"] += 1
+            continue
+
+        if kind == "user.message":
+            if data.get("parentAgentTaskId"):
+                dropped["user_subagent_prompt"] += 1
+                continue
+            if "source" in data:
+                # Generated context: skill-, agent-, command-, or system.
+                # A human turn carries no source at all.
+                dropped["user_generated_context"] += 1
+                continue
+            role = "user"
+        elif kind == "assistant.message":
+            if data.get("parentToolCallId"):
+                dropped["assistant_tool_nested"] += 1
+                continue
+            if data.get("parentAgentTaskId"):
+                dropped["assistant_subagent"] += 1
+                continue
+            role = "assistant"
+        else:
+            dropped["non_conversational_event"] += 1
+            continue
+
+        # `content` is what the person actually wrote. `transformedContent`
+        # is post-expansion, and reasoning fields are never retained.
+        content = data.get("content")
+        if not isinstance(content, str) or not content.strip():
+            dropped[f"{role}_empty"] += 1
+            continue
+        turns.append({"role": role, "content": content.strip()})
+
+    if session_id is None:
+        return None
+    return {
+        "session_id": session_id,
+        "started_at": started_at,
+        "producer": producer,
+        "turns": turns,
+        "dropped": dropped,
+    }
+
+
+def _scan_secrets(text: str) -> list[dict[str, object]]:
+    findings: list[dict[str, object]] = []
+    for name, pattern in SECRET_PATTERNS:
+        count = len(pattern.findall(text))
+        if count:
+            findings.append({"pattern": name, "matches": count})
+    return findings
+
+
+def _redact_secrets(text: str) -> tuple[str, int]:
+    redactions = 0
+    for name, pattern in SECRET_PATTERNS:
+        text, count = pattern.subn(f"[redacted:{name}]", text)
+        redactions += count
+    return text, redactions
+
+
+def _render_turns(turns: list[dict[str, str]]) -> tuple[list[str], int, int]:
+    lines: list[str] = []
+    truncated = 0
+    omitted = max(0, len(turns) - MAX_CANDIDATE_TURNS)
+    for index, turn in enumerate(turns[:MAX_CANDIDATE_TURNS], start=1):
+        content = turn["content"]
+        if len(content) > MAX_TURN_CHARS:
+            content = content[:MAX_TURN_CHARS]
+            truncated += 1
+            content += f"\n\n[truncated at {MAX_TURN_CHARS} characters]"
+        lines.append(f"### {index}. {turn['role']}")
+        lines.append("")
+        lines.extend(content.splitlines())
+        lines.append("")
+    if omitted:
+        # A reviewer must never mistake a sliced transcript for a complete one.
+        lines.append(
+            f"### [{omitted} further turn(s) omitted at the "
+            f"{MAX_CANDIDATE_TURNS}-turn candidate limit]"
+        )
+        lines.append("")
+    return lines, truncated, omitted
+
+
+def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
+    """Extract reviewable candidates from Copilot CLI sessions.
+
+    This deliberately proposes rather than captures. A transcript is not an
+    atomic memory, so authoring a `memory-v1` record from a candidate stays an
+    explicit judgment step; nothing here can enter active recall on its own.
+    """
+    root = Path(args.path).expanduser().resolve()
+    if root.is_file():
+        logs = [root]
+    elif root.is_dir():
+        logs = sorted(root.glob("*/events.jsonl")) or sorted(root.glob("events.jsonl"))
+    else:
+        raise Refusal(f"session path does not exist: {root}")
+    if not logs:
+        raise Refusal(f"no Copilot `events.jsonl` logs found under {root}")
+
+    repo = Path(args.repo).expanduser().resolve()
+    repository = _normalize_repository(_git(repo, "remote", "get-url", "origin"))
+    _assert_project_matches({"repository": repository, "scope": "project"}, config)
+    branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    head = _git(repo, "rev-parse", "HEAD")
+    if branch == "HEAD":
+        # Detached checkouts (CI PR builds, a worktree at a tag, bisect) have no
+        # branch anchor, and a project record requires one. Say so plainly
+        # instead of refusing with a generic name-format error.
+        raise Refusal(
+            f"{repo} is in a detached HEAD state, so there is no branch anchor "
+            "for a project record. Check out a named branch, or pass --repo "
+            "pointing at a checkout that is on one."
+        )
+    _validate_branch(branch)
+
+    planned: list[dict[str, object]] = []
+    written: list[str] = []
+    blocked: list[dict[str, object]] = []
+    skipped: list[dict[str, object]] = []
+
+    for log in logs:
+        raw = log.read_bytes()
+        extracted = _extract_copilot_session(raw)
+        if extracted is None:
+            skipped.append({"source": str(log), "reason": "not-a-copilot-session"})
+            continue
+        turns = list(extracted["turns"])  # type: ignore[arg-type]
+        if not turns:
+            skipped.append({"source": str(log), "reason": "no-conversational-turns"})
+            continue
+        session_id = str(extracted["session_id"])
+        if not SESSION_ID_RE.fullmatch(session_id):
+            # `session_id` names the candidate file. An id like `../../outside`
+            # would escape the project-isolated directory, so an unsafe value
+            # is refused loudly rather than sanitized into something plausible.
+            skipped.append(
+                {
+                    "source": str(log),
+                    "reason": "unsafe-session-id",
+                    "session_id": session_id[:80],
+                }
+            )
+            continue
+
+        body_lines, truncated, omitted = _render_turns(turns)
+        transcript = "\n".join(body_lines)
+        findings = _scan_secrets(transcript)
+        redactions = 0
+        if findings:
+            if not args.redact:
+                blocked.append(
+                    {
+                        "source": str(log),
+                        "reason": "possible-credentials",
+                        "findings": findings,
+                    }
+                )
+                continue
+            transcript, redactions = _redact_secrets(transcript)
+
+        source_hash = hashlib.sha256(raw).hexdigest()
+        observed_at = extracted["started_at"] or _utc_timestamp()
+        try:
+            _validate_timestamp(str(observed_at), "observed_at")
+        except Refusal:
+            observed_at = _utc_timestamp()
+        entry: dict[str, object] = {
+            "session_id": session_id,
+            "source": str(log),
+            "source_hash": source_hash,
+            "turns": len(turns),
+            "turns_written": len(turns) - omitted,
+            "omitted_turns": omitted,
+            "dropped": extracted["dropped"],
+            "truncated_turns": truncated,
+            "redactions": redactions,
+        }
+        if args.dry_run:
+            planned.append(entry)
+            continue
+
+        name = f"{session_id}-{source_hash[:12]}.md"
+        destination = config.candidates_path / name
+        # Defense in depth: the id was validated above, so a path that still
+        # resolves outside the project directory is a bug, not user error.
+        if destination.parent.resolve() != config.candidates_path.resolve():
+            raise Refusal(
+                f"refusing a candidate path outside the project store: {destination}"
+            )
+        document = "\n".join(
+            [
+                "---",
+                f"schema: {CANDIDATE_SCHEMA}",
+                f"session_id: {session_id}",
+                "scope: project",
+                f"repository: {repository}",
+                f"branch: {branch}",
+                f"head: {head}",
+                f"producer: {extracted['producer'] or SESSION_PRODUCER}",
+                f"observed_at: {observed_at}",
+                f"extracted_at: {_utc_timestamp()}",
+                f"source: {log}",
+                f"source_hash: {source_hash}",
+                f"turns: {len(turns) - omitted}",
+                f"turns_extracted: {len(turns)}",
+                f"omitted_turns: {omitted}",
+                f"redactions: {redactions}",
+                "review: candidate",
+                "---",
+                "",
+                "## Provenance",
+                "",
+                f"- Extracted from `{log}` (SHA-256 `{source_hash}`).",
+                "- Only top-level human and assistant turns are retained. Subagent",
+                "  prompts, generated skill/agent/command context, tool-nested",
+                "  messages, and model reasoning are excluded by construction.",
+                "",
+                "## Dropped Events",
+                "",
+                *(
+                    f"- {reason}: {count}"
+                    for reason, count in sorted(
+                        dict(extracted["dropped"]).items()  # type: ignore[arg-type]
+                    )
+                    if count
+                ),
+                "",
+                "## Transcript",
+                "",
+                transcript,
+                "",
+                "## Review Notes",
+                "",
+                "- This is a candidate, not a memory. To retain anything here,",
+                "  author a `context-kit/memory-v1` record whose `source` is the",
+                "  session log above and whose `source_hash` matches, mark it",
+                "  `review: proposed`, then promote it with `record-state` only",
+                "  after checking the evidence.",
+                "",
+            ]
+        )
+        state = _write_once(destination, document.encode("utf-8"))
+        entry["artifact"] = str(destination)
+        entry["status"] = state
+        written.append(str(destination))
+        planned.append(entry)
+
+    print(
+        json.dumps(
+            {
+                "status": "dry-run" if args.dry_run else "extracted",
+                "project": config.project_slug,
+                "repository": repository,
+                "branch": branch,
+                "head": head,
+                "logs_examined": len(logs),
+                "candidates": planned,
+                "written": written,
+                "blocked": blocked,
+                "skipped": skipped,
+                "note": (
+                    "candidates are proposals for review; nothing here enters "
+                    "active recall until an explicit memory-v1 record is "
+                    "captured and accepted"
+                ),
+            }
+        )
+    )
     return 0
 
 
@@ -1684,7 +2452,7 @@ def _run_hook(event: str, config: Config, payload: bytes) -> int:
 
 
 def _add_config_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--provider", choices=("none", "mempalace"))
+    parser.add_argument("--provider", choices=PROVIDERS)
     parser.add_argument("--home")
     parser.add_argument("--project")
 
@@ -1728,6 +2496,11 @@ def _parser() -> argparse.ArgumentParser:
     _add_config_args(wake)
 
     doctor = sub.add_parser("doctor")
+    doctor.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help="Build the local-rag runtime if it is missing or stale (rag provider).",
+    )
     _add_config_args(doctor)
 
     review = sub.add_parser("review")
@@ -1752,6 +2525,27 @@ def _parser() -> argparse.ArgumentParser:
         help="Build, validate, back up, and replace the project-isolated active palace.",
     )
     _add_config_args(sync)
+
+    propose = sub.add_parser("propose-from-session")
+    propose.add_argument("path", help="A Copilot session directory or events.jsonl.")
+    propose.add_argument(
+        "--repo",
+        default=".",
+        help="Repository supplying the project, branch, and HEAD anchors.",
+    )
+    propose.add_argument(
+        "--write",
+        dest="dry_run",
+        action="store_false",
+        help="Write candidate artifacts. Without this the run is a dry run.",
+    )
+    propose.add_argument(
+        "--redact",
+        action="store_true",
+        help="Mask detected credential-shaped spans instead of refusing.",
+    )
+    propose.set_defaults(dry_run=True)
+    _add_config_args(propose)
 
     hook = sub.add_parser("hook")
     hook.add_argument("event", choices=("stop", "precompact", "session-end"))
@@ -1779,13 +2573,15 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "wake":
             return _wake(config)
         if args.command == "doctor":
-            return _doctor(config)
+            return _doctor(args, config)
         if args.command == "review":
             return _record_review(config)
         if args.command == "record-state":
             return _record_state(args, config)
         if args.command == "sync-provider":
             return _sync_provider(args, config)
+        if args.command == "propose-from-session":
+            return _propose_from_session(args, config)
         if args.command == "hook":
             payload = sys.stdin.buffer.read()
             return _run_hook(args.event, config, payload)

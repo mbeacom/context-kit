@@ -104,9 +104,20 @@ a prerequisite for CLI-driven capture and recall.
 
 | Provider | Status | Qualification summary |
 | --- | --- | --- |
-| **Local-only records** | ✅ Supported | Python 3 stdlib only. Stores records in `${CONTEXT_KIT_MEMORY_HOME}` with full frontmatter preservation. No external deps, no network, fully offline. All criteria met. |
+| **Local-only records** | ✅ Supported | Python 3 stdlib only. Stores records in `${CONTEXT_KIT_MEMORY_HOME}` with full frontmatter preservation. No external deps, no network, fully offline. Lexical recall only. All criteria met. |
+| **Rag (first-party)** | ✅ Supported (default semantic path) | This repository's `local-rag` plugin, declared as a hard dependency. Versioned with the catalog; `rag --version` and exact-argv `--help` probes give a checkable contract. Project isolation enforced by redirecting `CONTEXT_KIT_DATA` per child process. Records are the source of truth and the index is a rebuildable projection, so provenance cannot be lost. Offline apart from a user-configured remote `CONTEXT_KIT_OLLAMA_HOST`. MIT. All criteria met. |
 | **MemPalace** | ✅ Supported (optional) | Versioned CLI releases on PyPI. Stable CLI contract documented. Project/palace isolation enforced by adapter. Evidence round-tripped via local copy before archival. Export and delete available. MIT-compatible license. Criteria met at integration date. |
 | **Microsoft Memora** | 🔬 Design-only | Informs context-kit's memory contract; not a runtime provider. See below. |
+
+### Why a first-party provider satisfies criterion 4 trivially
+
+`rag` never becomes the system of record. `sync-provider` materializes
+accepted/current records into a temporary projection, indexes that, and swaps
+the store atomically. Recall maps hits back to the local records before
+returning them, so `source`, `source_hash`, `repository`, `branch`, `head`, and
+review/freshness state are read from the immutable artifacts rather than from
+provider storage. A corrupted or deleted index is rebuilt with
+`sync-provider --apply`; no memory is lost with it.
 
 ### Memora: design influence and current status
 

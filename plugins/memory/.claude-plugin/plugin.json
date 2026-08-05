@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "memory",
   "displayName": "Durable Memory",
-  "version": "0.2.3",
-  "description": "Provenance-bound durable memory across sessions: immutable records, append-only review state, active-only recall, explicit MemPalace reconciliation, and opt-in lifecycle capture.",
+  "version": "0.3.0",
+  "description": "Provenance-bound durable memory across sessions: immutable records, append-only review state, active-only recall, offline semantic recall via a first-party rag provider, and explicit provider reconciliation.",
   "author": {
     "name": "Mark Beacom"
   },
@@ -19,13 +19,14 @@
     "continuity"
   ],
   "dependencies": [
-    "context-handoff"
+    "context-handoff",
+    "local-rag"
   ],
   "userConfig": {
     "provider": {
       "type": "string",
       "title": "Memory provider",
-      "description": "External provider: none or mempalace",
+      "description": "External provider: none, rag (first-party, offline), or mempalace",
       "default": "none"
     },
     "memory_home": {

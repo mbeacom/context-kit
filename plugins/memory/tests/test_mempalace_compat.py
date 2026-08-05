@@ -100,9 +100,11 @@ class MemPalaceCompatibilityTests(unittest.TestCase):
 
         self.assertEqual(0, result.returncode, result.stderr.decode())
         raw = result.stdout.decode("utf-8", errors="replace").strip()
-        parsed = memory_provider._parse_mempalace_version(raw)
+        parsed = memory_provider._parse_provider_version(raw)
         self.assertIsNotNone(parsed, f"could not parse a version from: {raw!r}")
-        status = memory_provider._mempalace_version_status(parsed)
+        status = memory_provider._provider_version_status(
+            parsed, memory_provider.PROVIDER_SPECS["mempalace"]
+        )
         self.assertIn(status, {"tested", "older-than-tested", "newer-than-tested"})
         if status != "tested":
             print(
@@ -123,12 +125,13 @@ class MemPalaceCompatibilityTests(unittest.TestCase):
             project="mbeacom/context-kit",
             auto_capture=False,
         )
+        spec = memory_provider.PROVIDER_SPECS["mempalace"]
         failures = [
             report
-            for probe in memory_provider._required_mempalace_capabilities()
+            for probe in spec.capabilities
             if (
-                report := memory_provider._probe_mempalace_capability(
-                    EXECUTABLE, config, probe
+                report := memory_provider._probe_capability(
+                    EXECUTABLE, config, spec, probe
                 )
             )["status"]
             != "ok"

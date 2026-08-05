@@ -2,10 +2,10 @@
 name: memory-workflows
 description: "Use when capturing, recalling, reviewing, or consolidating durable project memory across sessions — decisions, constraints, procedures, and episodes that must retain provenance and freshness."
 license: MIT
-compatibility: "Python 3 is required for the bundled validator/provider adapter. MemPalace is optional and must be installed separately for provider-backed recall."
+compatibility: "Python 3 is required for the bundled validator/provider adapter. Offline semantic recall uses the bundled local-rag dependency (needs its venv bootstrap plus ollama). MemPalace is optional and installed separately."
 metadata:
   author: Mark Beacom
-  version: "0.2.0"
+  version: "0.3.0"
 allowed-tools: Read Grep Glob Write Bash(python3:*) Bash(mempalace:*) Bash(git:*)
 ---
 
@@ -27,6 +27,19 @@ MemPalace is an optional external provider for verbatim storage and recall.
 `context-kit` keeps the memory contract, review policy, and verification gates
 provider-neutral.
 
+## Choose a provider
+
+| Provider | Recall | Needs |
+| --- | --- | --- |
+| `none` | Lexical over primary memories and cue anchors | nothing |
+| `rag` | **Offline semantic** (first-party, bundled) | local-rag venv + ollama |
+| `mempalace` | Semantic/hybrid | MemPalace installed separately |
+
+Provider-backed recall is active-only and requires explicit reconciliation:
+run `sync-provider --apply` after an eligible capture or state change. If a
+provider is unreachable, `search` falls back to lexical local search and labels
+the result `degraded_from`; it never presents lexical hits as semantic recall.
+
 ## Capture
 
 1. Capture only an atomic fact, decision, procedure, constraint, or bounded
@@ -43,6 +56,26 @@ provider-neutral.
 
 Do not silently harvest whole transcripts, secrets, unverified speculation,
 temporary debugging noise, or information whose retention has not been approved.
+
+## Mine past sessions (propose, never capture)
+
+`propose-from-session` extracts the human-visible conversation from GitHub
+Copilot CLI logs into reviewable **candidates**. It writes nothing by default
+and creates no memory records:
+
+```bash
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
+  propose-from-session ~/.copilot/session-state          # dry run
+```
+
+Only top-level human and assistant turns are retained. Subagent task prompts,
+generated skill/agent/command context, tool-nested messages, and model reasoning
+are excluded by construction — a subagent prompt is written by the orchestrating
+model, so storing it as a user turn would misattribute authorship. Detected
+credentials block the write unless `--redact` is passed.
+
+A transcript is not an atomic memory: authoring a `memory-v1` record from a
+candidate stays an explicit judgment step. See `references/session-mining.md`.
 
 ## Recall
 
@@ -88,6 +121,9 @@ and APM do not run Claude hooks.
 ## Resources
 
 - **`references/memory-contract.md`** — record schema and evidence rules.
+- **`references/session-mining.md`** — Copilot session extraction and candidates.
+- **`references/mcp-server.md`** — optional MCP surface for non-plugin hosts.
+- **`references/provider-rag.md`** — the first-party offline semantic provider.
 - **`references/provider-mempalace.md`** — provider setup, isolation, and CLI.
 - **`references/provider-qualification.md`** — provider qualification criteria
   and the current decision table for local records, MemPalace, and Memora.

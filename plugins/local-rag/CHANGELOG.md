@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.0 — 2026-08-04
+
+- Separate venv resolution from index-data location. `CONTEXT_KIT_LOCAL_RAG_HOME`
+  now locates the bootstrapped venv (and its `pyproject.sha` stamp), while
+  `CONTEXT_KIT_DATA` continues to locate index data. Previously both were derived
+  from `CONTEXT_KIT_DATA`, so a caller redirecting index data to an isolated
+  store also relocated the venv and `bin/rag` failed with "venv missing". The new
+  variable is optional and falls back to the existing `CONTEXT_KIT_DATA` chain,
+  so default single-user behavior is unchanged.
+- Add `rag --version`, so an integrating adapter can report and pin a provider
+  version the same way it does for other retrieval backends.
+- Add `scripts/bootstrap.sh --check`, a side-effect-free readiness probe that
+  prints `KEY=VALUE` status lines and exits 0 when ready or 3 when a bootstrap
+  is required. This gives hosts that do not run the Claude `SessionStart` hook
+  — GitHub Copilot and APM — a deterministic way to detect an unusable runtime.
+- `--check` reports a **stale** venv (one built from different `pyproject.toml`
+  metadata) as loudly as a missing one. Previously a stale venv ran outdated
+  code silently, because the launcher never consulted the stamp.
+- `--check` decides venv state before considering `uv`, and reports
+  `venv_status` and `uv` as separate fields. `uv` is only needed to *build* the
+  venv, so an already-usable runtime now reports `ready` on a machine without
+  `uv` instead of sending the user after an irrelevant install; `uv-missing` is
+  returned only when the venv genuinely needs rebuilding.
+
 ## 0.3.3 — 2026-08-03
 
 - Shorten the discovery description(s) to free aggregate budget for the new

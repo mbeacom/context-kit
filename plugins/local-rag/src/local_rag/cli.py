@@ -7,6 +7,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
+from . import __version__
 from .embed import OllamaEmbedder
 from .engine import Engine, slug
 from .storage import list_indexes, remove_index, validate_index_name
@@ -80,6 +81,9 @@ def _missing_index(name: str) -> str:
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     p = argparse.ArgumentParser(prog="rag", description="Local semantic RAG.")
+    # Exposed so an integrating adapter can pin/report a provider version the
+    # same way it does for other retrieval backends.
+    p.add_argument("--version", action="version", version=f"rag {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     pi = sub.add_parser("index")

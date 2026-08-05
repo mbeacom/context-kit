@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 # Resolve the persistent venv created by scripts/bootstrap.sh.
+# CONTEXT_KIT_DATA locates *index data*. A caller (for example the context-kit
+# `memory` plugin) may redirect it per invocation to isolate indexes into its
+# own store, so the venv is resolved from CONTEXT_KIT_LOCAL_RAG_HOME first and
+# only falls back to the data dir when that is unset.
 DATA="${CONTEXT_KIT_DATA:-${PRODUCTIVITY_SKILLS_DATA:-${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/local-rag}}}"
-VENV_PY="$DATA/venv/bin/python"
+HOME_DIR="${CONTEXT_KIT_LOCAL_RAG_HOME:-$DATA}"
+VENV_PY="$HOME_DIR/venv/bin/python"
 if [[ ! -x "$VENV_PY" ]]; then
   echo "local-rag venv missing. Run the plugin bootstrap (restart session) or:" >&2
   echo "  bash \"$(dirname "$0")/../scripts/bootstrap.sh\"" >&2
