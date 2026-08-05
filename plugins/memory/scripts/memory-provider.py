@@ -42,6 +42,31 @@ FRESHNESS_STATES = {"current", "stale", "superseded", "revoked"}
 REVIEW_STATES = {"proposed", "accepted", "rejected"}
 STATE_SCHEMA = "context-kit/memory-state-v1"
 RECEIPT_SCHEMA = "context-kit/memory-provider-receipt-v1"
+CANDIDATE_SCHEMA = "context-kit/memory-candidate-v1"
+# Session mining recognizes GitHub Copilot CLI event logs
+# (`~/.copilot/session-state/<session-id>/events.jsonl`).
+SESSION_PRODUCER = "github-copilot-cli"
+MAX_TURN_CHARS = 2000
+MAX_CANDIDATE_TURNS = 400
+# Detection only. Each pattern names a high-signal credential shape so a
+# finding can be reported precisely and, with --redact, masked in place.
+SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("aws-access-key-id", re.compile(r"AKIA[0-9A-Z]{16}")),
+    ("github-token", re.compile(r"gh[pousr]_[A-Za-z0-9]{36,}")),
+    ("slack-token", re.compile(r"xox[baprs]-[A-Za-z0-9-]{10,}")),
+    ("private-key-block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+    (
+        "json-web-token",
+        re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
+    ),
+    (
+        "assigned-credential",
+        re.compile(
+            r"(?i)\b(?:api[_-]?key|secret|password|passwd|access[_-]?token|bearer)\b"
+            r"\s*[:=]\s*[\"']?[A-Za-z0-9/+_.-]{16,}"
+        ),
+    ),
+)
 PROJECTION_MARKER_SCHEMA = "context-kit/memory-provider-projection-v1"
 PROJECTION_MARKER_NAME = ".context-kit-projection.json"
 STATE_SEQUENCE_WIDTH = 20
@@ -317,6 +342,11 @@ class Config:
     @property
     def receipts_path(self) -> Path:
         return self.home / "receipts" / self.project_slug
+
+    @property
+    def candidates_path(self) -> Path:
+        """Reviewable session extractions. Never active memory."""
+        return self.home / "candidates" / self.project_slug
 
 
 def _first_env(*names: str) -> str | None:
@@ -2030,6 +2060,308 @@ def _sync_provider(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
+def _extract_copilot_session(raw: bytes) -> dict[str, object] | None:
+    """Extract the human-visible conversation from a Copilot CLI event log.
+
+    Copilot records *all* session activity in one event stream, so most events
+    are not conversation. Attribution matters more than volume here: a subagent
+    task prompt is written by the orchestrating model, not by the person, and
+    storing it as a user turn silently misattributes authorship.
+
+    Measured across a real 115-session corpus, only 24 of 729 `user.message`
+    events were human-authored; 611 carried `parentAgentTaskId` (subagent task
+    prompts) and 94 carried a `source` (generated skill/agent/command/system
+    context). Every distinct `source` value observed was generated context, so
+    the presence of the field — not a specific prefix — is the reliable signal.
+
+    Returns None when the input is not a recognized Copilot session. A
+    recognized session with no conversational turns returns an empty turn list
+    rather than None, so the caller can record it as empty instead of falling
+    back to raw event JSON.
+    """
+    text = raw.decode("utf-8", errors="replace")
+    session_id: str | None = None
+    started_at: str | None = None
+    producer: str | None = None
+    turns: list[dict[str, str]] = []
+    dropped: dict[str, int] = {
+        "user_subagent_prompt": 0,
+        "user_generated_context": 0,
+        "user_empty": 0,
+        "assistant_tool_nested": 0,
+        "assistant_subagent": 0,
+        "assistant_empty": 0,
+        "non_conversational_event": 0,
+        "unparsable_line": 0,
+    }
+
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            dropped["unparsable_line"] += 1
+            continue
+        if not isinstance(event, dict):
+            dropped["unparsable_line"] += 1
+            continue
+        kind = event.get("type", "")
+        data = event.get("data", {})
+        if not isinstance(data, dict):
+            dropped["non_conversational_event"] += 1
+            continue
+
+        if kind == "session.start":
+            candidate_id = data.get("sessionId")
+            if isinstance(candidate_id, str) and candidate_id:
+                session_id = candidate_id
+                start_time = data.get("startTime")
+                if isinstance(start_time, str) and start_time:
+                    started_at = start_time
+                produced_by = data.get("producer")
+                if isinstance(produced_by, str) and produced_by:
+                    producer = produced_by
+            continue
+
+        if session_id is None:
+            # Nothing before a recognized session.start is trusted.
+            dropped["non_conversational_event"] += 1
+            continue
+
+        if kind == "user.message":
+            if data.get("parentAgentTaskId"):
+                dropped["user_subagent_prompt"] += 1
+                continue
+            if "source" in data:
+                # Generated context: skill-, agent-, command-, or system.
+                # A human turn carries no source at all.
+                dropped["user_generated_context"] += 1
+                continue
+            role = "user"
+        elif kind == "assistant.message":
+            if data.get("parentToolCallId"):
+                dropped["assistant_tool_nested"] += 1
+                continue
+            if data.get("parentAgentTaskId"):
+                dropped["assistant_subagent"] += 1
+                continue
+            role = "assistant"
+        else:
+            dropped["non_conversational_event"] += 1
+            continue
+
+        # `content` is what the person actually wrote. `transformedContent`
+        # is post-expansion, and reasoning fields are never retained.
+        content = data.get("content")
+        if not isinstance(content, str) or not content.strip():
+            dropped[f"{role}_empty"] += 1
+            continue
+        turns.append({"role": role, "content": content.strip()})
+
+    if session_id is None:
+        return None
+    return {
+        "session_id": session_id,
+        "started_at": started_at,
+        "producer": producer,
+        "turns": turns,
+        "dropped": dropped,
+    }
+
+
+def _scan_secrets(text: str) -> list[dict[str, object]]:
+    findings: list[dict[str, object]] = []
+    for name, pattern in SECRET_PATTERNS:
+        count = len(pattern.findall(text))
+        if count:
+            findings.append({"pattern": name, "matches": count})
+    return findings
+
+
+def _redact_secrets(text: str) -> tuple[str, int]:
+    redactions = 0
+    for name, pattern in SECRET_PATTERNS:
+        text, count = pattern.subn(f"[redacted:{name}]", text)
+        redactions += count
+    return text, redactions
+
+
+def _render_turns(turns: list[dict[str, str]]) -> tuple[list[str], int]:
+    lines: list[str] = []
+    truncated = 0
+    for index, turn in enumerate(turns[:MAX_CANDIDATE_TURNS], start=1):
+        content = turn["content"]
+        if len(content) > MAX_TURN_CHARS:
+            content = content[:MAX_TURN_CHARS]
+            truncated += 1
+            content += f"\n\n[truncated at {MAX_TURN_CHARS} characters]"
+        lines.append(f"### {index}. {turn['role']}")
+        lines.append("")
+        lines.extend(content.splitlines())
+        lines.append("")
+    return lines, truncated
+
+
+def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
+    """Extract reviewable candidates from Copilot CLI sessions.
+
+    This deliberately proposes rather than captures. A transcript is not an
+    atomic memory, so authoring a `memory-v1` record from a candidate stays an
+    explicit judgment step; nothing here can enter active recall on its own.
+    """
+    root = Path(args.path).expanduser().resolve()
+    if root.is_file():
+        logs = [root]
+    elif root.is_dir():
+        logs = sorted(root.glob("*/events.jsonl")) or sorted(root.glob("events.jsonl"))
+    else:
+        raise Refusal(f"session path does not exist: {root}")
+    if not logs:
+        raise Refusal(f"no Copilot `events.jsonl` logs found under {root}")
+
+    repo = Path(args.repo).expanduser().resolve()
+    repository = _normalize_repository(_git(repo, "remote", "get-url", "origin"))
+    _assert_project_matches({"repository": repository, "scope": "project"}, config)
+    branch = _git(repo, "rev-parse", "--abbrev-ref", "HEAD")
+    head = _git(repo, "rev-parse", "HEAD")
+    _validate_branch(branch)
+
+    planned: list[dict[str, object]] = []
+    written: list[str] = []
+    blocked: list[dict[str, object]] = []
+    skipped: list[dict[str, object]] = []
+
+    for log in logs:
+        raw = log.read_bytes()
+        extracted = _extract_copilot_session(raw)
+        if extracted is None:
+            skipped.append({"source": str(log), "reason": "not-a-copilot-session"})
+            continue
+        turns = list(extracted["turns"])  # type: ignore[arg-type]
+        if not turns:
+            skipped.append({"source": str(log), "reason": "no-conversational-turns"})
+            continue
+
+        body_lines, truncated = _render_turns(turns)
+        transcript = "\n".join(body_lines)
+        findings = _scan_secrets(transcript)
+        redactions = 0
+        if findings:
+            if not args.redact:
+                blocked.append(
+                    {
+                        "source": str(log),
+                        "reason": "possible-credentials",
+                        "findings": findings,
+                    }
+                )
+                continue
+            transcript, redactions = _redact_secrets(transcript)
+
+        source_hash = hashlib.sha256(raw).hexdigest()
+        session_id = str(extracted["session_id"])
+        observed_at = extracted["started_at"] or _utc_timestamp()
+        try:
+            _validate_timestamp(str(observed_at), "observed_at")
+        except Refusal:
+            observed_at = _utc_timestamp()
+        entry: dict[str, object] = {
+            "session_id": session_id,
+            "source": str(log),
+            "source_hash": source_hash,
+            "turns": len(turns),
+            "dropped": extracted["dropped"],
+            "truncated_turns": truncated,
+            "redactions": redactions,
+        }
+        if args.dry_run:
+            planned.append(entry)
+            continue
+
+        name = f"{session_id}-{source_hash[:12]}.md"
+        destination = config.candidates_path / name
+        document = "\n".join(
+            [
+                "---",
+                f"schema: {CANDIDATE_SCHEMA}",
+                f"session_id: {session_id}",
+                "scope: project",
+                f"repository: {repository}",
+                f"branch: {branch}",
+                f"head: {head}",
+                f"producer: {extracted['producer'] or SESSION_PRODUCER}",
+                f"observed_at: {observed_at}",
+                f"extracted_at: {_utc_timestamp()}",
+                f"source: {log}",
+                f"source_hash: {source_hash}",
+                f"turns: {len(turns)}",
+                f"redactions: {redactions}",
+                "review: candidate",
+                "---",
+                "",
+                "## Provenance",
+                "",
+                f"- Extracted from `{log}` (SHA-256 `{source_hash}`).",
+                "- Only top-level human and assistant turns are retained. Subagent",
+                "  prompts, generated skill/agent/command context, tool-nested",
+                "  messages, and model reasoning are excluded by construction.",
+                "",
+                "## Dropped Events",
+                "",
+                *(
+                    f"- {reason}: {count}"
+                    for reason, count in sorted(
+                        dict(extracted["dropped"]).items()  # type: ignore[arg-type]
+                    )
+                    if count
+                ),
+                "",
+                "## Transcript",
+                "",
+                transcript,
+                "",
+                "## Review Notes",
+                "",
+                "- This is a candidate, not a memory. To retain anything here,",
+                "  author a `context-kit/memory-v1` record whose `source` is the",
+                "  session log above and whose `source_hash` matches, mark it",
+                "  `review: proposed`, then promote it with `record-state` only",
+                "  after checking the evidence.",
+                "",
+            ]
+        )
+        state = _write_once(destination, document.encode("utf-8"))
+        entry["artifact"] = str(destination)
+        entry["status"] = state
+        written.append(str(destination))
+        planned.append(entry)
+
+    print(
+        json.dumps(
+            {
+                "status": "dry-run" if args.dry_run else "extracted",
+                "project": config.project_slug,
+                "repository": repository,
+                "branch": branch,
+                "head": head,
+                "logs_examined": len(logs),
+                "candidates": planned,
+                "written": written,
+                "blocked": blocked,
+                "skipped": skipped,
+                "note": (
+                    "candidates are proposals for review; nothing here enters "
+                    "active recall until an explicit memory-v1 record is "
+                    "captured and accepted"
+                ),
+            }
+        )
+    )
+    return 0
+
+
 def _run_hook(event: str, config: Config, payload: bytes) -> int:
     if not config.auto_capture:
         print("{}")
@@ -2132,6 +2464,27 @@ def _parser() -> argparse.ArgumentParser:
     )
     _add_config_args(sync)
 
+    propose = sub.add_parser("propose-from-session")
+    propose.add_argument("path", help="A Copilot session directory or events.jsonl.")
+    propose.add_argument(
+        "--repo",
+        default=".",
+        help="Repository supplying the project, branch, and HEAD anchors.",
+    )
+    propose.add_argument(
+        "--write",
+        dest="dry_run",
+        action="store_false",
+        help="Write candidate artifacts. Without this the run is a dry run.",
+    )
+    propose.add_argument(
+        "--redact",
+        action="store_true",
+        help="Mask detected credential-shaped spans instead of refusing.",
+    )
+    propose.set_defaults(dry_run=True)
+    _add_config_args(propose)
+
     hook = sub.add_parser("hook")
     hook.add_argument("event", choices=("stop", "precompact", "session-end"))
     _add_config_args(hook)
@@ -2165,6 +2518,8 @@ def main(argv: list[str] | None = None) -> int:
             return _record_state(args, config)
         if args.command == "sync-provider":
             return _sync_provider(args, config)
+        if args.command == "propose-from-session":
+            return _propose_from_session(args, config)
         if args.command == "hook":
             payload = sys.stdin.buffer.read()
             return _run_hook(args.event, config, payload)

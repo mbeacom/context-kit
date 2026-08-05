@@ -100,6 +100,27 @@ explicit sync after eligible captures or state changes before provider-backed
 recall. Reconciliation preserves the immediately previous store before replacement and
 removes older generated backups after the success receipt is durable.
 
+## Mine past Copilot sessions
+
+`propose-from-session` extracts the human-visible conversation from GitHub
+Copilot CLI logs into reviewable candidates. It proposes; it never captures:
+
+```bash
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
+  propose-from-session ~/.copilot/session-state           # dry run, writes nothing
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
+  propose-from-session ~/.copilot/session-state --write
+```
+
+Only top-level human and assistant turns are retained. Subagent task prompts,
+generated skill/agent/command context, tool-nested messages, and model reasoning
+are excluded by construction — across a real 115-session corpus only 24 of 729
+`user.message` events were actually human-authored. Detected credentials block
+the write unless `--redact` is passed. A transcript is not an atomic memory, so
+authoring a `memory-v1` record from a candidate stays an explicit judgment step.
+
+See [`references/session-mining.md`](skills/memory-workflows/references/session-mining.md).
+
 ## Opt-in lifecycle queue
 
 Claude hooks are inert until enabled:

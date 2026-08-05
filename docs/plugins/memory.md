@@ -141,6 +141,32 @@ archives a current handoff, captures an accepted local record from that preserve
 source, recalls its labels, and then proves newer repository state takes
 precedence. No MemPalace process or network is involved.
 
+## Mine past Copilot sessions
+
+`propose-from-session` extracts the human-visible conversation from GitHub
+Copilot CLI logs (`~/.copilot/session-state/<id>/events.jsonl`) into reviewable
+`context-kit/memory-candidate-v1` candidates:
+
+```bash
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
+  propose-from-session ~/.copilot/session-state            # dry run
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
+  propose-from-session ~/.copilot/session-state --write
+```
+
+Attribution is the hard part. Copilot logs all activity in one stream, and a
+subagent task prompt is written by the orchestrating model, not the person.
+Across a real 115-session corpus, 611 of 729 `user.message` events carried
+`parentAgentTaskId` and 94 carried a generated `source`, leaving **24** genuine
+human turns. Extraction keeps a user turn only when it has neither; assistant
+turns require neither `parentToolCallId` nor `parentAgentTaskId`. Reasoning
+fields are never extracted.
+
+Mining proposes and never captures — a transcript is not an atomic memory, so
+authoring a record from a candidate is an explicit judgment step. Dry run is the
+default, credential findings block the write unless `--redact` is passed, and
+repository/branch/HEAD anchors are required rather than invented.
+
 ## Opt-in automatic capture
 
 Claude lifecycle hooks ship **disabled**. Enable only after provider setup,
@@ -176,6 +202,7 @@ capture unless the user separately configures a native MemPalace integration.
 - no automatic capture unless explicitly enabled;
 - no global project-memory fallback;
 - no destructive consolidation;
-- no transcript harvesting by the context-kit adapter;
+- no transcript harvesting by the context-kit adapter — session mining
+  proposes reviewable candidates and never creates memory records;
 - no claim of current truth without source/freshness checks;
 - no duplicate repository corpus indexing by default.
