@@ -2,12 +2,30 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "corpus-review",
   "displayName": "Corpus Review",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Exhaustive review of a corpus too large to read in one context. Inventory units, shard them under a bounded budget, dispatch resumable workers that cite original locations, then aggregate findings into a coverage ledger that separates a real gap from an undecidable one.",
-  "author": { "name": "Mark Beacom" },
+  "author": {
+    "name": "Mark Beacom"
+  },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",
   "license": "MIT",
-  "keywords": ["corpus", "review", "coverage", "exhaustive", "sharding", "audit", "dispatch", "findings", "gaps", "provenance", "claude-code", "copilot"],
-  "dependencies": ["plan-execute", "verify"]
+  "keywords": [
+    "corpus",
+    "review",
+    "coverage",
+    "exhaustive",
+    "sharding",
+    "audit",
+    "dispatch",
+    "findings",
+    "gaps",
+    "provenance",
+    "claude-code",
+    "copilot"
+  ],
+  "dependencies": [
+    "plan-execute",
+    "verify"
+  ]
 }

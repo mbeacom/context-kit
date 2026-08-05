@@ -9,7 +9,7 @@
 # without it, so no hard apm dependency is declared. Set the vault path via
 # CONTEXT_KIT_OBSIDIAN_VAULT (apm has no Claude userConfig). See docs/APM.md.
 name: obsidian
-version: 0.1.7
+version: 0.1.8
 description: Skill-only RAG bridge — turn an Obsidian vault's graph and tags into a candidate set fed to local-rag.
 author: Mark Beacom
 license: MIT

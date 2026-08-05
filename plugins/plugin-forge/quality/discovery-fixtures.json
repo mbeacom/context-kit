@@ -4,7 +4,8 @@
     "plugins/code-search/skills/code-search/SKILL.md": {
       "positive": [
         "Find every reference to the parseConfig symbol and show its callers.",
-        "Search the source tree for an AST pattern and explain when it changed."
+        "Search the source tree for an AST pattern and explain when it changed.",
+        "Report code size and complexity metrics by language across this repository."
       ],
       "negative": [
         "Search a PDF archive for source attribution and revenue tables.",
@@ -221,6 +222,26 @@
       "negative": [
         "Generate a new implementation plan from these requirements.",
         "Find where this feature lives using multiple search modalities."
+      ]
+    },
+    "plugins/token-economics/skills/token-accounting/SKILL.md": {
+      "positive": [
+        "How many tokens and how much cost did my agent sessions actually use this month?",
+        "Report cache efficiency and usage across my Claude Code and Copilot session records."
+      ],
+      "negative": [
+        "Measure whether switching to this wrapper reduces tokens for our searches.",
+        "Search the codebase for every call site of the usage reporting helper."
+      ]
+    },
+    "plugins/token-economics/skills/tool-savings-benchmark/SKILL.md": {
+      "positive": [
+        "Prove whether this output wrapper really reduces tokens before we adopt it.",
+        "Benchmark the savings percentage this compaction tool claims on our repository."
+      ],
+      "negative": [
+        "Summarize the tokens my sessions already recorded, without testing any tool.",
+        "Find which files changed in the last release and why."
       ]
     }
   }

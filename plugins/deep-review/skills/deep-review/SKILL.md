@@ -1,6 +1,6 @@
 ---
 name: deep-review
-description: "Use when a change, design, plan, or document needs evaluative judgment rather than fact-checking — adversarial, architectural, consumer, and operator critique returning typed findings, merged corroboration, and preserved tradeoffs."
+description: "Use when a change, design, plan, or document needs evaluative judgment rather than fact-checking — adversarial, architect, consumer, and operator critique with typed findings and preserved tradeoffs."
 license: MIT
 compatibility: "The bundled adjudication script requires Python 3 and uses only the standard library. Routing `defect` findings to adjudication requires the `verify` plugin; per-lens fan-out is cheapest with `plan-execute`."
 metadata:

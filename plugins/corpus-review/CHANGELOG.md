@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.2 — 2026-08-04
+
+- Shorten the `corpus-review` skill trigger to free aggregate discovery budget for the new
+  `token-economics` components. Scope and routing are unchanged; the removed
+  text was enumeration detail already covered in the skill body, and the
+  catalog budget stays at 4096 characters rather than being raised.
+
 ## 0.1.1 — 2026-07-27
 
 - Fix `/review-corpus` failing to load. Its `argument-hint: [corpus-root]`

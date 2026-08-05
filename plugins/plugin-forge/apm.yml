@@ -6,7 +6,7 @@
 # Keep name/version in sync with .claude-plugin/plugin.json; keep description as the
 # concise APM/CLI-listing variant of the plugin.json description.
 name: plugin-forge
-version: 0.7.1
+version: 0.7.2
 description: Portable plugin authoring, scaffolding, manifest checks, and deterministic discovery, retrieval-contract, and release-readiness gates.
 author: Mark Beacom
 license: MIT

@@ -1,6 +1,6 @@
 ---
 name: authoring-portable-plugins
-description: "Use when creating or editing a plugin for a multi-host GitHub Copilot / APM / Claude Code marketplace — required manifests, the plugin.json ⇆ apm.yml mirroring rule, component layout, and the catalog entry."
+description: "Use when creating or editing a plugin for a multi-host GitHub Copilot / APM / Claude Code marketplace — manifests, the plugin.json ⇆ apm.yml mirroring rule, component layout, and catalog entry."
 license: MIT
 metadata:
   author: Mark Beacom

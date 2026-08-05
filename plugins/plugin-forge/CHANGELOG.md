@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.2 — 2026-08-04
+
+- Register discovery fixtures for the `token-accounting` and
+  `tool-savings-benchmark` skills, including near-miss negatives that separate
+  reporting already-spent tokens from measuring whether a tool reduces them.
+- The aggregate budget stays at 4096 characters. Fitting a fourteenth plugin
+  meant shortening ten existing descriptions instead, which is the pressure the
+  fixed budget is meant to apply: triggers and scope are unchanged, and the text
+  removed was enumeration detail that belongs in the skill body.
+
 ## 0.7.1 — 2026-08-03
 
 - Shorten the discovery description(s) to free aggregate budget for the new
