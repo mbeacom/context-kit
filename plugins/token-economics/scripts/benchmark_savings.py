@@ -32,7 +32,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Pattern
 
 SCHEMA = "context-kit/token-savings-v1"
 
@@ -130,7 +130,12 @@ def execute(command: str, use_shell: bool, timeout: float) -> Run:
                 timeout=timeout,
             )
         else:
-            argv = shlex.split(command)
+            try:
+                argv = shlex.split(command)
+            except ValueError as exc:
+                # An unbalanced quote is a setup mistake, not a failed
+                # comparison, so it must not reach the verdict exit codes.
+                raise BenchmarkError(f"cannot parse command {command!r}: {exc}") from exc
             if not argv:
                 raise BenchmarkError(f"empty command: {command!r}")
             completed = subprocess.run(
@@ -142,21 +147,22 @@ def execute(command: str, use_shell: bool, timeout: float) -> Run:
             )
     except subprocess.TimeoutExpired as exc:
         raise BenchmarkError(f"command timed out after {timeout}s: {command}") from exc
-    except FileNotFoundError as exc:
-        raise BenchmarkError(
-            f"command not found: {command} ({exc}). Install it or drop this arm."
-        ) from exc
+    except OSError as exc:
+        # Covers a missing binary, a directory, and a non-executable file.
+        raise BenchmarkError(f"cannot run {command!r}: {exc}") from exc
     duration = time.monotonic() - started
     # An agent pays for stderr too, so both streams count toward the total.
     return Run(completed.returncode, (completed.stdout or "") + (completed.stderr or ""), duration)
 
 
-def check_assertion(text: str, must_contain: list[str], must_match: list[str]) -> bool:
+def check_assertion(
+    text: str, must_contain: list[str], must_match: list[Pattern[str]]
+) -> bool:
     for needle in must_contain:
         if needle not in text:
             return False
     for pattern in must_match:
-        if not re.search(pattern, text):
+        if not pattern.search(text):
             return False
     return True
 
@@ -170,7 +176,7 @@ def measure(
     timeout: float,
     encoder: Any | None,
     must_contain: list[str],
-    must_match: list[str],
+    must_match: list[Pattern[str]],
 ) -> Arm:
     arm = Arm(label=label, command=command)
     for _ in range(runs):
@@ -196,9 +202,16 @@ def build_result(
 ) -> dict[str, Any]:
     saved_tokens = baseline.tokens - candidate.tokens
     saved_bytes = baseline.bytes_len - candidate.bytes_len
-    pct = (saved_tokens / baseline.tokens * 100.0) if baseline.tokens else 0.0
+    # A zero-token baseline has no denominator. Reporting 0.0% would state "no
+    # change" for what may be a total regression, so leave the ratio undefined.
+    pct = (saved_tokens / baseline.tokens * 100.0) if baseline.tokens else None
 
     problems: list[str] = []
+    if pct is None:
+        problems.append(
+            "the baseline produced no output, so there is no denominator and no "
+            "percentage can be computed; choose a baseline that does the work"
+        )
     if not assertion_declared:
         problems.append(
             "no preserved-answer assertion was declared, so a smaller output "
@@ -245,7 +258,7 @@ def build_result(
         "attribution": "controlled",
         "saved_tokens": saved_tokens,
         "saved_bytes": saved_bytes,
-        "saved_pct": round(pct, 2),
+        "saved_pct": round(pct, 2) if pct is not None else None,
         "materiality_threshold_pct": MATERIALITY_THRESHOLD_PCT,
         "baseline": baseline.as_dict(),
         "candidate": candidate.as_dict(),
@@ -257,6 +270,9 @@ def build_result(
 def render_text(result: dict[str, Any]) -> str:
     base = result["baseline"]
     cand = result["candidate"]
+    pct = result["saved_pct"]
+    delta = f"{result['saved_tokens']:,} tokens"
+    delta += f" ({pct:+.2f}%)" if pct is not None else " (percentage undefined)"
     lines = [
         f"verdict: {result['verdict'].upper()}",
         f"counting: {result['counting']} | attribution: {result['attribution']}",
@@ -268,7 +284,7 @@ def render_text(result: dict[str, Any]) -> str:
         f"           {cand['tokens']:,} tokens / {cand['bytes']:,} bytes "
         f"/ {cand['median_duration_s']}s",
         "",
-        f"delta      {result['saved_tokens']:,} tokens ({result['saved_pct']:+.2f}%)",
+        f"delta      {delta}",
     ]
     if result["verdict"] == "inconclusive":
         lines.append(
@@ -335,7 +351,29 @@ def main(argv: list[str] | None = None) -> int:
         print("error: --runs must be at least 1", file=sys.stderr)
         return 2
 
-    assertion_declared = bool(args.must_contain or args.must_match)
+    # An empty needle matches everything, so it would satisfy the gate without
+    # asserting anything. Drop empties, then judge what is actually left.
+    raw_contain = list(args.must_contain)
+    raw_match = list(args.must_match)
+    must_contain = [s for s in raw_contain if s]
+    match_sources = [s for s in raw_match if s]
+    if (raw_contain or raw_match) and not (must_contain or match_sources):
+        print(
+            "error: every assertion was empty, and an empty assertion matches any "
+            "output; give a substring or pattern the answer must still contain",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        must_match = [re.compile(pattern) for pattern in match_sources]
+    except re.error as exc:
+        # Compile before running either arm: an unusable pattern is a setup
+        # error, and reporting it as `unverified` would misuse that verdict.
+        print(f"error: invalid --must-match pattern: {exc}", file=sys.stderr)
+        return 2
+
+    assertion_declared = bool(must_contain or must_match)
     if not assertion_declared and not args.no_assertion:
         print(
             "error: declare --must-contain/--must-match so a smaller output can be "
@@ -360,8 +398,8 @@ def main(argv: list[str] | None = None) -> int:
             use_shell=args.shell,
             timeout=args.timeout,
             encoder=encoder,
-            must_contain=args.must_contain,
-            must_match=args.must_match,
+            must_contain=must_contain,
+            must_match=must_match,
         )
         candidate = measure(
             "candidate",
@@ -370,8 +408,8 @@ def main(argv: list[str] | None = None) -> int:
             use_shell=args.shell,
             timeout=args.timeout,
             encoder=encoder,
-            must_contain=args.must_contain,
-            must_match=args.must_match,
+            must_contain=must_contain,
+            must_match=must_match,
         )
     except BenchmarkError as exc:
         print(f"error: {exc}", file=sys.stderr)

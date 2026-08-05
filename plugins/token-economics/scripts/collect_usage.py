@@ -29,6 +29,7 @@ import json
 import os
 import sqlite3
 import sys
+import urllib.parse
 from collections import defaultdict
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -199,9 +200,18 @@ def collect_claude(root: Path | None = None) -> Report:
 
     seen: set[tuple[str, str]] = set()
     unkeyed = 0
+    unreadable: list[str] = []
     for path in sorted(projects.rglob("*.jsonl")):
+        try:
+            records = list(iter_jsonl_usage(path))
+        except OSError as exc:
+            # Transcripts are written live and may be rotated, deleted, or owned
+            # by another user. One unreadable file must not discard every record
+            # already collected, but it must be disclosed rather than ignored.
+            unreadable.append(f"{path.name} ({exc.strerror or exc})")
+            continue
         report.files_read += 1
-        for model, usage, request_id, message_id in iter_jsonl_usage(path):
+        for model, usage, request_id, message_id in records:
             # A response is uniquely identified by its request and message id.
             # Both are needed: one request can stream more than one message, and
             # the same message is replayed into subagent transcripts.
@@ -225,6 +235,14 @@ def collect_claude(root: Path | None = None) -> Report:
             )
             report.record(model, totals)
 
+    if unreadable:
+        shown = ", ".join(unreadable[:5])
+        if len(unreadable) > 5:
+            shown += f", and {len(unreadable) - 5} more"
+        report.notes.append(
+            f"{len(unreadable)} transcript(s) could not be read and are missing from "
+            f"these totals: {shown}"
+        )
     if unkeyed:
         report.notes.append(
             f"{unkeyed} record(s) lacked requestId and message.id and could not be "
@@ -279,8 +297,10 @@ def collect_copilot(db: Path | None = None) -> Report:
         )
         return report
 
-    # Read-only URI keeps a live CLI session's database untouched.
-    uri = f"file:{path}?mode=ro"
+    # Percent-encode the path before building the URI: `#` and `?` are legal in
+    # POSIX filenames, and an unescaped one truncates the query string, silently
+    # dropping mode=ro and reopening read-write-create.
+    uri = f"file:{urllib.parse.quote(str(path))}?mode=ro"
     try:
         conn = sqlite3.connect(uri, uri=True)
     except sqlite3.Error as exc:  # pragma: no cover - environment dependent
@@ -290,36 +310,40 @@ def collect_copilot(db: Path | None = None) -> Report:
     try:
         conn.row_factory = sqlite3.Row
         try:
+            # sqlite3 fetches lazily, so a corrupt page or a lock surfaces during
+            # iteration rather than at execute(). Both must land here, otherwise
+            # a damaged store escapes as a traceback and exits 1 — the code that
+            # means "no records found".
             rows = conn.execute(
                 "SELECT model, input_tokens, output_tokens, cache_read_tokens, "
                 "cache_write_tokens, reasoning_tokens, total_nano_aiu, "
                 "token_details_json FROM assistant_usage_events"
             )
+            report.files_read = 1
+            for row in rows:
+                cache_read = _int(row["cache_read_tokens"])
+                cache_write = _int(row["cache_write_tokens"])
+                uncached, exact = _copilot_uncached_input(
+                    _int(row["input_tokens"]),
+                    cache_read,
+                    cache_write,
+                    row["token_details_json"],
+                )
+                if not exact:
+                    derived_rows += 1
+                totals = Totals(
+                    requests=1,
+                    input_uncached=uncached,
+                    cache_read=cache_read,
+                    cache_write=cache_write,
+                    output=_int(row["output_tokens"]),
+                    reasoning=_int(row["reasoning_tokens"]),
+                    cost_nano_aiu=_int(row["total_nano_aiu"]),
+                    cost_recorded=True,
+                )
+                report.record(str(row["model"] or "unknown"), totals)
         except sqlite3.Error as exc:
-            raise CollectError(
-                f"{path} has no readable assistant_usage_events table: {exc}"
-            ) from exc
-        report.files_read = 1
-        for row in rows:
-            cache_read = _int(row["cache_read_tokens"])
-            cache_write = _int(row["cache_write_tokens"])
-            uncached, exact = _copilot_uncached_input(
-                _int(row["input_tokens"]), cache_read, cache_write, row["token_details_json"]
-            )
-            if not exact:
-                derived_rows += 1
-            cost = _int(row["total_nano_aiu"])
-            totals = Totals(
-                requests=1,
-                input_uncached=uncached,
-                cache_read=cache_read,
-                cache_write=cache_write,
-                output=_int(row["output_tokens"]),
-                reasoning=_int(row["reasoning_tokens"]),
-                cost_nano_aiu=cost,
-                cost_recorded=True,
-            )
-            report.record(str(row["model"] or "unknown"), totals)
+            raise CollectError(f"cannot read usage rows from {path}: {exc}") from exc
     finally:
         conn.close()
 

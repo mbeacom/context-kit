@@ -3,7 +3,9 @@
 
 from __future__ import annotations
 
+import re
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -135,14 +137,28 @@ class VerdictTest(unittest.TestCase):
         )
         self.assertEqual(result["attribution"], "controlled")
 
-    def test_zero_token_baseline_does_not_divide_by_zero(self) -> None:
+    def test_zero_token_baseline_has_no_percentage_and_is_unverified(self) -> None:
+        # A silent 0.0% here would report a total regression as "no change".
+        result = bs.build_result(
+            arm("baseline", tokens=0),
+            arm("candidate", tokens=5000),
+            assertion_declared=True,
+            notes=[],
+        )
+        self.assertIsNone(result["saved_pct"])
+        self.assertEqual(result["verdict"], "unverified")
+        self.assertEqual(result["saved_tokens"], -5000)
+        self.assertTrue(any("no denominator" in p for p in result["problems"]))
+
+    def test_zero_token_baseline_is_unverified_even_when_both_are_empty(self) -> None:
         result = bs.build_result(
             arm("baseline", tokens=0),
             arm("candidate", tokens=0),
             assertion_declared=True,
             notes=[],
         )
-        self.assertEqual(result["saved_pct"], 0.0)
+        self.assertIsNone(result["saved_pct"])
+        self.assertEqual(result["verdict"], "unverified")
 
 
 class AssertionCheckTest(unittest.TestCase):
@@ -151,8 +167,9 @@ class AssertionCheckTest(unittest.TestCase):
         self.assertFalse(bs.check_assertion("alpha", ["alpha", "beta"], []))
 
     def test_regex_assertions_are_applied(self) -> None:
-        self.assertTrue(bs.check_assertion("found 12 errors", [], [r"\d+ errors"]))
-        self.assertFalse(bs.check_assertion("all clear", [], [r"\d+ errors"]))
+        pattern = [re.compile(r"\d+ errors")]
+        self.assertTrue(bs.check_assertion("found 12 errors", [], pattern))
+        self.assertFalse(bs.check_assertion("all clear", [], pattern))
 
 
 class TokenCountTest(unittest.TestCase):
@@ -221,6 +238,56 @@ class CliTest(unittest.TestCase):
             ["--baseline", "true", "--candidate", "true", "--no-assertion", "--runs", "1"]
         )
         self.assertEqual(code, 1)
+
+    def test_empty_assertion_cannot_satisfy_the_gate(self) -> None:
+        # "" is in every string, so this would bless any reduction.
+        code = bs.main(
+            [
+                "--baseline",
+                f"{sys.executable} -c \"print('x'*4000)\"",
+                "--candidate",
+                f"{sys.executable} -c \"print('x'*10)\"",
+                "--must-contain",
+                "",
+                "--runs",
+                "1",
+            ]
+        )
+        self.assertEqual(code, 2)
+
+    def test_invalid_regex_is_a_setup_error_not_an_unverified_verdict(self) -> None:
+        code = bs.main(
+            ["--baseline", "true", "--candidate", "true", "--must-match", "(", "--runs", "1"]
+        )
+        self.assertEqual(code, 2)
+
+    def test_unparseable_command_is_a_setup_error(self) -> None:
+        code = bs.main(
+            [
+                "--baseline",
+                'echo "unterminated',
+                "--candidate",
+                "true",
+                "--no-assertion",
+                "--runs",
+                "1",
+            ]
+        )
+        self.assertEqual(code, 2)
+
+    def test_non_executable_target_is_a_setup_error(self) -> None:
+        code = bs.main(
+            [
+                "--baseline",
+                tempfile.gettempdir(),
+                "--candidate",
+                "true",
+                "--no-assertion",
+                "--runs",
+                "1",
+            ]
+        )
+        self.assertEqual(code, 2)
 
     def test_invalid_run_count_is_rejected(self) -> None:
         code = bs.main(

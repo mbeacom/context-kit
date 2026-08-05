@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import sys
 import tempfile
@@ -265,6 +266,56 @@ class CopilotCollectionTest(unittest.TestCase):
         report = collect_usage.collect_copilot(self.db)
         # Output must not dilute the ratio; it is not input-side traffic.
         self.assertAlmostEqual(report.totals.as_dict()["cache_hit_ratio"], 0.9)
+
+
+class ResilienceTest(unittest.TestCase):
+    """Failure modes must not be reported as an absence of usage."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_unreadable_transcript_does_not_discard_the_rest(self) -> None:
+        write_jsonl(
+            self.root / "proj" / "good.jsonl",
+            [assistant(request_id="r1", message_id="m1", out=5)],
+        )
+        locked = self.root / "proj" / "locked.jsonl"
+        locked.write_text("{}\n", encoding="utf-8")
+        locked.chmod(0o000)
+        self.addCleanup(locked.chmod, 0o600)
+        if os.access(locked, os.R_OK):  # pragma: no cover - running as root
+            self.skipTest("cannot make a file unreadable as this user")
+
+        report = collect_usage.collect_claude(self.root)
+        self.assertEqual(report.totals.output, 5)
+        self.assertTrue(any("could not be read" in n for n in report.notes))
+
+    def test_corrupt_database_raises_rather_than_reporting_no_usage(self) -> None:
+        db = self.root / "session-store.db"
+        build_copilot_db(db, [{"input_tokens": 10, "output_tokens": 1}] * 200)
+        # Damage a data page past the header so the failure surfaces while rows
+        # are being fetched, not when the statement is prepared.
+        raw = bytearray(db.read_bytes())
+        for i in range(2048, min(len(raw), 6144)):
+            raw[i] ^= 0xFF
+        db.write_bytes(bytes(raw))
+
+        with self.assertRaises(collect_usage.CollectError):
+            collect_usage.collect_copilot(db)
+
+    def test_path_containing_a_fragment_character_stays_read_only(self) -> None:
+        # An unescaped `#` truncates the URI, dropping mode=ro and creating a
+        # new file — which would break the read-only guarantee outright.
+        db = self.root / "store#1.db"
+        build_copilot_db(db, [{"input_tokens": 10, "output_tokens": 2}])
+        before = set(p.name for p in self.root.iterdir())
+
+        report = collect_usage.collect_copilot(db)
+
+        self.assertEqual(report.totals.requests, 1)
+        self.assertEqual(set(p.name for p in self.root.iterdir()), before)
 
 
 class GradeTest(unittest.TestCase):
