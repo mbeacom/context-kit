@@ -446,6 +446,54 @@ class ProposeFromSessionTests(unittest.TestCase):
         self.assertIn("detached HEAD", stderr)
         self.assertIn("named branch", stderr)
 
+    def test_a_traversing_session_id_is_refused(self) -> None:
+        # `session_id` comes from the log and names the candidate file, so an
+        # id like this would escape the project-isolated directory.
+        for hostile in ("../../outside", "..", "a/b", "with space"):
+            with self.subTest(session_id=hostile):
+                self.write_log(
+                    [
+                        session_start(hostile),
+                        event("user.message", content="hello"),
+                    ]
+                )
+                _, stdout, _ = self.invoke(
+                    [
+                        "propose-from-session",
+                        str(self.log),
+                        "--write",
+                        *self.base_args(),
+                    ]
+                )
+                payload = json.loads(stdout)
+                self.assertEqual("unsafe-session-id", payload["skipped"][0]["reason"])
+                self.assertEqual([], payload["written"])
+                self.assertEqual([], self.candidates())
+        # Nothing escaped the memory home either.
+        self.assertFalse((self.root / "outside").exists())
+
+    def test_omitted_turns_are_disclosed_not_silently_dropped(self) -> None:
+        limit = memory_provider.MAX_CANDIDATE_TURNS
+        extra = 5
+        events: list[dict[str, object]] = [session_start()]
+        for index in range(limit + extra):
+            events.append(event("user.message", content=f"human turn {index}"))
+        self.write_log(events)
+
+        _, stdout, _ = self.invoke(
+            ["propose-from-session", str(self.log), "--write", *self.base_args()]
+        )
+        payload = json.loads(stdout)
+        entry = payload["candidates"][0]
+        self.assertEqual(limit + extra, entry["turns"])
+        self.assertEqual(limit, entry["turns_written"])
+        self.assertEqual(extra, entry["omitted_turns"])
+
+        document = self.candidates()[0].read_text(encoding="utf-8")
+        # A reviewer must not mistake a sliced transcript for a whole session.
+        self.assertIn(f"omitted_turns: {extra}", document)
+        self.assertIn(f"{extra} further turn(s) omitted", document)
+
     def test_project_mismatch_is_refused(self) -> None:
         result, _, stderr = self.invoke(
             [

@@ -112,14 +112,18 @@ def _log(message: str) -> None:
 
 
 def _project_scope() -> str:
-    project = os.environ.get("CONTEXT_KIT_MEMORY_PROJECT", "").strip()
-    if not project:
-        raise ToolError(
-            "no memory project is configured; set CONTEXT_KIT_MEMORY_PROJECT to "
-            "an explicit owner/repository. Memory is never read from or written "
-            "to an inferred global store."
-        )
-    return project
+    for name in ("CONTEXT_KIT_MEMORY_PROJECT", "CLAUDE_PLUGIN_OPTION_PROJECT"):
+        # Portable first, then the Claude userConfig fallback the CLI accepts.
+        # Checking only the portable name would make every tool refuse on a
+        # normal Claude install configured through the plugin's option.
+        project = os.environ.get(name, "").strip()
+        if project:
+            return project
+    raise ToolError(
+        "no memory project is configured; set CONTEXT_KIT_MEMORY_PROJECT to "
+        "an explicit owner/repository. Memory is never read from or written "
+        "to an inferred global store."
+    )
 
 
 def _run_provider(argv: list[str]) -> str:
@@ -192,6 +196,17 @@ def _tool_memory_capture(arguments: dict[str, Any]) -> str:
             f"review: {review}. Set `review: proposed` and promote it later "
             "with `memory-provider.py record-state <id> --review accepted "
             "--reason ...` after the evidence has been checked."
+        )
+    # `validate_memory` verifies `source_hash` only when the source exists, so
+    # without this an agent could cite a nonexistent path plus any 64-character
+    # hash and have the proposal persisted with unverifiable provenance.
+    source = _frontmatter_value(record, "source")
+    if not source:
+        raise ToolError("record is missing a `source` field citing its evidence")
+    if not Path(source).expanduser().exists():
+        raise ToolError(
+            f"the cited source does not exist: {source}. A memory must point at "
+            "evidence that can be re-read and hashed."
         )
     handle, temporary = tempfile.mkstemp(prefix="memory-capture-", suffix=".md")
     path = Path(temporary)

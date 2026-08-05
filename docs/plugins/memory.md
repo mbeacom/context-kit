@@ -76,8 +76,9 @@ Records default to `~/.local/share/context-kit/memory`; override
 ## Semantic recall with the first-party `rag` provider
 
 Local recall is lexical. The bundled `rag` provider adds **offline semantic
-recall** using `local-rag`, which `memory` hard-depends on, so no external tool
-is needed:
+recall** using `local-rag`, which `memory` hard-depends on, so no external
+*memory provider* is needed. Embeddings still come from a locally running
+Ollama, and `uv` bootstraps the venv once:
 
 ```bash
 bash plugins/local-rag/scripts/bootstrap.sh   # Claude runs this on SessionStart

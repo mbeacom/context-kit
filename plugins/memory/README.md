@@ -55,7 +55,8 @@ Use `search --include-inactive` for a local audit of inactive history.
 
 Local recall is lexical. For meaning-based recall, use the first-party `rag`
 provider — this repository's `local-rag` plugin, installed automatically as a
-dependency, so **no external tool is required**:
+dependency, so **no external memory provider is required**. It still needs a
+running Ollama for embeddings (and `uv` once, to bootstrap the venv):
 
 ```bash
 bash plugins/local-rag/scripts/bootstrap.sh   # Claude runs this on SessionStart

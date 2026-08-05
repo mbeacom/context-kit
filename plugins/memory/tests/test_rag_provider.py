@@ -443,6 +443,77 @@ class RagProviderTests(unittest.TestCase):
         self.assertIn("not reconciled", stderr)
         self.assertNotIn("degraded_from", stderr)
 
+    def test_hits_are_deduplicated_back_to_records(self) -> None:
+        # rag indexes each markdown section separately, so one record produces
+        # several chunk hits. Without deduplication a single verbose memory
+        # would consume the caller's whole result budget.
+        executable = self.fake_rag(
+            query_result=[
+                {"path": "retry-policy.md", "heading": "Primary Memory", "score": 9.0},
+                {"path": "retry-policy.md", "heading": "Cue Anchors", "score": 8.0},
+                {"path": "retry-policy.md", "heading": "Evidence", "score": 7.0},
+            ]
+        )
+        self.capture_and_sync(executable)
+        with patch.dict(os.environ, self.env(executable), clear=True):
+            result, stdout, stderr = self.invoke(
+                ["search", "retry", "--provider", "rag", *self.base_args()]
+            )
+        self.assertEqual(0, result, stderr)
+        payload = json.loads(stdout)
+        self.assertEqual(["retry-policy"], [r["id"] for r in payload["records"]])
+        record = payload["records"][0]
+        # The strongest chunk wins and the rest are counted, not hidden.
+        self.assertEqual(9.0, record["score"])
+        self.assertEqual(3, record["matched_chunks"])
+
+    def test_search_over_fetches_chunks_to_fill_the_record_budget(self) -> None:
+        executable = self.fake_rag()
+        self.capture_and_sync(executable)
+        with patch.dict(os.environ, self.env(executable), clear=True):
+            self.invoke(
+                [
+                    "search",
+                    "retry",
+                    "--results",
+                    "5",
+                    "--provider",
+                    "rag",
+                    *self.base_args(),
+                ]
+            )
+        query = [c for c in self.recorded_calls() if c["argv"][:1] == ["query"]][-1]
+        requested = int(query["argv"][query["argv"].index("--k") + 1])
+        # Asking rag for exactly 5 chunks could return one record five times.
+        self.assertGreater(requested, 5)
+
+    def test_capture_reports_reconciliation_for_any_provider(self) -> None:
+        # An accepted capture is pending until sync, so reporting
+        # "not-required" for rag while also writing a pending-sync receipt
+        # would contradict the refusal search actually gives.
+        executable = self.fake_rag()
+        with patch.dict(os.environ, self.env(executable), clear=True):
+            _, stdout, _ = self.invoke(
+                ["capture", str(self.record), "--provider", "rag", *self.base_args()]
+            )
+        payload = json.loads(stdout)
+        self.assertIn("required", payload["provider_reconciliation"])
+        self.assertIn("sync-provider --apply", payload["provider_reconciliation"])
+
+    def test_venv_home_ignores_the_plugin_scoped_claude_variable(self) -> None:
+        # Inside the memory plugin CLAUDE_PLUGIN_DATA points at *memory's*
+        # data dir, not the sibling local-rag dir where its hook built the
+        # venv, so inheriting it would resolve the wrong runtime.
+        with patch.dict(
+            os.environ, {"CLAUDE_PLUGIN_DATA": "/tmp/memory-plugin-data"}, clear=True
+        ):
+            resolved = memory_provider._local_rag_home()
+        self.assertNotIn("memory-plugin-data", str(resolved))
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_LOCAL_RAG_HOME": "/tmp/explicit"}, clear=True
+        ):
+            self.assertEqual("/tmp/explicit", str(memory_provider._local_rag_home()))
+
     def test_wake_reports_not_applicable_without_invoking_rag(self) -> None:
         executable = self.fake_rag()
         self.capture_and_sync(executable)

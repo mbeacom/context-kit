@@ -291,6 +291,52 @@ class McpProtocolTests(unittest.TestCase):
         self.assertEqual(["retry"], [r["id"] for r in payload["records"]])
         self.assertTrue(responses[2]["result"]["isError"])
 
+    def test_capture_refuses_a_source_that_does_not_exist(self) -> None:
+        # validate_memory verifies source_hash only when the source exists, so
+        # without this gate any 64-character hash would be accepted alongside
+        # a fabricated path and the advertised provenance check would be a lie.
+        absent = self.root / "never-written.txt"
+        forged = self.record("retry", "proposed").replace(
+            f"source: {self.source}", f"source: {absent}"
+        )
+        responses = self.converse([self.call(1, "memory_capture", {"record": forged})])
+        self.assertTrue(responses[0]["result"]["isError"])
+        self.assertIn("does not exist", self.text(responses[0]))
+
+    def test_capture_refuses_a_record_without_a_source(self) -> None:
+        stripped = "\n".join(
+            line
+            for line in self.record("retry", "proposed").splitlines()
+            if not line.startswith("source: ")
+        )
+        responses = self.converse(
+            [self.call(1, "memory_capture", {"record": stripped})]
+        )
+        self.assertTrue(responses[0]["result"]["isError"])
+        self.assertIn("`source`", self.text(responses[0]))
+
+    def test_the_claude_userconfig_project_fallback_is_honored(self) -> None:
+        # A Claude install configured through the plugin's `project` option
+        # sets only CLAUDE_PLUGIN_OPTION_PROJECT; checking just the portable
+        # name would make every tool refuse on an otherwise valid setup.
+        env = dict(os.environ)
+        env["CONTEXT_KIT_MEMORY_HOME"] = str(self.home)
+        env.pop("CONTEXT_KIT_MEMORY_PROJECT", None)
+        env["CLAUDE_PLUGIN_OPTION_PROJECT"] = "mbeacom/context-kit"
+        payload = json.dumps(self.call(1, "memory_review", {})) + "\n"
+        result = subprocess.run(
+            [sys.executable, str(SERVER)],
+            input=payload.encode("utf-8"),
+            capture_output=True,
+            check=False,
+            timeout=120,
+            env=env,
+        )
+        response = json.loads(result.stdout.decode().splitlines()[0])
+        self.assertFalse(
+            response["result"]["isError"], response["result"]["content"][0]["text"]
+        )
+
     def test_an_unset_project_refuses_rather_than_using_a_global_store(self) -> None:
         responses = self.converse(
             [self.call(1, "memory_recall", {"query": "anything"})], project=None

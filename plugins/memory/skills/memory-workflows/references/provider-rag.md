@@ -3,7 +3,9 @@
 `rag` is the built-in memory provider. It gives **offline semantic recall over
 accepted memory records** using this repository's own
 [`local-rag`](../../../../local-rag) plugin, so semantic search does not depend
-on any external tool.
+on any external *memory provider*. It is not dependency-free: embeddings come
+from a locally running Ollama, and `uv` bootstraps the venv once. See
+Requirements below.
 
 `memory` declares a hard dependency on `local-rag`, so installing `memory`
 through Claude Code, GitHub Copilot, or APM also deploys the retrieval engine.

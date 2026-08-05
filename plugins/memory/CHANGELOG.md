@@ -30,9 +30,10 @@
   anchors are required and never invented, and candidates are project-isolated
   and write-once.
 - Add a first-party `rag` memory provider backed by the bundled `local-rag`
-  plugin, so **offline semantic recall no longer requires an external tool**.
-  MemPalace becomes genuinely optional rather than the only route to
-  meaning-based recall.
+  plugin, so **offline semantic recall no longer requires an external memory
+  provider**. MemPalace becomes genuinely optional rather than the only route
+  to meaning-based recall. Ollama remains a required local runtime for
+  embeddings, and `uv` is needed once to bootstrap the venv.
 - Declare a hard dependency on `local-rag` in `plugin.json` and `apm.yml`, so
   installing `memory` deploys the retrieval engine on every host.
 - Generalize the provider layer behind a declarative `ProviderSpec`. The

@@ -46,6 +46,9 @@ CANDIDATE_SCHEMA = "context-kit/memory-candidate-v1"
 # Session mining recognizes GitHub Copilot CLI event logs
 # (`~/.copilot/session-state/<session-id>/events.jsonl`).
 SESSION_PRODUCER = "github-copilot-cli"
+# `session_id` arrives from the session log and is used to name a candidate
+# file, so it is validated as a single safe path component before use.
+SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 MAX_TURN_CHARS = 2000
 MAX_CANDIDATE_TURNS = 400
 # Detection only. Each pattern names a high-signal credential shape so a
@@ -96,6 +99,9 @@ MEMPALACE_TESTED_RELEASE_LINE = "3.6.x"
 RAG_TESTED_VERSION = (0, 4, 0)
 RAG_TESTED_RELEASE_LINE = "0.4.x"
 RAG_INDEX_NAME = "memory"
+# One record spans several indexed chunks, so ask for more chunks than the
+# caller asked for records and deduplicate back down.
+RAG_CHUNKS_PER_RECORD = 4
 SEMVER_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 REQUIRED_FIELDS = (
     "schema",
@@ -364,14 +370,16 @@ def _truthy(value: str | None) -> bool:
 def _local_rag_home() -> Path:
     """Where local-rag keeps its bootstrapped venv.
 
-    This mirrors local-rag's own resolution order and is read from the *ambient*
+    This mirrors local-rag's own resolution order, minus the plugin-scoped
+    Claude variable: inside this plugin `CLAUDE_PLUGIN_DATA` points at
+    *memory's* data directory, not the sibling local-rag directory where its
+    SessionStart hook built the venv. It is read from the *ambient*
     environment, before this adapter redirects `CONTEXT_KIT_DATA` at the store.
     """
     configured = _first_env(
         "CONTEXT_KIT_LOCAL_RAG_HOME",
         "CONTEXT_KIT_DATA",
         "PRODUCTIVITY_SKILLS_DATA",
-        "CLAUDE_PLUGIN_DATA",
     )
     if configured:
         return Path(configured).expanduser()
@@ -1378,7 +1386,7 @@ def _capture_memory(args: argparse.Namespace, config: Config) -> int:
                 },
                 "provider_reconciliation": (
                     "required: run sync-provider --apply"
-                    if config.provider == "mempalace" and _is_active(effective)
+                    if config.provider != "none" and _is_active(effective)
                     else "not-required"
                 ),
                 "effective_state": effective,
@@ -1516,7 +1524,12 @@ def _provider_search(args: argparse.Namespace, config: Config) -> int:
 
     records, _ = _active_projection(config)
     by_id = {str(metadata["id"]): metadata for _, metadata in records}
-    result = _run_provider(config, spec.search_argv(args.query, args.results))
+    # rag indexes each markdown section separately, so one record yields hits
+    # for Primary Memory, Cue Anchors, Evidence, and so on. Over-fetch chunks
+    # so that deduplicating back to records can still fill the requested
+    # number of *records* rather than being consumed by one verbose memory.
+    chunk_budget = min(50, max(args.results * RAG_CHUNKS_PER_RECORD, args.results))
+    result = _run_provider(config, spec.search_argv(args.query, chunk_budget))
     raw = result.stdout.decode("utf-8", errors="replace").strip()
     try:
         hits = json.loads(raw) if raw else []
@@ -1526,6 +1539,7 @@ def _provider_search(args: argparse.Namespace, config: Config) -> int:
         raise Refusal("rag returned an unexpected JSON shape; expected a list")
 
     found: list[dict[str, object]] = []
+    seen: dict[str, dict[str, object]] = {}
     unmatched: list[str] = []
     for hit in hits:
         if not isinstance(hit, dict):
@@ -1536,25 +1550,34 @@ def _provider_search(args: argparse.Namespace, config: Config) -> int:
         record_id = path[:-3] if path.endswith(".md") else path
         metadata = by_id.get(record_id)
         if metadata is None:
-            unmatched.append(path)
+            if path not in unmatched:
+                unmatched.append(path)
+            continue
+        if record_id in seen:
+            # Keep the strongest chunk for a record; count the rest.
+            entry = seen[record_id]
+            entry["matched_chunks"] = int(entry["matched_chunks"]) + 1
             continue
         state = effective_state(metadata, config)
-        found.append(
-            {
-                "id": metadata["id"],
-                "type": metadata["type"],
-                "freshness": state["freshness"],
-                "review": state["review"],
-                "primary_memory": metadata["primary_memory"],
-                "cue_anchors": metadata["cue_anchors"],
-                "source": metadata["source"],
-                "source_hash": metadata["source_hash"],
-                "source_state": _source_state(metadata),
-                "score": hit.get("score"),
-                "retrieval_mode": hit.get("retrieval_mode"),
-                "heading": hit.get("heading"),
-            }
-        )
+        entry = {
+            "id": metadata["id"],
+            "type": metadata["type"],
+            "freshness": state["freshness"],
+            "review": state["review"],
+            "primary_memory": metadata["primary_memory"],
+            "cue_anchors": metadata["cue_anchors"],
+            "source": metadata["source"],
+            "source_hash": metadata["source_hash"],
+            "source_state": _source_state(metadata),
+            "score": hit.get("score"),
+            "retrieval_mode": hit.get("retrieval_mode"),
+            "heading": hit.get("heading"),
+            "matched_chunks": 1,
+        }
+        seen[record_id] = entry
+        found.append(entry)
+        if len(found) >= args.results:
+            break
     print(
         json.dumps(
             {
@@ -2188,9 +2211,10 @@ def _redact_secrets(text: str) -> tuple[str, int]:
     return text, redactions
 
 
-def _render_turns(turns: list[dict[str, str]]) -> tuple[list[str], int]:
+def _render_turns(turns: list[dict[str, str]]) -> tuple[list[str], int, int]:
     lines: list[str] = []
     truncated = 0
+    omitted = max(0, len(turns) - MAX_CANDIDATE_TURNS)
     for index, turn in enumerate(turns[:MAX_CANDIDATE_TURNS], start=1):
         content = turn["content"]
         if len(content) > MAX_TURN_CHARS:
@@ -2201,7 +2225,14 @@ def _render_turns(turns: list[dict[str, str]]) -> tuple[list[str], int]:
         lines.append("")
         lines.extend(content.splitlines())
         lines.append("")
-    return lines, truncated
+    if omitted:
+        # A reviewer must never mistake a sliced transcript for a complete one.
+        lines.append(
+            f"### [{omitted} further turn(s) omitted at the "
+            f"{MAX_CANDIDATE_TURNS}-turn candidate limit]"
+        )
+        lines.append("")
+    return lines, truncated, omitted
 
 
 def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
@@ -2252,8 +2283,21 @@ def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
         if not turns:
             skipped.append({"source": str(log), "reason": "no-conversational-turns"})
             continue
+        session_id = str(extracted["session_id"])
+        if not SESSION_ID_RE.fullmatch(session_id):
+            # `session_id` names the candidate file. An id like `../../outside`
+            # would escape the project-isolated directory, so an unsafe value
+            # is refused loudly rather than sanitized into something plausible.
+            skipped.append(
+                {
+                    "source": str(log),
+                    "reason": "unsafe-session-id",
+                    "session_id": session_id[:80],
+                }
+            )
+            continue
 
-        body_lines, truncated = _render_turns(turns)
+        body_lines, truncated, omitted = _render_turns(turns)
         transcript = "\n".join(body_lines)
         findings = _scan_secrets(transcript)
         redactions = 0
@@ -2270,7 +2314,6 @@ def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
             transcript, redactions = _redact_secrets(transcript)
 
         source_hash = hashlib.sha256(raw).hexdigest()
-        session_id = str(extracted["session_id"])
         observed_at = extracted["started_at"] or _utc_timestamp()
         try:
             _validate_timestamp(str(observed_at), "observed_at")
@@ -2281,6 +2324,8 @@ def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
             "source": str(log),
             "source_hash": source_hash,
             "turns": len(turns),
+            "turns_written": len(turns) - omitted,
+            "omitted_turns": omitted,
             "dropped": extracted["dropped"],
             "truncated_turns": truncated,
             "redactions": redactions,
@@ -2291,6 +2336,12 @@ def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
 
         name = f"{session_id}-{source_hash[:12]}.md"
         destination = config.candidates_path / name
+        # Defense in depth: the id was validated above, so a path that still
+        # resolves outside the project directory is a bug, not user error.
+        if destination.parent.resolve() != config.candidates_path.resolve():
+            raise Refusal(
+                f"refusing a candidate path outside the project store: {destination}"
+            )
         document = "\n".join(
             [
                 "---",
@@ -2305,7 +2356,9 @@ def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
                 f"extracted_at: {_utc_timestamp()}",
                 f"source: {log}",
                 f"source_hash: {source_hash}",
-                f"turns: {len(turns)}",
+                f"turns: {len(turns) - omitted}",
+                f"turns_extracted: {len(turns)}",
+                f"omitted_turns: {omitted}",
                 f"redactions: {redactions}",
                 "review: candidate",
                 "---",
