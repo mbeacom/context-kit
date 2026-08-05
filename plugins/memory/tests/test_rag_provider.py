@@ -189,7 +189,9 @@ class RagProviderTests(unittest.TestCase):
         ]
 
     def capture_and_sync(self, executable: Path) -> None:
-        self.invoke(["capture", str(self.record), "--provider", "none", *self.base_args()])
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
         with patch.dict(os.environ, self.env(executable), clear=True):
             result, _, stderr = self.invoke(
                 ["sync-provider", "--apply", "--provider", "rag", *self.base_args()]
@@ -276,7 +278,9 @@ class RagProviderTests(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_sync_dry_run_names_the_provider_and_changes_nothing(self) -> None:
-        self.invoke(["capture", str(self.record), "--provider", "none", *self.base_args()])
+        self.invoke(
+            ["capture", str(self.record), "--provider", "none", *self.base_args()]
+        )
         executable = self.fake_rag()
         with patch.dict(os.environ, self.env(executable), clear=True):
             result, stdout, stderr = self.invoke(
@@ -451,6 +455,180 @@ class RagProviderTests(unittest.TestCase):
         self.assertEqual("not-applicable", payload["status"])
         self.assertTrue(payload["reconciled"])
         self.assertEqual(before, len(self.recorded_calls()))
+
+    # ------------------------------------------------------------------
+    # runtime bootstrap (the Copilot/APM gap)
+    # ------------------------------------------------------------------
+
+    def test_runtime_gate_is_skipped_for_a_user_supplied_executable(self) -> None:
+        # CONTEXT_KIT_RAG_BIN points at an executable that manages its own
+        # runtime, so the bundled venv is irrelevant and must not be gated on.
+        executable = self.fake_rag()
+        with patch.dict(os.environ, self.env(executable), clear=True):
+            result, stdout, stderr = self.invoke(
+                ["doctor", "--provider", "rag", *self.base_args()]
+            )
+        self.assertEqual(0, result, stderr)
+        self.assertNotIn("runtime", json.loads(stdout))
+
+    def test_doctor_refuses_with_an_actionable_command_when_runtime_is_missing(
+        self,
+    ) -> None:
+        bundled = self.root / "bundled-rag"
+        bundled.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        bundled.chmod(0o700)
+        with (
+            patch.dict(os.environ, {"CONTEXT_KIT_RAG_BIN": str(bundled)}, clear=True),
+            patch.object(memory_provider, "_bundled_executable", return_value=bundled),
+            patch.object(
+                memory_provider,
+                "_rag_runtime_status",
+                return_value={
+                    "status": "missing",
+                    "detail": "no interpreter at /tmp/venv/bin/python",
+                    "bootstrap_command": "bash /plugins/local-rag/scripts/bootstrap.sh",
+                },
+            ),
+        ):
+            result, _, stderr = self.invoke(
+                ["doctor", "--provider", "rag", *self.base_args()]
+            )
+        self.assertEqual(2, result)
+        # The refusal must carry the exact command, and say why the host
+        # did not do it automatically.
+        self.assertIn("bash /plugins/local-rag/scripts/bootstrap.sh", stderr)
+        self.assertIn("Copilot and APM do not run Claude hooks", stderr)
+
+    def test_doctor_refuses_on_a_stale_runtime(self) -> None:
+        # A venv built from different project metadata runs stale code
+        # silently; it must be treated as loudly as a missing one.
+        bundled = self.root / "bundled-rag"
+        bundled.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        bundled.chmod(0o700)
+        with (
+            patch.dict(os.environ, {"CONTEXT_KIT_RAG_BIN": str(bundled)}, clear=True),
+            patch.object(memory_provider, "_bundled_executable", return_value=bundled),
+            patch.object(
+                memory_provider,
+                "_rag_runtime_status",
+                return_value={
+                    "status": "stale",
+                    "detail": "venv was built from different pyproject.toml metadata",
+                    "bootstrap_command": "bash bootstrap.sh",
+                },
+            ),
+        ):
+            result, _, stderr = self.invoke(
+                ["doctor", "--provider", "rag", *self.base_args()]
+            )
+        self.assertEqual(2, result)
+        self.assertIn("stale", stderr)
+
+    def test_doctor_passes_the_bootstrap_flag_through(self) -> None:
+        executable = self.fake_rag()
+        seen: dict[str, object] = {}
+
+        def fake_status(*, bootstrap: bool = False) -> dict[str, object]:
+            seen["bootstrap"] = bootstrap
+            return {"status": "ready", "venv": "/tmp/venv"}
+
+        with (
+            patch.dict(os.environ, self.env(executable), clear=True),
+            patch.object(
+                memory_provider, "_bundled_executable", return_value=executable
+            ),
+            patch.object(memory_provider, "_rag_runtime_status", fake_status),
+        ):
+            result, stdout, stderr = self.invoke(
+                ["doctor", "--provider", "rag", "--bootstrap", *self.base_args()]
+            )
+        self.assertEqual(0, result, stderr)
+        self.assertIs(True, seen["bootstrap"])
+        self.assertEqual("ready", json.loads(stdout)["runtime"]["status"])
+
+    def test_unknown_runtime_does_not_block(self) -> None:
+        # If local-rag is not installed as a sibling the check cannot answer;
+        # that must not become a hard refusal for an otherwise working CLI.
+        executable = self.fake_rag()
+        with (
+            patch.dict(os.environ, self.env(executable), clear=True),
+            patch.object(
+                memory_provider, "_bundled_executable", return_value=executable
+            ),
+            patch.object(
+                memory_provider,
+                "_rag_runtime_status",
+                return_value={"status": "unknown", "detail": "not found"},
+            ),
+        ):
+            result, stdout, stderr = self.invoke(
+                ["doctor", "--provider", "rag", *self.base_args()]
+            )
+        self.assertEqual(0, result, stderr)
+        self.assertEqual("ready", json.loads(stdout)["status"])
+
+
+class RagBootstrapCheckTests(unittest.TestCase):
+    """`bootstrap.sh --check` is the host-neutral readiness contract."""
+
+    SCRIPT = PLUGIN_ROOT.parent / "local-rag" / "scripts" / "bootstrap.sh"
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.home = Path(self.temp_dir.name) / "rag-home"
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def check(self) -> tuple[int, dict[str, str]]:
+        import subprocess
+
+        env = dict(os.environ, CONTEXT_KIT_LOCAL_RAG_HOME=str(self.home))
+        result = subprocess.run(
+            ["bash", str(self.SCRIPT), "--check"],
+            capture_output=True,
+            check=False,
+            timeout=60,
+            env=env,
+        )
+        report = {}
+        for line in result.stdout.decode().splitlines():
+            key, sep, value = line.partition("=")
+            if sep:
+                report[key] = value
+        return result.returncode, report
+
+    def test_reports_missing_without_creating_anything(self) -> None:
+        code, report = self.check()
+        self.assertEqual(3, code)
+        self.assertEqual("missing", report["status"])
+        self.assertIn("bootstrap.sh", report["bootstrap_command"])
+        # A readiness check must not have side effects.
+        self.assertFalse(self.home.exists())
+
+    def test_reports_stale_when_the_stamp_does_not_match(self) -> None:
+        (self.home / "venv" / "bin").mkdir(parents=True)
+        interpreter = self.home / "venv" / "bin" / "python"
+        interpreter.write_text("#!/bin/sh\n", encoding="utf-8")
+        interpreter.chmod(0o700)
+        (self.home / "pyproject.sha").write_text(
+            "not-the-current-sha\n", encoding="utf-8"
+        )
+
+        code, report = self.check()
+        self.assertEqual(3, code)
+        self.assertEqual("stale", report["status"])
+
+    def test_rejects_an_unknown_flag(self) -> None:
+        import subprocess
+
+        result = subprocess.run(
+            ["bash", str(self.SCRIPT), "--nope"],
+            capture_output=True,
+            check=False,
+            timeout=60,
+        )
+        self.assertEqual(2, result.returncode)
 
 
 if __name__ == "__main__":

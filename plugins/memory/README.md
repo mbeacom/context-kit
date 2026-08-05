@@ -62,11 +62,16 @@ bash plugins/local-rag/scripts/bootstrap.sh   # Claude runs this on SessionStart
 ollama pull nomic-embed-text
 export CONTEXT_KIT_MEMORY_PROVIDER=rag
 
-python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor --bootstrap
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" sync-provider --apply
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
   search "why did we change retry policy"
 ```
+
+`doctor` verifies the local-rag runtime before probing the CLI and refuses with
+the exact bootstrap command when the venv is missing or stale; `--bootstrap`
+builds it in place. This matters on GitHub Copilot and APM, which do not run
+Claude's `SessionStart` hook.
 
 Records stay the system of record: the index is a rebuildable projection of
 accepted/current records, and hits are bound back to those records before being

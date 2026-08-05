@@ -11,6 +11,13 @@
   so default single-user behavior is unchanged.
 - Add `rag --version`, so an integrating adapter can report and pin a provider
   version the same way it does for other retrieval backends.
+- Add `scripts/bootstrap.sh --check`, a side-effect-free readiness probe that
+  prints `KEY=VALUE` status lines and exits 0 when ready or 3 when a bootstrap
+  is required. This gives hosts that do not run the Claude `SessionStart` hook
+  — GitHub Copilot and APM — a deterministic way to detect an unusable runtime.
+- `--check` reports a **stale** venv (one built from different `pyproject.toml`
+  metadata) as loudly as a missing one. Previously a stale venv ran outdated
+  code silently, because the launcher never consulted the stamp.
 
 ## 0.3.3 — 2026-08-03
 

@@ -1094,18 +1094,82 @@ def _provider_executable(spec: ProviderSpec) -> str:
     )
 
 
-def _bundled_executable(spec: ProviderSpec) -> Path | None:
-    """Resolve a sibling context-kit plugin launcher that is not on PATH.
+def _local_rag_root() -> Path | None:
+    """The sibling local-rag plugin root, when deployed alongside `memory`.
 
-    `memory` hard-depends on `local-rag`, so the two plugins are deployed as
-    siblings and `bin/rag` is reachable without a PATH entry.
+    `memory` hard-depends on `local-rag`, so both are installed together and
+    the dependency's launcher and bootstrap are reachable without a PATH entry
+    or extra configuration.
     """
+    candidate = Path(__file__).resolve().parents[2] / "local-rag"
+    if (candidate / "scripts" / "bootstrap.sh").is_file():
+        return candidate
+    return None
+
+
+def _bundled_executable(spec: ProviderSpec) -> Path | None:
+    """Resolve a sibling context-kit plugin launcher that is not on PATH."""
     if spec.name != "rag":
         return None
-    candidate = Path(__file__).resolve().parents[2] / "local-rag" / "bin" / "rag"
+    root = _local_rag_root()
+    if root is None:
+        return None
+    candidate = root / "bin" / "rag"
     if candidate.is_file() and os.access(candidate, os.X_OK):
         return candidate
     return None
+
+
+def _rag_runtime_status(*, bootstrap: bool = False) -> dict[str, object]:
+    """Report whether the local-rag venv is usable, optionally building it.
+
+    Claude Code bootstraps local-rag from a `SessionStart` hook. GitHub Copilot
+    and APM do not run Claude hooks, so readiness is checked explicitly here
+    rather than surfacing later as an opaque provider failure. A venv built
+    from different project metadata is reported as loudly as a missing one,
+    because it otherwise runs stale code silently.
+    """
+    root = _local_rag_root()
+    if root is None:
+        return {
+            "status": "unknown",
+            "detail": "the local-rag plugin was not found next to memory; "
+            "runtime readiness could not be checked",
+        }
+    script = root / "scripts" / "bootstrap.sh"
+    env = os.environ.copy()
+    env["CONTEXT_KIT_LOCAL_RAG_HOME"] = str(_local_rag_home())
+    if bootstrap:
+        try:
+            built = subprocess.run(
+                ["bash", str(script)],
+                capture_output=True,
+                check=False,
+                timeout=900.0,
+                env=env,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            raise Refusal(f"local-rag bootstrap could not run: {exc}") from exc
+        if built.returncode != 0:
+            detail = built.stderr.decode("utf-8", errors="replace").strip()
+            raise Refusal(f"local-rag bootstrap failed: {detail or 'no error output'}")
+    try:
+        checked = subprocess.run(
+            ["bash", str(script), "--check"],
+            capture_output=True,
+            check=False,
+            timeout=60.0,
+            env=env,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return {"status": "unknown", "detail": f"readiness check failed: {exc}"}
+    report: dict[str, object] = {}
+    for line in checked.stdout.decode("utf-8", errors="replace").splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            report[key.strip()] = value.strip()
+    report.setdefault("status", "unknown")
+    return report
 
 
 def _probe_capability(
@@ -1539,7 +1603,7 @@ def _wake(config: Config) -> int:
     return 0
 
 
-def _doctor(config: Config) -> int:
+def _doctor(args: argparse.Namespace, config: Config) -> int:
     result: dict[str, object] = {
         "provider": config.provider,
         "home": str(config.home),
@@ -1559,6 +1623,31 @@ def _doctor(config: Config) -> int:
     config.project_slug
     spec = config.spec
     executable = _provider_executable(spec)
+    if spec.name == "rag":
+        # The venv only backs the bundled `bin/rag` launcher. A user-supplied
+        # executable (CONTEXT_KIT_RAG_BIN or one on PATH) manages its own
+        # runtime, so gating on our bootstrap would be wrong there.
+        bundled = _bundled_executable(spec)
+        if bundled is not None and str(bundled) == executable:
+            # Checked before the version and capability probes: without a
+            # usable venv those fail with an opaque launcher error instead of
+            # the actionable "run the bootstrap" answer.
+            runtime = _rag_runtime_status(
+                bootstrap=bool(getattr(args, "bootstrap", False))
+            )
+            result["runtime"] = runtime
+            status = str(runtime.get("status"))
+            if status not in {"ready", "unknown"}:
+                command = runtime.get("bootstrap_command") or (
+                    "bash plugins/local-rag/scripts/bootstrap.sh"
+                )
+                raise Refusal(
+                    f"the local-rag runtime is {status} "
+                    f"({runtime.get('detail', 'no detail')}); run: {command} "
+                    "— Claude Code bootstraps this on SessionStart, but GitHub "
+                    "Copilot and APM do not run Claude hooks. Re-run `doctor "
+                    "--bootstrap` to build it now."
+                )
     version_result = _run_provider(config, ["--version"], timeout=20.0)
     raw_version = version_result.stdout.decode("utf-8", errors="replace").strip()
     parsed_version = _parse_provider_version(raw_version)
@@ -2013,6 +2102,11 @@ def _parser() -> argparse.ArgumentParser:
     _add_config_args(wake)
 
     doctor = sub.add_parser("doctor")
+    doctor.add_argument(
+        "--bootstrap",
+        action="store_true",
+        help="Build the local-rag runtime if it is missing or stale (rag provider).",
+    )
     _add_config_args(doctor)
 
     review = sub.add_parser("review")
@@ -2064,7 +2158,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "wake":
             return _wake(config)
         if args.command == "doctor":
-            return _doctor(config)
+            return _doctor(args, config)
         if args.command == "review":
             return _record_review(config)
         if args.command == "record-state":

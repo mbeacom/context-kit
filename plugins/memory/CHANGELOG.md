@@ -20,6 +20,12 @@
   `degraded_detail`. Reconciliation is checked first, so a stale index refuses
   rather than being masked by a quiet fallback.
 - `wake` reports `not-applicable` under `rag` without invoking the provider.
+- `doctor` verifies the local-rag runtime before probing the CLI and refuses
+  with the exact bootstrap command when the venv is missing or stale, closing
+  the gap on hosts that do not run Claude's `SessionStart` hook. `doctor
+  --bootstrap` builds it in place. The check applies only when the bundled
+  `bin/rag` launcher is in use; a user-supplied `CONTEXT_KIT_RAG_BIN` manages
+  its own runtime and is not gated.
 - Receipts now carry a provider-neutral `store_path`, and `provider` reflects
   the configured provider. MemPalace receipts keep the `palace_path` key for
   continuity. The `recovery_status` value `restored-to-live-palace` is now

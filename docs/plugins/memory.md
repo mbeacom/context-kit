@@ -86,11 +86,16 @@ ollama pull nomic-embed-text
 export CONTEXT_KIT_MEMORY_PROVIDER=rag
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 
-python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor --bootstrap
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" sync-provider --apply
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
   search "why did we change retry policy" --results 8
 ```
+
+`doctor` checks the local-rag runtime before probing the CLI and refuses with
+the exact bootstrap command when the venv is missing or stale; `--bootstrap`
+builds it. GitHub Copilot and APM do not run Claude's `SessionStart` hook, so
+this is the host-neutral path to a working runtime.
 
 The index is a rebuildable projection of accepted/current records, never the
 system of record: hits are bound back to the local records, so review,

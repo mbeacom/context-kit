@@ -35,6 +35,19 @@ export PATH="$PWD/bin:$PATH"
 Claude Code does this automatically on session start (via a `SessionStart` hook)
 into `${CLAUDE_PLUGIN_DATA}/venv`.
 
+To check readiness without installing anything:
+
+```bash
+bash scripts/bootstrap.sh --check   # exit 0 ready, 3 needs bootstrap
+```
+
+It prints `KEY=VALUE` lines: `status` (`ready`, `missing`, `stale`,
+`uv-missing`), the resolved `home`/`venv` paths, and the exact
+`bootstrap_command`. A `stale` venv was built from different `pyproject.toml`
+metadata and would run outdated code, so it is reported as clearly as a missing
+one. Dependent tooling uses this to detect an unusable runtime on hosts that do
+not run Claude hooks.
+
 ## Usage
 
 Index a corpus, then query it:

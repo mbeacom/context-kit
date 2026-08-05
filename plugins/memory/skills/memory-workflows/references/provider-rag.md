@@ -24,12 +24,46 @@ MemPalace is genuinely optional rather than the only route.
 | Requirement | Notes |
 | --- | --- |
 | `local-rag` plugin | Installed automatically as a dependency. |
-| Bootstrapped venv | `bash plugins/local-rag/scripts/bootstrap.sh`. Claude Code runs this on `SessionStart`; **GitHub Copilot and APM do not**, so run it once manually. |
+| Bootstrapped venv | `doctor` verifies it and `doctor --bootstrap` builds it. Claude Code also runs the bootstrap on `SessionStart`; **GitHub Copilot and APM do not**. |
 | `uv` | Used only by the bootstrap. |
 | `ollama` + an embedding model | `ollama pull nomic-embed-text`. Embedding is local by default. |
 
 Storage and embedding stay on-device unless `CONTEXT_KIT_OLLAMA_HOST` points at
 a remote server, in which case record text is submitted to that host.
+
+## Runtime readiness
+
+`local-rag` runs from a bootstrapped venv. Claude Code builds it from a
+`SessionStart` hook; GitHub Copilot and APM do not run Claude hooks, so `doctor`
+checks readiness itself before probing the CLI:
+
+```bash
+python3 "$MEMORY" doctor --provider rag              # report readiness
+python3 "$MEMORY" doctor --provider rag --bootstrap  # build it, then report
+```
+
+When the runtime is not usable, `doctor` refuses with the exact command to run
+rather than letting the failure surface later as an opaque launcher error:
+
+```json
+{
+  "runtime": {
+    "status": "missing",
+    "venv": "~/.claude/plugins/data/local-rag/venv",
+    "bootstrap_command": "bash …/plugins/local-rag/scripts/bootstrap.sh"
+  }
+}
+```
+
+`status` is `ready`, `missing`, `stale`, `uv-missing`, or `unknown`. **`stale`**
+means the venv was built from different `pyproject.toml` metadata — it would
+otherwise run outdated code silently, so it is treated as loudly as a missing
+one. `unknown` (local-rag not found as a sibling) does not block, since the
+configured CLI may still work.
+
+The check applies only to the bundled `bin/rag` launcher. If you point
+`CONTEXT_KIT_RAG_BIN` at your own executable, it manages its own runtime and is
+not gated.
 
 ## Configure
 
