@@ -75,7 +75,12 @@ def count_tokens(data: bytes, encoder: Any | None) -> tuple[int, str]:
             return len(encoder.encode(text, disallowed_special=())), "tiktoken"
         except Exception:  # pragma: no cover - defensive, encoder is optional
             pass
-    return int(round(len(data) / DEFAULT_BYTES_PER_TOKEN)), "estimated"
+    if not data:
+        return 0, "estimated"
+    # Rounding alone sends one or two bytes to zero, which downstream reads as an
+    # empty arm and reports "produced no output" about output that exists. Zero
+    # is reserved for genuinely empty captures.
+    return max(1, int(round(len(data) / DEFAULT_BYTES_PER_TOKEN))), "estimated"
 
 
 def load_encoder(name: str | None) -> tuple[Any | None, list[str]]:

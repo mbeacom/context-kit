@@ -16,8 +16,14 @@ Run the collector rather than summing records by hand — the deduplication and
 per-host cache decomposition it performs are the reason the totals are correct:
 
 ```bash
-python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/collect_usage.py" --host claude --host copilot
+python3 "$ROOT/scripts/collect_usage.py" --host claude --host copilot
 ```
+
+`$ROOT` is the installed plugin directory. Use
+`CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` when the user has exported it, or
+`CLAUDE_PLUGIN_ROOT` under Claude Code. When neither is set — the default after
+a `copilot plugin install` — resolve it from the `token-accounting` skill's own
+location, since `scripts/` is a sibling of `skills/`.
 
 Restrict `--host` when the argument names one. Add `--format json` when the
 caller wants the raw record.

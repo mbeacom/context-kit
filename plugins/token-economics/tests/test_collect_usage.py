@@ -239,6 +239,28 @@ class CopilotCollectionTest(unittest.TestCase):
         report = collect_usage.collect_copilot(self.db)
         self.assertEqual(report.totals.input_uncached, 0)
 
+    def test_null_cost_is_not_reported_as_a_zero_charge(self) -> None:
+        # The column is nullable; treating NULL as recorded would present
+        # 0 AIU as an exact host-recorded charge.
+        build_copilot_db(self.db, [{"input_tokens": 100, "total_nano_aiu": None}])
+        report = collect_usage.collect_copilot(self.db)
+        self.assertFalse(report.totals.cost_recorded)
+        self.assertIsNone(report.totals.as_dict()["cost_aiu"])
+        self.assertTrue(any("recorded no cost" in n for n in report.notes))
+
+    def test_partial_cost_coverage_is_disclosed(self) -> None:
+        build_copilot_db(
+            self.db,
+            [
+                {"input_tokens": 10, "total_nano_aiu": 2_000_000_000},
+                {"input_tokens": 10, "total_nano_aiu": None},
+            ],
+        )
+        report = collect_usage.collect_copilot(self.db)
+        self.assertTrue(report.totals.cost_recorded)
+        self.assertAlmostEqual(report.totals.as_dict()["cost_aiu"], 2.0)
+        self.assertTrue(any("partial total" in n for n in report.notes))
+
     def test_recorded_cost_is_reported_in_aiu(self) -> None:
         build_copilot_db(
             self.db, [{"total_nano_aiu": 2_500_000_000, "input_tokens": 10}]

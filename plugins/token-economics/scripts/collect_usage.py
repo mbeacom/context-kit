@@ -340,6 +340,7 @@ def collect_copilot(db: Path | None = None, *, raw_paths: bool = False) -> Repor
         raise CollectError(f"cannot open {path} read-only: {exc}") from exc
 
     derived_rows = 0
+    uncosted = 0
     try:
         conn.row_factory = sqlite3.Row
         try:
@@ -364,6 +365,8 @@ def collect_copilot(db: Path | None = None, *, raw_paths: bool = False) -> Repor
                 )
                 if not exact:
                     derived_rows += 1
+                if row["total_nano_aiu"] is None:
+                    uncosted += 1
                 totals = Totals(
                     requests=1,
                     input_uncached=uncached,
@@ -372,7 +375,10 @@ def collect_copilot(db: Path | None = None, *, raw_paths: bool = False) -> Repor
                     output=_int(row["output_tokens"]),
                     reasoning=_int(row["reasoning_tokens"]),
                     cost_nano_aiu=_int(row["total_nano_aiu"]),
-                    cost_recorded=True,
+                    # The column is nullable. Treating NULL as recorded would
+                    # present 0 AIU as an exact host charge, which is the kind
+                    # of confident-but-wrong figure this reader exists to avoid.
+                    cost_recorded=row["total_nano_aiu"] is not None,
                 )
                 report.record(str(row["model"] or "unknown"), totals)
         except sqlite3.Error as exc:
@@ -389,10 +395,16 @@ def collect_copilot(db: Path | None = None, *, raw_paths: bool = False) -> Repor
             f"{derived_rows} row(s) had no token_details_json; uncached input was "
             "derived by subtracting cache traffic"
         )
-    report.notes.append(
-        "cost_aiu is the host's own recorded charge in AI Units, not a price "
-        "estimate; it excludes premium-request multipliers, which bill separately"
-    )
+    if report.totals.cost_recorded:
+        report.notes.append(
+            "cost_aiu is the host's own recorded charge in AI Units, not a price "
+            "estimate; it excludes premium-request multipliers, which bill separately"
+        )
+    if uncosted:
+        report.notes.append(
+            f"{uncosted} row(s) recorded no cost; those requests contribute tokens "
+            "but nothing to cost_aiu, so the charge shown is a partial total"
+        )
     return report
 
 

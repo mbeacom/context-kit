@@ -23,6 +23,9 @@ copilot plugin install verify@context-kit           # auto-installs retrieval-co
 copilot plugin install runtime-evidence@context-kit # pulls verify, then retrieval-core
 copilot plugin install context-handoff@context-kit  # pulls verify, then retrieval-core
 copilot plugin install memory@context-kit           # pulls handoff, verify, retrieval-core
+copilot plugin install corpus-review@context-kit  # pulls plan-execute, verify
+copilot plugin install deep-review@context-kit    # pulls plan-execute, verify
+copilot plugin install token-economics@context-kit # pulls verify, retrieval-core
 copilot plugin install plugin-forge@context-kit
 ```
 

@@ -29,19 +29,29 @@ contain, and a run without that assertion cannot produce a quotable result.
 
 ## Run it
 
+Resolve the plugin root first. `CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` is set by
+you, not by a host, and only Claude Code injects `CLAUDE_PLUGIN_ROOT` — so
+neither may exist. The scripts always sit in `scripts/` beside the `skills/`
+directory this file was loaded from, which is the fallback that needs no setup:
+
 ```bash
-ROOT="${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT:-$CLAUDE_PLUGIN_ROOT}"
+ROOT="${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT:-${CLAUDE_PLUGIN_ROOT:-}}"
+# Neither variable set: derive it from this skill's own location, two levels up
+# from skills/<name>/SKILL.md.
+[ -n "$ROOT" ] || ROOT="<absolute path of the directory holding this SKILL.md>/../.."
+```
+
+Export `CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` once to skip that step every run.
+
+Then run it:
+
+```bash
 python3 "$ROOT/scripts/benchmark_savings.py" \
   --baseline "rg -n 'func handleAuth' ." \
   --candidate "rtk rg -n 'func handleAuth' ." \
   --must-contain "handleAuth" \
   --runs 3
 ```
-
-Inside Claude Code plugin components, use
-`${CLAUDE_PLUGIN_ROOT}/scripts/benchmark_savings.py` when the neutral plugin root
-variable is not available. Prefer `CONTEXT_KIT_*` variables in portable
-instructions.
 
 Use `--must-match` for a regex, repeat either flag for several conditions, and
 add `--shell` when an arm needs a pipe. `--tokenizer o200k_base` uses tiktoken
@@ -92,3 +102,16 @@ already terse.
 
 - `references/compaction-tools.md` — rtk, headroom, and native flags.
 - `references/claims.md` — turning a measurement into a defensible statement.
+
+## Portability
+
+```bash
+copilot plugin marketplace add mbeacom/context-kit   # GitHub Copilot CLI
+copilot plugin install token-economics@context-kit
+```
+
+APM and Claude Code install the same plugin with `apm install` and
+`/plugin install`. No host exports the plugin root for you: set
+`CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` to the installed directory, or rely on the
+skill-relative fallback above. In Claude Code, `${CLAUDE_PLUGIN_ROOT}` already
+resolves to the same location.

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.2.1 — 2026-08-05
+
+Changes from pull request review.
+
+- Never count non-empty output as zero tokens. Rounding sent one or two bytes to
+  zero, so a `printf ok` baseline was reported as having "produced no output"
+  and the comparison was suppressed. Zero is now reserved for genuinely empty
+  captures.
+- Stop reporting a NULL `total_nano_aiu` as a `0 AIU` recorded charge. Cost is
+  marked recorded only for rows that carry one, and a run with partially costed
+  rows says so rather than presenting a partial figure as a total.
+- Resolve the plugin root without requiring setup. No host exports
+  `CONTEXT_KIT_TOKEN_ECONOMICS_ROOT`, and only Claude Code injects
+  `CLAUDE_PLUGIN_ROOT`, so the documented command failed immediately after a
+  `copilot plugin install`. Skills and commands now fall back to the skill's own
+  location, since `scripts/` is a sibling of `skills/`, and both skills carry a
+  Portability section.
+
 ## 0.2.0 — 2026-08-04
 
 Changes from a five-lens deep review of the initial implementation.

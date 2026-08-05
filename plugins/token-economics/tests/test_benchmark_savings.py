@@ -179,6 +179,23 @@ class AssertionCheckTest(unittest.TestCase):
 
 
 class TokenCountTest(unittest.TestCase):
+    def test_non_empty_output_never_counts_as_zero_tokens(self) -> None:
+        # Rounding alone sent 1-2 bytes to zero, which downstream reported as
+        # "the baseline produced no output" about output that exists.
+        for size in (1, 2, 3):
+            tokens, _ = bs.count_tokens(b"x" * size, None)
+            self.assertGreaterEqual(tokens, 1, f"{size} bytes counted as zero")
+
+    def test_only_genuinely_empty_output_counts_as_zero(self) -> None:
+        self.assertEqual(bs.count_tokens(b"", None)[0], 0)
+
+    def test_a_tiny_baseline_still_yields_a_comparison(self) -> None:
+        baseline = arm("baseline", tokens=bs.count_tokens(b"ok", None)[0])
+        candidate = arm("candidate", tokens=bs.count_tokens(b"x" * 400, None)[0])
+        result = bs.build_result(baseline, candidate, assertion_declared=True, notes=[])
+        self.assertFalse(any("no denominator" in p for p in result["problems"]))
+        self.assertEqual(result["verdict"], "costs")
+
     def test_heuristic_counting_is_graded_estimated(self) -> None:
         tokens, grade = bs.count_tokens(b"x" * 400, None)
         self.assertEqual(grade, "estimated")

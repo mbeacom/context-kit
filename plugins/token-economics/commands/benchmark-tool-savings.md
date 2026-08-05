@@ -30,12 +30,18 @@ from the request:
 Then run it:
 
 ```bash
-python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/benchmark_savings.py" \
+python3 "$ROOT/scripts/benchmark_savings.py" \
   --baseline "<baseline>" \
   --candidate "<candidate>" \
   --must-contain "<answer that must survive>" \
   --runs 3
 ```
+
+`$ROOT` is the installed plugin directory. Use
+`CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` when the user has exported it, or
+`CLAUDE_PLUGIN_ROOT` under Claude Code. When neither is set — the default after
+a `copilot plugin install` — resolve it from the `tool-savings-benchmark`
+skill's own location, since `scripts/` is a sibling of `skills/`.
 
 Add `--shell` when an arm needs a pipe, `--must-match` for a regex, and
 `--tokenizer o200k_base` for OpenAI-family models when tiktoken is installed.
