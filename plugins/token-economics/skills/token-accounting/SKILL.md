@@ -50,13 +50,18 @@ and quote the cache hit ratio.
 ## Collect
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/collect_usage.py" --host claude --host copilot
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/collect_usage.py" --format json
+python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT}/scripts/collect_usage.py" \
+  --host claude --host copilot
+python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT}/scripts/collect_usage.py" --format json
 ```
 
-Outside Claude Code, use the plugin directory directly. Override discovery with
-`CONTEXT_KIT_CLAUDE_PROJECTS` and `CONTEXT_KIT_COPILOT_DB`. The reader opens
-SQLite read-only and never writes.
+Inside Claude Code plugin components, use
+`${CLAUDE_PLUGIN_ROOT}/scripts/collect_usage.py` when the neutral plugin root
+variable is not available. Prefer `CONTEXT_KIT_*` variables in portable
+instructions.
+
+Override source discovery with `CONTEXT_KIT_CLAUDE_PROJECTS` and
+`CONTEXT_KIT_COPILOT_DB`. The reader opens SQLite read-only and never writes.
 
 Exit `1` means no records were found on any requested host — an absent source,
 not zero usage. Say so rather than reporting a zero.

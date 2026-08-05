@@ -16,7 +16,7 @@ Run the collector rather than summing records by hand — the deduplication and
 per-host cache decomposition it performs are the reason the totals are correct:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/collect_usage.py" --host claude --host copilot
+python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/collect_usage.py" --host claude --host copilot
 ```
 
 Restrict `--host` when the argument names one. Add `--format json` when the

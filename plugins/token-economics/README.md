@@ -82,6 +82,7 @@ Nothing here sends data anywhere.
 
 | Variable | Default |
 | --- | --- |
+| `CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` | installed plugin root (Claude fallback: `CLAUDE_PLUGIN_ROOT`) |
 | `CONTEXT_KIT_CLAUDE_PROJECTS` | `~/.claude/projects` |
 | `CONTEXT_KIT_COPILOT_DB` | `~/.copilot/session-store.db` |
 

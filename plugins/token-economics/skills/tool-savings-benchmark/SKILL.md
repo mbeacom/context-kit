@@ -30,12 +30,17 @@ contain, and a run without that assertion cannot produce a quotable result.
 ## Run it
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/benchmark_savings.py" \
+python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT}/scripts/benchmark_savings.py" \
   --baseline "rg -n 'func handleAuth' ." \
   --candidate "rtk rg -n 'func handleAuth' ." \
   --must-contain "handleAuth" \
   --runs 3
 ```
+
+Inside Claude Code plugin components, use
+`${CLAUDE_PLUGIN_ROOT}/scripts/benchmark_savings.py` when the neutral plugin root
+variable is not available. Prefer `CONTEXT_KIT_*` variables in portable
+instructions.
 
 Use `--must-match` for a regex, repeat either flag for several conditions, and
 add `--shell` when an arm needs a pipe. `--tokenizer o200k_base` uses tiktoken

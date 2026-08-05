@@ -30,7 +30,7 @@ from the request:
 Then run it:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/benchmark_savings.py" \
+python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/benchmark_savings.py" \
   --baseline "<baseline>" \
   --candidate "<candidate>" \
   --must-contain "<answer that must survive>" \

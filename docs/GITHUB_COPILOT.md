@@ -90,6 +90,9 @@ Supported neutral environment variables:
 | `CONTEXT_KIT_MEMORY_PROJECT` | explicit durable-memory project scope | `CLAUDE_PLUGIN_OPTION_PROJECT` |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | opt-in Claude lifecycle forwarding | `CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE` |
 | `CONTEXT_KIT_MEMORY_ROOT` | installed memory plugin root | `CLAUDE_PLUGIN_ROOT` |
+| `CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` | installed token-economics root | `CLAUDE_PLUGIN_ROOT` |
+| `CONTEXT_KIT_CLAUDE_PROJECTS` | Claude Code transcript dir to read | — |
+| `CONTEXT_KIT_COPILOT_DB` | Copilot CLI session store to read | — |
 
 The Claude-specific variables remain supported so existing plugin installs keep
 working. The `CONTEXT_KIT_*` names are preferred for portable docs and
