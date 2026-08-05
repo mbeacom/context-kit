@@ -25,14 +25,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shlex
+import signal
 import statistics
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Pattern
+from re import Pattern
+from typing import Any
 
 SCHEMA = "context-kit/token-savings-v1"
 
@@ -44,19 +48,34 @@ DEFAULT_BYTES_PER_TOKEN = 4.0
 # and corpus choice, so it is reported as inconclusive rather than as a win.
 MATERIALITY_THRESHOLD_PCT = 5.0
 
+# Captured output is held in memory, so an arm that floods stdout would
+# otherwise exhaust the host before any verdict could be reached. Past this many
+# bytes the arm is stopped and its measurement is rejected rather than truncated
+# into a smaller-looking, and therefore falsely cheaper, result.
+DEFAULT_MAX_CAPTURE_BYTES = 64 * 1024 * 1024
+
+_READ_CHUNK = 65536
+
 
 class BenchmarkError(RuntimeError):
     """The benchmark could not produce a comparable pair of arms."""
 
 
-def count_tokens(text: str, encoder: Any | None) -> tuple[int, str]:
-    """Return ``(tokens, grade)`` for ``text``."""
+def count_tokens(data: bytes, encoder: Any | None) -> tuple[int, str]:
+    """Return ``(tokens, grade)`` for captured output.
+
+    The heuristic divides UTF-8 **bytes**, not code points. Dividing characters
+    would score an emoji or box-drawing glyph as a quarter token while it costs
+    four bytes and several real tokens, which is enough to invert a verdict when
+    a candidate trades ASCII for symbols.
+    """
     if encoder is not None:
         try:
+            text = data.decode("utf-8", errors="replace")
             return len(encoder.encode(text, disallowed_special=())), "tiktoken"
         except Exception:  # pragma: no cover - defensive, encoder is optional
             pass
-    return int(round(len(text) / DEFAULT_BYTES_PER_TOKEN)), "estimated"
+    return int(round(len(data) / DEFAULT_BYTES_PER_TOKEN)), "estimated"
 
 
 def load_encoder(name: str | None) -> tuple[Any | None, list[str]]:
@@ -75,15 +94,22 @@ def load_encoder(name: str | None) -> tuple[Any | None, list[str]]:
     try:
         return tiktoken.get_encoding(name), notes
     except Exception as exc:
-        notes.append(f"tiktoken encoding {name!r} unavailable ({exc}); using the heuristic")
+        notes.append(
+            f"tiktoken encoding {name!r} unavailable ({exc}); using the heuristic"
+        )
         return None, notes
 
 
 @dataclass
 class Run:
     exit_code: int
-    text: str
+    data: bytes
     duration_s: float
+    truncated: bool = False
+
+    @property
+    def text(self) -> str:
+        return self.data.decode("utf-8", errors="replace")
 
 
 @dataclass
@@ -97,6 +123,7 @@ class Arm:
     deterministic: bool = True
     exit_codes: list[int] = field(default_factory=list)
     assertion_ok: bool | None = None
+    truncated: bool = False
 
     @property
     def median_duration(self) -> float:
@@ -113,46 +140,106 @@ class Arm:
             "exit_codes": self.exit_codes,
             "median_duration_s": round(self.median_duration, 4),
             "assertion_ok": self.assertion_ok,
+            "truncated": self.truncated,
         }
 
 
-def execute(command: str, use_shell: bool, timeout: float) -> Run:
-    """Run one command and capture everything an agent would read."""
+def _terminate(proc: subprocess.Popen[bytes]) -> None:
+    """Kill a arm and everything it spawned, then reap it.
+
+    The child is started in its own session, so killing the process group also
+    removes descendants. Without this a timed-out pipeline keeps running and the
+    machine stays busy long after the benchmark reports a timeout.
+    """
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        proc.kill()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:  # pragma: no cover - kernel refused to reap
+        pass
+
+
+def execute(
+    command: str,
+    use_shell: bool,
+    timeout: float,
+    max_bytes: int = DEFAULT_MAX_CAPTURE_BYTES,
+) -> Run:
+    """Run one arm and capture, boundedly, everything an agent would read."""
+    if use_shell:
+        popen_args: Any = command
+    else:
+        try:
+            popen_args = shlex.split(command)
+        except ValueError as exc:
+            # An unbalanced quote is a setup mistake, not a failed comparison,
+            # so it must not reach the verdict exit codes.
+            raise BenchmarkError(f"cannot parse command {command!r}: {exc}") from exc
+        if not popen_args:
+            raise BenchmarkError(f"empty command: {command!r}")
+
     started = time.monotonic()
     try:
-        if use_shell:
-            completed = subprocess.run(
-                command,
-                shell=True,
-                capture_output=True,
-                text=True,
-                errors="replace",
-                timeout=timeout,
-            )
-        else:
-            try:
-                argv = shlex.split(command)
-            except ValueError as exc:
-                # An unbalanced quote is a setup mistake, not a failed
-                # comparison, so it must not reach the verdict exit codes.
-                raise BenchmarkError(f"cannot parse command {command!r}: {exc}") from exc
-            if not argv:
-                raise BenchmarkError(f"empty command: {command!r}")
-            completed = subprocess.run(
-                argv,
-                capture_output=True,
-                text=True,
-                errors="replace",
-                timeout=timeout,
-            )
-    except subprocess.TimeoutExpired as exc:
-        raise BenchmarkError(f"command timed out after {timeout}s: {command}") from exc
+        proc = subprocess.Popen(
+            popen_args,
+            shell=use_shell,
+            stdout=subprocess.PIPE,
+            # An agent pays for stderr too. Merging at the OS level keeps the
+            # read loop single-threaded, so it cannot deadlock on a full pipe.
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
     except OSError as exc:
         # Covers a missing binary, a directory, and a non-executable file.
         raise BenchmarkError(f"cannot run {command!r}: {exc}") from exc
+
+    chunks: list[bytes] = []
+    total = 0
+    truncated = False
+    timed_out = threading.Event()
+
+    def on_deadline() -> None:
+        # A blocking read cannot observe a deadline on its own, so the timeout
+        # is enforced by killing the arm from a watchdog. Killing the group
+        # closes the pipe, which ends the read loop below with EOF.
+        timed_out.set()
+        _terminate(proc)
+
+    watchdog = threading.Timer(timeout, on_deadline)
+    watchdog.daemon = True
+    watchdog.start()
+
+    assert proc.stdout is not None
+    try:
+        while True:
+            chunk = proc.stdout.read(_READ_CHUNK)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_bytes:
+                truncated = True
+                _terminate(proc)
+                break
+            chunks.append(chunk)
+    finally:
+        watchdog.cancel()
+        try:
+            proc.stdout.close()
+        except OSError:  # pragma: no cover - stream already gone
+            pass
+
+    try:
+        code = proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:  # pragma: no cover - kernel refused to reap
+        _terminate(proc)
+        code = -9
     duration = time.monotonic() - started
-    # An agent pays for stderr too, so both streams count toward the total.
-    return Run(completed.returncode, (completed.stdout or "") + (completed.stderr or ""), duration)
+
+    if timed_out.is_set():
+        raise BenchmarkError(f"command timed out after {timeout}s: {command}")
+    return Run(code, b"".join(chunks), duration, truncated)
 
 
 def check_assertion(
@@ -177,19 +264,23 @@ def measure(
     encoder: Any | None,
     must_contain: list[str],
     must_match: list[Pattern[str]],
+    max_bytes: int = DEFAULT_MAX_CAPTURE_BYTES,
 ) -> Arm:
     arm = Arm(label=label, command=command)
     for _ in range(runs):
-        arm.runs.append(execute(command, use_shell, timeout))
-    texts = [r.text for r in arm.runs]
+        arm.runs.append(execute(command, use_shell, timeout, max_bytes))
+    payloads = [r.data for r in arm.runs]
     arm.exit_codes = [r.exit_code for r in arm.runs]
-    arm.deterministic = len(set(texts)) == 1
+    arm.deterministic = len(set(payloads)) == 1
+    arm.truncated = any(r.truncated for r in arm.runs)
     # With varying output, the median length is the honest representative.
-    representative = sorted(texts, key=len)[len(texts) // 2]
-    arm.bytes_len = len(representative.encode("utf-8"))
+    representative = sorted(payloads, key=len)[len(payloads) // 2]
+    arm.bytes_len = len(representative)
     arm.tokens, arm.counting = count_tokens(representative, encoder)
     if must_contain or must_match:
-        arm.assertion_ok = all(check_assertion(t, must_contain, must_match) for t in texts)
+        arm.assertion_ok = all(
+            check_assertion(r.text, must_contain, must_match) for r in arm.runs
+        )
     return arm
 
 
@@ -240,7 +331,15 @@ def build_result(
             "percentage should be treated as approximate"
         )
     if baseline.counting != candidate.counting:  # pragma: no cover - defensive
-        problems.append("arms were counted with different tokenizers and are not comparable")
+        problems.append(
+            "arms were counted with different tokenizers and are not comparable"
+        )
+    for arm in (baseline, candidate):
+        if arm.truncated:
+            problems.append(
+                f"the {arm.label} arm exceeded the capture limit and was stopped, so its "
+                "size is a floor rather than a measurement"
+            )
 
     if problems:
         verdict = "unverified"
@@ -251,14 +350,22 @@ def build_result(
     else:
         verdict = "costs"
 
+    # On an invalid comparison the difference is a raw size delta, not a saving.
+    # Emitting it under `saved_*` lets a reader or a script quote the number this
+    # tool just refused to stand behind, so those keys are null and the raw
+    # values move to differently named fields.
+    quotable = verdict != "unverified"
     return {
         "schema": SCHEMA,
         "verdict": verdict,
         "counting": baseline.counting,
         "attribution": "controlled",
-        "saved_tokens": saved_tokens,
-        "saved_bytes": saved_bytes,
-        "saved_pct": round(pct, 2) if pct is not None else None,
+        "saved_tokens": saved_tokens if quotable else None,
+        "saved_bytes": saved_bytes if quotable else None,
+        "saved_pct": (round(pct, 2) if pct is not None else None) if quotable else None,
+        "size_delta_tokens": saved_tokens,
+        "size_delta_bytes": saved_bytes,
+        "size_delta_pct": round(pct, 2) if pct is not None else None,
         "materiality_threshold_pct": MATERIALITY_THRESHOLD_PCT,
         "baseline": baseline.as_dict(),
         "candidate": candidate.as_dict(),
@@ -270,9 +377,10 @@ def build_result(
 def render_text(result: dict[str, Any]) -> str:
     base = result["baseline"]
     cand = result["candidate"]
-    pct = result["saved_pct"]
-    delta = f"{result['saved_tokens']:,} tokens"
+    pct = result["size_delta_pct"]
+    delta = f"{result['size_delta_tokens']:,} tokens"
     delta += f" ({pct:+.2f}%)" if pct is not None else " (percentage undefined)"
+    label = "delta" if result["verdict"] != "unverified" else "size diff"
     lines = [
         f"verdict: {result['verdict'].upper()}",
         f"counting: {result['counting']} | attribution: {result['attribution']}",
@@ -284,8 +392,13 @@ def render_text(result: dict[str, Any]) -> str:
         f"           {cand['tokens']:,} tokens / {cand['bytes']:,} bytes "
         f"/ {cand['median_duration_s']}s",
         "",
-        f"delta      {delta}",
+        f"{label:<10} {delta}",
     ]
+    if result["verdict"] == "unverified":
+        lines.append(
+            "           this is a raw size difference, not a savings result; "
+            "it must not be quoted"
+        )
     if result["verdict"] == "inconclusive":
         lines.append(
             f"           below the {result['materiality_threshold_pct']:g}% materiality "
@@ -309,7 +422,9 @@ def main(argv: list[str] | None = None) -> int:
         description="Measure whether a candidate command really reduces tokens."
     )
     parser.add_argument("--baseline", required=True, help="command an agent runs today")
-    parser.add_argument("--candidate", required=True, help="command claimed to be cheaper")
+    parser.add_argument(
+        "--candidate", required=True, help="command claimed to be cheaper"
+    )
     parser.add_argument(
         "--must-contain",
         action="append",
@@ -332,6 +447,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--runs", type=int, default=3, help="runs per arm (default 3)")
     parser.add_argument(
         "--timeout", type=float, default=120.0, help="per-run timeout in seconds"
+    )
+    parser.add_argument(
+        "--max-capture-bytes",
+        type=int,
+        default=DEFAULT_MAX_CAPTURE_BYTES,
+        help="stop an arm that emits more than this many bytes (default 64 MiB)",
     )
     parser.add_argument(
         "--shell",
@@ -400,6 +521,7 @@ def main(argv: list[str] | None = None) -> int:
             encoder=encoder,
             must_contain=must_contain,
             must_match=must_match,
+            max_bytes=args.max_capture_bytes,
         )
         candidate = measure(
             "candidate",
@@ -410,6 +532,7 @@ def main(argv: list[str] | None = None) -> int:
             encoder=encoder,
             must_contain=must_contain,
             must_match=must_match,
+            max_bytes=args.max_capture_bytes,
         )
     except BenchmarkError as exc:
         print(f"error: {exc}", file=sys.stderr)

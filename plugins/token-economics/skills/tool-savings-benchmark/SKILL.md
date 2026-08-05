@@ -30,7 +30,8 @@ contain, and a run without that assertion cannot produce a quotable result.
 ## Run it
 
 ```bash
-python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT}/scripts/benchmark_savings.py" \
+ROOT="${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT:-$CLAUDE_PLUGIN_ROOT}"
+python3 "$ROOT/scripts/benchmark_savings.py" \
   --baseline "rg -n 'func handleAuth' ." \
   --candidate "rtk rg -n 'func handleAuth' ." \
   --must-contain "handleAuth" \

@@ -30,12 +30,26 @@ import os
 import sqlite3
 import sys
 import urllib.parse
-from collections import defaultdict
-from dataclasses import dataclass, field, asdict
+from collections.abc import Iterable, Iterator
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 SCHEMA = "context-kit/token-usage-v1"
+
+
+def _display_path(path: Path) -> str:
+    """Abbreviate a source path so a pasted report does not carry a home dir.
+
+    A usage report is written to be shared, and an absolute path names the
+    developer and can expose private repository or machine layout. `--raw-paths`
+    restores the literal path for local debugging.
+    """
+    try:
+        return "~/" + str(path.relative_to(Path.home()))
+    except ValueError:
+        return str(path)
+
 
 # Copilot expresses cost in nano-AIU (1e-9 AI Units) so integer arithmetic stays
 # exact; convert only for display.
@@ -71,7 +85,7 @@ class Totals:
     cost_nano_aiu: int = 0
     cost_recorded: bool = False
 
-    def add(self, other: "Totals") -> None:
+    def add(self, other: Totals) -> None:
         self.requests += other.requests
         self.input_uncached += other.input_uncached
         self.cache_read += other.cache_read
@@ -92,7 +106,9 @@ class Totals:
         # hosts, so a raw token count overstates the value of avoiding it. Report
         # the hit rate rather than implying every token is equally expensive.
         input_side = self.input_uncached + self.cache_read + self.cache_write
-        data["cache_hit_ratio"] = round(self.cache_read / input_side, 4) if input_side else None
+        data["cache_hit_ratio"] = (
+            round(self.cache_read / input_side, 4) if input_side else None
+        )
         if self.cost_recorded:
             data["cost_aiu"] = round(self.cost_nano_aiu / NANO_PER_AIU, 6)
         else:
@@ -156,7 +172,9 @@ def copilot_db_path(path: Path | None = None) -> Path:
     return Path.home() / ".copilot" / "session-store.db"
 
 
-def iter_jsonl_usage(path: Path) -> Iterator[tuple[str, dict[str, Any], str | None, str | None]]:
+def iter_jsonl_usage(
+    path: Path,
+) -> Iterator[tuple[str, dict[str, Any], str | None, str | None]]:
     """Yield ``(model, usage, request_id, message_id)`` for assistant responses.
 
     Malformed lines are skipped rather than aborting: transcripts are appended
@@ -183,23 +201,24 @@ def iter_jsonl_usage(path: Path) -> Iterator[tuple[str, dict[str, Any], str | No
             yield str(model), usage, entry.get("requestId"), message.get("id")
 
 
-def collect_claude(root: Path | None = None) -> Report:
+def collect_claude(root: Path | None = None, *, raw_paths: bool = False) -> Report:
     """Total Claude Code transcript usage, deduplicated by API response."""
     projects = claude_projects_dir(root)
     report = Report(
         host="claude-code",
-        source=str(projects),
+        source=str(projects) if raw_paths else _display_path(projects),
         counting="exact",
         attribution="observational",
     )
     if not projects.is_dir():
         report.notes.append(
-            f"no Claude Code transcripts at {projects}; reported as absent, not as zero usage"
+            f"no Claude Code transcripts at {report.source}; reported as absent, not as zero usage"
         )
         return report
 
     seen: set[tuple[str, str]] = set()
     unkeyed = 0
+    unrecognized = 0
     unreadable: list[str] = []
     for path in sorted(projects.rglob("*.jsonl")):
         try:
@@ -223,6 +242,11 @@ def collect_claude(root: Path | None = None) -> Report:
                 seen.add(key)
             else:
                 unkeyed += 1
+            if not any(k in usage for k in CLAUDE_USAGE_FIELDS):
+                # The record has a usage object with none of the token keys this
+                # reader knows. Counting it as zero would report a confident
+                # `exact` total after a host format change; surface it instead.
+                unrecognized += 1
             totals = Totals(
                 requests=1,
                 # Claude Code follows Anthropic API semantics: input_tokens is
@@ -243,6 +267,15 @@ def collect_claude(root: Path | None = None) -> Report:
             f"{len(unreadable)} transcript(s) could not be read and are missing from "
             f"these totals: {shown}"
         )
+    if unrecognized:
+        report.notes.append(
+            f"{unrecognized} record(s) carried a usage object with none of the "
+            f"expected token fields {list(CLAUDE_USAGE_FIELDS)}; this host's format "
+            "may have changed and those records contributed nothing"
+        )
+        if unrecognized == report.totals.requests:
+            # Every record was unreadable, so the total is not a measurement.
+            report.counting = "unknown"
     if unkeyed:
         report.notes.append(
             f"{unkeyed} record(s) lacked requestId and message.id and could not be "
@@ -279,21 +312,21 @@ def _copilot_uncached_input(
                 if isinstance(item, dict) and item.get("tokenType") == "input":
                     return _int(item.get("tokenCount")), True
     derived = input_tokens - cache_read - cache_write
-    return (derived if derived > 0 else 0), False
+    return (max(0, derived)), False
 
 
-def collect_copilot(db: Path | None = None) -> Report:
+def collect_copilot(db: Path | None = None, *, raw_paths: bool = False) -> Report:
     """Total GitHub Copilot CLI usage from the local session store."""
     path = copilot_db_path(db)
     report = Report(
         host="github-copilot-cli",
-        source=str(path),
+        source=str(path) if raw_paths else _display_path(path),
         counting="exact",
         attribution="observational",
     )
     if not path.is_file():
         report.notes.append(
-            f"no Copilot session store at {path}; reported as absent, not as zero usage"
+            f"no Copilot session store at {report.source}; reported as absent, not as zero usage"
         )
         return report
 
@@ -363,13 +396,13 @@ def collect_copilot(db: Path | None = None) -> Report:
     return report
 
 
-def build_reports(hosts: Iterable[str]) -> list[Report]:
+def build_reports(hosts: Iterable[str], *, raw_paths: bool = False) -> list[Report]:
     reports: list[Report] = []
     for host in hosts:
         if host == "claude":
-            reports.append(collect_claude())
+            reports.append(collect_claude(raw_paths=raw_paths))
         elif host == "copilot":
-            reports.append(collect_copilot())
+            reports.append(collect_copilot(raw_paths=raw_paths))
         else:  # pragma: no cover - argparse constrains choices
             raise CollectError(f"unknown host: {host}")
     return reports
@@ -385,9 +418,7 @@ def render_text(reports: list[Report]) -> str:
         totals = report.totals
         lines.append(f"# {report.host}")
         lines.append(f"source: {report.source}")
-        lines.append(
-            f"counting: {report.counting} | attribution: {report.attribution}"
-        )
+        lines.append(f"counting: {report.counting} | attribution: {report.attribution}")
         if totals.requests == 0:
             lines.append("no usage records found")
             for note in report.notes:
@@ -411,7 +442,9 @@ def render_text(reports: list[Report]) -> str:
         if ratio is not None:
             lines.append(f"cache hit ratio:  {ratio:.1%} of input-side tokens")
         if totals.cost_recorded:
-            lines.append(f"recorded cost:    {totals.cost_nano_aiu / NANO_PER_AIU:,.3f} AIU")
+            lines.append(
+                f"recorded cost:    {totals.cost_nano_aiu / NANO_PER_AIU:,.3f} AIU"
+            )
         else:
             lines.append("recorded cost:    not recorded by this host")
         if report.by_model:
@@ -442,11 +475,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--format", choices=("text", "json"), default="text", help="output format"
     )
+    parser.add_argument(
+        "--raw-paths",
+        action="store_true",
+        help="print absolute source paths instead of home-relative ones; a report "
+        "you intend to share should keep the default",
+    )
     args = parser.parse_args(argv)
 
     hosts = args.host or ["claude", "copilot"]
     try:
-        reports = build_reports(hosts)
+        reports = build_reports(hosts, raw_paths=args.raw_paths)
     except CollectError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

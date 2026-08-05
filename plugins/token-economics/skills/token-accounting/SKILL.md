@@ -50,9 +50,9 @@ and quote the cache hit ratio.
 ## Collect
 
 ```bash
-python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT}/scripts/collect_usage.py" \
-  --host claude --host copilot
-python3 "${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT}/scripts/collect_usage.py" --format json
+ROOT="${CONTEXT_KIT_TOKEN_ECONOMICS_ROOT:-$CLAUDE_PLUGIN_ROOT}"
+python3 "$ROOT/scripts/collect_usage.py" --host claude --host copilot
+python3 "$ROOT/scripts/collect_usage.py" --format json
 ```
 
 Inside Claude Code plugin components, use

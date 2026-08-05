@@ -86,6 +86,9 @@ Nothing here sends data anywhere.
 | `CONTEXT_KIT_CLAUDE_PROJECTS` | `~/.claude/projects` |
 | `CONTEXT_KIT_COPILOT_DB` | `~/.copilot/session-store.db` |
 
+Reports print `source` home-relative so a shared report does not carry an
+absolute home path; `--raw-paths` opts out.
+
 ## Tests
 
 ```bash

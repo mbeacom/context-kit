@@ -43,6 +43,14 @@ Cardinality controls (`OTEL_METRICS_INCLUDE_SESSION_ID`,
 because session-scoped attributes explode series counts. Turn them off unless a
 question needs per-session granularity.
 
+`OTEL_METRICS_INCLUDE_ACCOUNT_UUID` is not only a cardinality knob. It attaches a
+stable per-person identifier, which turns a cost rollup into a per-developer
+activity dashboard showing who worked, when, and how much — visible to anyone who
+can read the dashboard. Almost every fleet question (spend, model mix, cache
+efficiency, delegation) is answerable without it. Leave it off by default, and
+treat enabling it as a decision needing notice to the people measured, a stated
+purpose, a retention limit, and a minimum aggregation size — not a config tweak.
+
 Prompt and tool content is redacted by default. `OTEL_LOG_USER_PROMPTS`,
 `OTEL_LOG_TOOL_DETAILS`, and `OTEL_LOG_RAW_API_BODIES` opt in to sending
 developer content off-machine. Treat enabling them as a privacy decision with

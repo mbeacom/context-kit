@@ -13,7 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-import collect_usage  # noqa: E402
+import collect_usage
 
 
 def write_jsonl(path: Path, entries: list[dict]) -> None:
@@ -58,7 +58,16 @@ class ClaudeCollectionTest(unittest.TestCase):
     def test_totals_sum_each_token_class_separately(self) -> None:
         write_jsonl(
             self.root / "proj" / "a.jsonl",
-            [assistant(request_id="r1", message_id="m1", inp=10, out=5, cache_read=100, cache_create=20)],
+            [
+                assistant(
+                    request_id="r1",
+                    message_id="m1",
+                    inp=10,
+                    out=5,
+                    cache_read=100,
+                    cache_create=20,
+                )
+            ],
         )
         report = collect_usage.collect_claude(self.root)
         self.assertEqual(report.totals.requests, 1)
@@ -316,6 +325,65 @@ class ResilienceTest(unittest.TestCase):
 
         self.assertEqual(report.totals.requests, 1)
         self.assertEqual(set(p.name for p in self.root.iterdir()), before)
+
+
+class SchemaDriftTest(unittest.TestCase):
+    """A host format change must be visible, not silently reported as zero."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+
+    def test_unrecognized_usage_keys_downgrade_counting_and_are_disclosed(self) -> None:
+        entry = {
+            "type": "assistant",
+            "requestId": "r1",
+            "message": {
+                "id": "m1",
+                "model": "m",
+                # Plausible future rename; none of the known fields present.
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            },
+        }
+        write_jsonl(self.root / "proj" / "a.jsonl", [entry])
+        report = collect_usage.collect_claude(self.root)
+        self.assertEqual(report.counting, "unknown")
+        self.assertTrue(any("may have changed" in n for n in report.notes))
+
+    def test_partial_drift_keeps_counting_exact(self) -> None:
+        write_jsonl(
+            self.root / "proj" / "a.jsonl",
+            [
+                assistant(request_id="r1", message_id="m1", out=5),
+                {
+                    "type": "assistant",
+                    "requestId": "r2",
+                    "message": {"id": "m2", "model": "m", "usage": {"weird": 1}},
+                },
+            ],
+        )
+        report = collect_usage.collect_claude(self.root)
+        self.assertEqual(report.counting, "exact")
+        self.assertTrue(any("may have changed" in n for n in report.notes))
+
+
+class SourcePathTest(unittest.TestCase):
+    """A report is written to be shared, so it should not carry a home path."""
+
+    def test_source_is_home_relative_by_default(self) -> None:
+        report = collect_usage.collect_claude(Path.home() / ".claude" / "projects")
+        self.assertFalse(report.source.startswith(str(Path.home())))
+        self.assertTrue(report.source.startswith("~/"))
+
+    def test_raw_paths_opt_in_restores_the_absolute_path(self) -> None:
+        target = Path.home() / ".claude" / "projects"
+        report = collect_usage.collect_claude(target, raw_paths=True)
+        self.assertEqual(report.source, str(target))
+
+    def test_path_outside_home_is_left_alone(self) -> None:
+        report = collect_usage.collect_claude(Path("/tmp/ck-not-under-home"))
+        self.assertEqual(report.source, "/tmp/ck-not-under-home")
 
 
 class GradeTest(unittest.TestCase):

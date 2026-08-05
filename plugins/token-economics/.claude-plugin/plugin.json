@@ -2,9 +2,11 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "token-economics",
   "displayName": "Token Economics",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Measure agent token usage and the savings a tool actually delivers, instead of repeating a vendor percentage. Reads Claude Code and GitHub Copilot CLI local usage records with per-host deduplication and cache decomposition, and settles savings claims with controlled A/B runs that require a preserved-answer assertion.",
-  "author": { "name": "Mark Beacom" },
+  "author": {
+    "name": "Mark Beacom"
+  },
   "homepage": "https://github.com/mbeacom/context-kit",
   "repository": "https://github.com/mbeacom/context-kit",
   "license": "MIT",
@@ -19,5 +21,7 @@
     "claude-code",
     "copilot"
   ],
-  "dependencies": ["verify"]
+  "dependencies": [
+    "verify"
+  ]
 }

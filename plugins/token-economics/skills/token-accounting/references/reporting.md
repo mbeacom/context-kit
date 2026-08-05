@@ -48,6 +48,13 @@ On a subscription plan the marginal cost of a token is zero. A dollar figure
 there is fabricated; the real constraints are quota and context window, so report
 capacity rather than money.
 
+## Paths
+
+`collect_usage.py` prints `source` home-relative (`~/.claude/projects`) so a
+pasted report does not name the developer or expose machine layout. `--raw-paths`
+restores absolute paths for local debugging; prefer the default in anything
+shared.
+
 ## Absence is not zero
 
 If no records were found, say the source was absent. `collect_usage.py` exits `1`

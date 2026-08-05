@@ -76,3 +76,11 @@ A savings figure that will be quoted to someone else is a claim about the world,
 so route it through `verify-before-trust` for a verdict with evidence. Give the
 verifier the command pair, the corpus, the assertion, and the raw JSON from
 `--format json` — enough to re-run it, which is the point.
+
+Read the commands before you share that JSON. `baseline.command` and
+`candidate.command` are recorded verbatim, so a benchmark over a private path, an
+internal repository name, a customer identifier, or a token passed as an argument
+carries all of it into whatever issue or PR you paste it into. Reproducibility is
+why the commands are there; if a command cannot be published, re-run the
+benchmark against a shareable equivalent rather than redacting the JSON by hand
+and leaving the numbers attached to a command that no longer matches them.

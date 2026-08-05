@@ -4,7 +4,8 @@
     "plugins/code-search/skills/code-search/SKILL.md": {
       "positive": [
         "Find every reference to the parseConfig symbol and show its callers.",
-        "Search the source tree for an AST pattern and explain when it changed."
+        "Search the source tree for an AST pattern and explain when it changed.",
+        "Report code size and complexity metrics by language across this repository."
       ],
       "negative": [
         "Search a PDF archive for source attribution and revenue tables.",
