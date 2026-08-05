@@ -2,6 +2,15 @@
 
 ## 0.3.0 — 2026-08-04
 
+- Add an optional stdio MCP server (`mcp/server.py` plus `.mcp.json`) exposing
+  `memory_recall`, `memory_capture`, and `memory_review`, so hosts that consume
+  skills plus MCP rather than Claude plugins can use durable memory. Standard
+  library only, no daemon, no Claude hooks. It shells out to
+  `memory-provider.py` with exact argv so the CLI and MCP paths cannot drift.
+- The MCP surface can propose memory but **cannot activate it**: `capture`
+  derives initial state from frontmatter, so the server refuses any record that
+  is not `review: proposed`. `sync-provider`, `record-state` promotion, backup
+  pruning, session mining, and destructive operations are not exposed.
 - Add `propose-from-session`, which extracts the human-visible conversation
   from GitHub Copilot CLI logs into reviewable
   `context-kit/memory-candidate-v1` candidates. It proposes rather than

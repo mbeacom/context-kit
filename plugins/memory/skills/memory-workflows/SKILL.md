@@ -122,6 +122,7 @@ and APM do not run Claude hooks.
 
 - **`references/memory-contract.md`** — record schema and evidence rules.
 - **`references/session-mining.md`** — Copilot session extraction and candidates.
+- **`references/mcp-server.md`** — optional MCP surface for non-plugin hosts.
 - **`references/provider-rag.md`** — the first-party offline semantic provider.
 - **`references/provider-mempalace.md`** — provider setup, isolation, and CLI.
 - **`references/provider-qualification.md`** — provider qualification criteria

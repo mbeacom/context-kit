@@ -121,6 +121,25 @@ authoring a `memory-v1` record from a candidate stays an explicit judgment step.
 
 See [`references/session-mining.md`](skills/memory-workflows/references/session-mining.md).
 
+## MCP surface for non-plugin hosts
+
+An optional stdio MCP server exposes `memory_recall`, `memory_capture`, and
+`memory_review` so hosts that consume skills plus MCP can use durable memory
+without a plugin runtime. It is standard library only and shells out to the
+same `memory-provider.py`, so the CLI and MCP paths cannot drift.
+
+```bash
+CONTEXT_KIT_MEMORY_PROJECT=owner/repository \
+  python3 "$CONTEXT_KIT_MEMORY_ROOT/mcp/server.py"
+```
+
+The surface can propose memory but **cannot activate it**: a record whose
+frontmatter is not `review: proposed` is refused, and proposals stay out of
+active recall until promoted with the append-only `record-state` CLI.
+`sync-provider`, promotion, mining, and destructive operations are not exposed.
+
+See [`references/mcp-server.md`](skills/memory-workflows/references/mcp-server.md).
+
 ## Opt-in lifecycle queue
 
 Claude hooks are inert until enabled:

@@ -4,7 +4,6 @@ import hashlib
 import importlib.util
 import io
 import json
-import os
 import sys
 import tempfile
 import unittest
@@ -60,8 +59,12 @@ class CopilotExtractionTests(unittest.TestCase):
     def test_session_start_without_an_id_is_not_recognized(self) -> None:
         self.assertIsNone(
             memory_provider._extract_copilot_session(
-                log_bytes([event("session.start", sessionId=""), 
-                           event("user.message", content="hi")])
+                log_bytes(
+                    [
+                        event("session.start", sessionId=""),
+                        event("user.message", content="hi"),
+                    ]
+                )
             )
         )
 

@@ -167,6 +167,29 @@ authoring a record from a candidate is an explicit judgment step. Dry run is the
 default, credential findings block the write unless `--redact` is passed, and
 repository/branch/HEAD anchors are required rather than invented.
 
+## MCP surface for non-plugin hosts
+
+An optional stdio MCP server lets hosts that consume **skills plus MCP** —
+GitHub Copilot, Scout-style agents, and other non-plugin runtimes — use durable
+memory without a Claude plugin runtime:
+
+```bash
+CONTEXT_KIT_MEMORY_PROJECT=owner/repository \
+  python3 "$CONTEXT_KIT_MEMORY_ROOT/mcp/server.py"
+```
+
+Three tools are exposed — `memory_recall`, `memory_capture`, `memory_review` —
+because a connected server advertises its schemas into context on every turn.
+Memory clears the "reach for MCP last" bar because it is live local state plus
+actions, not static knowledge a skill could carry.
+
+The server is a surface, not a source of truth: every tool shells out to
+`memory-provider.py` with exact argv, so validation, isolation, and review state
+have one implementation. It can propose memory but **cannot activate it** — a
+record that is not `review: proposed` is refused, and proposals stay out of
+active recall until promoted with the append-only `record-state` CLI.
+`sync-provider`, promotion, mining, and destructive operations are not exposed.
+
 ## Opt-in automatic capture
 
 Claude lifecycle hooks ship **disabled**. Enable only after provider setup,
