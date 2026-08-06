@@ -256,9 +256,7 @@ class SessionStartRecallHookTests(LifecycleTestCase):
     def test_recall_emits_nothing_when_there_is_no_memory(self) -> None:
         self.assertEqual(
             {},
-            self.hook(
-                "session-start", {"CONTEXT_KIT_MEMORY_RECALL_ON_START": "true"}
-            ),
+            self.hook("session-start", {"CONTEXT_KIT_MEMORY_RECALL_ON_START": "true"}),
         )
 
     def test_recall_never_breaks_a_session(self) -> None:
