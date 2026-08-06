@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.4.0 — 2026-08-05
+
+- **Correct a documented falsehood.** Several docs claimed GitHub Copilot does
+  not run Claude hooks. Verified false against a live Copilot CLI install
+  (1.0.79): Copilot loads a plugin's `hooks/hooks.json` using the same
+  PascalCase event names, honors an `additionalContext` string on stdout, and
+  bootstraps plugin data at `~/.copilot/plugin-data/<marketplace>/<plugin>/`.
+  APM still does not deploy hooks. Docs now state the real host matrix.
+- `wake` is now a provider-neutral session digest built from local records
+  rather than a MemPalace passthrough. Records are the system of record and a
+  provider store is a projection of them, so the digest is identical under
+  `none`, `rag`, and `mempalace`. It is bounded by record count and character
+  budget, ordered by recency, flags drifted or missing sources, and offers
+  `--format text` for injection.
+- Add a `SessionStart` hook that emits that digest as `additionalContext`, so
+  reviewed memory primes a session on both hosts that load hooks. Gated on its
+  own `CONTEXT_KIT_MEMORY_RECALL_ON_START` switch rather than on
+  `AUTO_CAPTURE`, because reading is not writing, and it degrades to `{}`
+  rather than ever failing a session start.
+- Add `audit`, a store-wide sweep for records whose cited source drifted or
+  vanished. It reports and proposes an exact `record-state` command; unlike
+  MemPalace's `sync` it never prunes, because evidence is the reason a memory
+  can be trusted later and a moved file is not proof a decision was wrong.
+- Tool-level hooks are deliberately **not** used. Measured on a real Copilot
+  corpus, `preToolUse` and `postToolUse` fire 23,683 and 35,083 times against
+  ~1,800 for the session boundaries, so hooking them would spawn a process per
+  tool call to capture noise, and would amount to the continuous transcript
+  harvesting the memory contract forbids.
+- Fix venv resolution for the `rag` provider on Copilot. 0.3.0 dropped
+  `CLAUDE_PLUGIN_DATA` because it is plugin-scoped, but that also lost the
+  ability to locate the dependency. Both hosts lay plugin data out as
+  `<root>/<plugin>`, so local-rag's home is resolved as a **sibling** of
+  memory's, and only when it exists.
+
 ## 0.3.0 — 2026-08-04
 
 - Add an optional stdio MCP server (`mcp/server.py` plus `.mcp.json`) exposing

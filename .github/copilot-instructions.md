@@ -12,7 +12,8 @@ Shared, host-neutral rules (layout, manifest sync, discovery frontmatter, portab
 - APM (Agent Package Manager, `microsoft/apm`) installs the same plugins: `apm marketplace add mbeacom/context-kit`, then `apm install <name>@context-kit`. Each plugin ships a sibling `apm.yml` mirroring `plugin.json` (keep `name`/`version` strictly in sync; `description` is intentionally a more concise variant tuned for APM/CLI listings); do not regenerate `marketplace.json` with `apm pack` (it drops the `category` field). See `docs/APM.md`.
 - Prefer `CONTEXT_KIT_DATA`, `CONTEXT_KIT_EMBED_MODEL`, `CONTEXT_KIT_OLLAMA_HOST`, and `CONTEXT_KIT_OBSIDIAN_VAULT` in portable examples.
 - For durable memory, prefer `CONTEXT_KIT_MEMORY_*`; keep MemPalace optional,
-  project-scoped, and separately installed. Copilot does not run Claude hooks.
+  project-scoped, and separately installed. Copilot CLI *does* load a plugin's
+  `hooks/hooks.json` (verified on 1.0.79); APM does not deploy hooks.
 - Preserve the repo layout: plugin components live under `plugins/<name>/skills`, `plugins/<name>/agents`, and `plugins/<name>/scripts`; plugin manifests live under `.claude-plugin/`, and each plugin ships a sibling `plugins/<name>/apm.yml` (no `.apm/` directory, so the plugin-native layout stays authoritative).
 - When running terminal checks, prefer `rtk` if installed for compact output, but avoid using rtk-filtered output as machine-readable input in pipes unless the command is documented as pipe-safe.
 

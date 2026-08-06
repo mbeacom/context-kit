@@ -43,6 +43,7 @@ REVIEW_STATES = {"proposed", "accepted", "rejected"}
 STATE_SCHEMA = "context-kit/memory-state-v1"
 RECEIPT_SCHEMA = "context-kit/memory-provider-receipt-v1"
 CANDIDATE_SCHEMA = "context-kit/memory-candidate-v1"
+WAKE_SCHEMA = "context-kit/memory-wake-v1"
 # Session mining recognizes GitHub Copilot CLI event logs
 # (`~/.copilot/session-state/<session-id>/events.jsonl`).
 SESSION_PRODUCER = "github-copilot-cli"
@@ -51,6 +52,11 @@ SESSION_PRODUCER = "github-copilot-cli"
 SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 MAX_TURN_CHARS = 2000
 MAX_CANDIDATE_TURNS = 400
+# A wake digest primes a session, so it competes with real work for context.
+# MemPalace targets 600-900 tokens for the same job; this is a comparable
+# character budget with a hard record cap so one verbose store cannot flood it.
+MAX_WAKE_RECORDS = 12
+MAX_WAKE_CHARS = 2400
 # Detection only. Each pattern names a high-signal credential shape so a
 # finding can be reported precisely and, with --redact, masked in place.
 SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -300,6 +306,7 @@ class Config:
     home: Path
     project: str | None
     auto_capture: bool
+    recall_on_start: bool = False
 
     @property
     def project_slug(self) -> str:
@@ -370,11 +377,18 @@ def _truthy(value: str | None) -> bool:
 def _local_rag_home() -> Path:
     """Where local-rag keeps its bootstrapped venv.
 
-    This mirrors local-rag's own resolution order, minus the plugin-scoped
-    Claude variable: inside this plugin `CLAUDE_PLUGIN_DATA` points at
-    *memory's* data directory, not the sibling local-rag directory where its
-    SessionStart hook built the venv. It is read from the *ambient*
-    environment, before this adapter redirects `CONTEXT_KIT_DATA` at the store.
+    Resolution is deliberately not a naive read of `CLAUDE_PLUGIN_DATA`: that
+    variable is *plugin-scoped*, so inside this plugin it points at memory's
+    own data directory. Both Claude Code and GitHub Copilot CLI lay plugin data
+    out as `<root>/<plugin>`, and `memory` hard-depends on `local-rag`, so the
+    dependency's home is a **sibling** of ours. Verified on a real Copilot
+    install: `~/.copilot/plugin-data/context-kit/{memory,local-rag}`.
+
+    The sibling is used only when it actually exists, so a wrong guess degrades
+    to the documented default rather than pointing at an empty directory.
+
+    Read from the *ambient* environment, before this adapter redirects
+    `CONTEXT_KIT_DATA` at the provider store.
     """
     configured = _first_env(
         "CONTEXT_KIT_LOCAL_RAG_HOME",
@@ -383,6 +397,11 @@ def _local_rag_home() -> Path:
     )
     if configured:
         return Path(configured).expanduser()
+    plugin_data = _first_env("CLAUDE_PLUGIN_DATA")
+    if plugin_data:
+        sibling = Path(plugin_data).expanduser().parent / "local-rag"
+        if (sibling / "venv").is_dir() or (sibling / "pyproject.sha").is_file():
+            return sibling
     return Path.home() / ".claude/plugins/data/local-rag"
 
 
@@ -415,11 +434,16 @@ def _config(args: argparse.Namespace) -> Config:
         "CONTEXT_KIT_MEMORY_AUTO_CAPTURE",
         "CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE",
     )
+    recall_value = _first_env(
+        "CONTEXT_KIT_MEMORY_RECALL_ON_START",
+        "CLAUDE_PLUGIN_OPTION_RECALL_ON_START",
+    )
     return Config(
         provider=provider,
         home=home,
         project=project,
         auto_capture=_truthy(auto_value),
+        recall_on_start=_truthy(recall_value),
     )
 
 
@@ -1161,11 +1185,12 @@ def _bundled_executable(spec: ProviderSpec) -> Path | None:
 def _rag_runtime_status(*, bootstrap: bool = False) -> dict[str, object]:
     """Report whether the local-rag venv is usable, optionally building it.
 
-    Claude Code bootstraps local-rag from a `SessionStart` hook. GitHub Copilot
-    and APM do not run Claude hooks, so readiness is checked explicitly here
-    rather than surfacing later as an opaque provider failure. A venv built
-    from different project metadata is reported as loudly as a missing one,
-    because it otherwise runs stale code silently.
+    Claude Code and GitHub Copilot CLI both bootstrap local-rag from its
+    `SessionStart` hook, but APM does not deploy hooks and any host may have a
+    stale or half-built venv, so readiness is checked explicitly here rather
+    than surfacing later as an opaque provider failure. A venv built from
+    different project metadata is reported as loudly as a missing one, because
+    it otherwise runs stale code silently.
     """
     root = _local_rag_root()
     if root is None:
@@ -1628,31 +1653,207 @@ def _search(args: argparse.Namespace, config: Config) -> int:
         )
 
 
-def _wake(config: Config) -> int:
-    spec = config.spec
-    if spec.name != "mempalace":
-        records, _ = _active_projection(config)
-        print(
-            json.dumps(
+def _wake_digest(config: Config) -> dict[str, object]:
+    """Build a bounded session-priming digest from local records.
+
+    Provider-neutral by construction: records are the system of record and a
+    provider store is a rebuildable projection of them, so the digest is
+    identical whether the configured provider is `none`, `rag`, or
+    `mempalace`. That also makes it a stable payload for lifecycle hooks.
+    """
+    records, _ = _active_projection(config)
+    inactive = 0
+    if config.records_path.exists():
+        for path in sorted(config.records_path.glob("*.md")):
+            try:
+                metadata, state = _load_record(path, config)
+            except Refusal:
+                continue
+            if not _is_active(state):
+                inactive += 1
+
+    # Most recently observed first; ties break on id so output is stable.
+    ordered = sorted(
+        records,
+        key=lambda item: (str(item[1]["observed_at"]), str(item[1]["id"])),
+        reverse=True,
+    )
+    by_type: dict[str, int] = {}
+    for _, metadata in ordered:
+        kind = str(metadata["type"])
+        by_type[kind] = by_type.get(kind, 0) + 1
+
+    surfaced: list[dict[str, object]] = []
+    attention: list[dict[str, str]] = []
+    used = 0
+    truncated = False
+    for _, metadata in ordered:
+        if len(surfaced) >= MAX_WAKE_RECORDS:
+            truncated = True
+            break
+        primary = str(metadata["primary_memory"])
+        cost = len(primary) + len(str(metadata["id"])) + len(str(metadata["type"])) + 8
+        if used + cost > MAX_WAKE_CHARS and surfaced:
+            truncated = True
+            break
+        used += cost
+        # Drift is only computed for surfaced records: hashing every source on
+        # every session start would be unbounded work. `audit` sweeps the store.
+        state = _source_state(metadata)
+        if state != "verified":
+            attention.append(
                 {
-                    "provider": spec.name,
-                    "project": config.project_slug,
-                    "status": "not-applicable",
-                    "detail": (
-                        "`wake` is a MemPalace session-priming command; "
-                        f"the {spec.name} provider has no equivalent"
-                    ),
-                    "store_path": str(config.store_path),
-                    "active_records": len(records),
-                    "reconciled": _has_current_provider_projection(
-                        config, _projection_hash(records)
-                    ),
+                    "id": str(metadata["id"]),
+                    "issue": state,
+                    "source": str(metadata["source"]),
                 }
             )
+        surfaced.append(
+            {
+                "id": metadata["id"],
+                "type": metadata["type"],
+                "primary_memory": primary,
+                "observed_at": metadata["observed_at"],
+                "source": metadata["source"],
+                "source_state": state,
+            }
         )
+
+    lines: list[str] = []
+    if surfaced:
+        lines.append(f"## Durable project memory — {config.project}")
+        lines.append("")
+        lines.append(
+            f"{len(records)} reviewed memor{'y' if len(records) == 1 else 'ies'} "
+            "for this project. These are leads, not current truth: open the "
+            "cited source before relying on one."
+        )
+        lines.append("")
+        for entry in surfaced:
+            flag = "" if entry["source_state"] == "verified" else " [source changed]"
+            lines.append(
+                f"- [{entry['type']}] {entry['primary_memory']} "
+                f"({entry['id']}){flag}"
+            )
+        if truncated:
+            lines.append("")
+            lines.append(
+                f"Showing {len(surfaced)} of {len(records)}; "
+                "run `search` for the rest."
+            )
+        if attention:
+            lines.append("")
+            lines.append(
+                f"{len(attention)} surfaced record(s) cite a source that changed "
+                "or is missing. Run `audit` before trusting them."
+            )
+
+    digest: dict[str, object] = {
+        "schema": WAKE_SCHEMA,
+        "project": config.project,
+        "project_key": config.project_slug,
+        "provider": config.provider,
+        "generated_at": _utc_timestamp(),
+        "counts": {
+            "active": len(records),
+            "inactive": inactive,
+            "by_type": by_type,
+            "surfaced": len(surfaced),
+        },
+        "memories": surfaced,
+        "attention": attention,
+        "truncated": truncated,
+        "context": "\n".join(lines),
+    }
+    if config.provider != "none":
+        digest["reconciled"] = _has_current_provider_projection(
+            config, _projection_hash(records)
+        )
+    return digest
+
+
+def _wake(args: argparse.Namespace, config: Config) -> int:
+    digest = _wake_digest(config)
+    if getattr(args, "format", "json") == "text":
+        context = str(digest["context"])
+        if context:
+            print(context)
         return 0
-    result = _run_provider(config, ["wake-up"])
-    _write_stdout(result.stdout)
+    print(json.dumps(digest))
+    return 0
+
+
+def _audit(args: argparse.Namespace, config: Config) -> int:
+    """Sweep every record and report source drift. Proposes; never deletes.
+
+    MemPalace's `sync` prunes drawers whose sources are gitignored, deleted, or
+    moved. Deleting is wrong here: a record's evidence is the reason it can be
+    trusted later, and a moved file is not proof the decision was wrong. This
+    reports drift and suggests a state transition the reviewer can apply with
+    `record-state`.
+    """
+    findings: list[dict[str, object]] = []
+    invalid: list[dict[str, str]] = []
+    counts = {"verified": 0, "drifted": 0, "unavailable": 0, "invalid": 0}
+    paths = (
+        sorted(config.records_path.glob("*.md")) if config.records_path.exists() else []
+    )
+    for path in paths:
+        try:
+            metadata, state = _load_record(path, config)
+        except Refusal as exc:
+            counts["invalid"] += 1
+            invalid.append({"artifact": str(path), "error": str(exc)})
+            continue
+        source_state = _source_state(metadata)
+        counts[source_state] = counts.get(source_state, 0) + 1
+        if source_state == "verified":
+            continue
+        active = _is_active(state)
+        findings.append(
+            {
+                "id": metadata["id"],
+                "source": metadata["source"],
+                "source_state": source_state,
+                "review": state["review"],
+                "freshness": state["freshness"],
+                "active": active,
+                # Only an active record misleads recall, so only it needs action.
+                "suggested": (
+                    "record-state {id} --freshness stale --reason "
+                    '"Cited source {issue}; re-verify before relying on it."'.format(
+                        id=metadata["id"],
+                        issue=(
+                            "changed since capture"
+                            if source_state == "drifted"
+                            else "is no longer present"
+                        ),
+                    )
+                    if active
+                    else "none: already inactive"
+                ),
+            }
+        )
+    findings.sort(key=lambda item: (not item["active"], str(item["id"])))
+    actionable = [f for f in findings if f["active"]]
+    print(
+        json.dumps(
+            {
+                "project": config.project_slug,
+                "records_examined": len(paths),
+                "counts": counts,
+                "findings": findings[: args.limit],
+                "actionable": len(actionable),
+                "invalid_records": invalid,
+                "truncated": len(findings) > args.limit,
+                "note": (
+                    "audit reports and proposes; it never edits or deletes a "
+                    "record. Apply a suggestion with `record-state`, then "
+                    "re-run `sync-provider --apply` if a provider is configured."
+                ),
+            }
+        )
+    )
     return 0
 
 
@@ -1697,8 +1898,9 @@ def _doctor(args: argparse.Namespace, config: Config) -> int:
                 raise Refusal(
                     f"the local-rag runtime is {status} "
                     f"({runtime.get('detail', 'no detail')}); run: {command} "
-                    "— Claude Code bootstraps this on SessionStart, but GitHub "
-                    "Copilot and APM do not run Claude hooks. Re-run `doctor "
+                    "— Claude Code and GitHub Copilot CLI bootstrap this from "
+                    "the local-rag SessionStart hook, but APM does not deploy "
+                    "hooks and an existing venv can be stale. Re-run `doctor "
                     "--bootstrap` to build it now."
                 )
     version_result = _run_provider(config, ["--version"], timeout=20.0)
@@ -2424,7 +2626,37 @@ def _propose_from_session(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
+def _hook_recall(config: Config) -> int:
+    """Emit reviewed memory as session-start context.
+
+    Both Claude Code and GitHub Copilot CLI run a plugin's `hooks/hooks.json`
+    and honor an `additionalContext` string, so this is the one lifecycle point
+    where durable memory pays for itself without the agent asking: reviewed,
+    accepted, current records prime the session.
+
+    Recall is read-only, so it is gated on its own switch rather than on
+    `auto_capture`, which governs writing.
+    """
+    if not config.recall_on_start:
+        print("{}")
+        return 0
+    try:
+        digest = _wake_digest(config)
+    except Refusal:
+        # A hook must never break a session over a memory problem.
+        print("{}")
+        return 0
+    context = str(digest["context"])
+    if not context:
+        print("{}")
+        return 0
+    print(json.dumps({"additionalContext": context}))
+    return 0
+
+
 def _run_hook(event: str, config: Config, payload: bytes) -> int:
+    if event == "session-start":
+        return _hook_recall(config)
     if not config.auto_capture:
         print("{}")
         return 0
@@ -2493,6 +2725,12 @@ def _parser() -> argparse.ArgumentParser:
     _add_config_args(search)
 
     wake = sub.add_parser("wake")
+    wake.add_argument(
+        "--format",
+        choices=("json", "text"),
+        default="json",
+        help="`text` prints only the injectable context block.",
+    )
     _add_config_args(wake)
 
     doctor = sub.add_parser("doctor")
@@ -2502,6 +2740,15 @@ def _parser() -> argparse.ArgumentParser:
         help="Build the local-rag runtime if it is missing or stale (rag provider).",
     )
     _add_config_args(doctor)
+
+    audit = sub.add_parser("audit")
+    audit.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Maximum findings to print (default 50).",
+    )
+    _add_config_args(audit)
 
     review = sub.add_parser("review")
     review.add_argument(
@@ -2548,7 +2795,10 @@ def _parser() -> argparse.ArgumentParser:
     _add_config_args(propose)
 
     hook = sub.add_parser("hook")
-    hook.add_argument("event", choices=("stop", "precompact", "session-end"))
+    hook.add_argument(
+        "event",
+        choices=("session-start", "stop", "precompact", "session-end"),
+    )
     _add_config_args(hook)
     return parser
 
@@ -2571,9 +2821,13 @@ def main(argv: list[str] | None = None) -> int:
                 raise Refusal("--results must be between 1 and 50")
             return _search(args, config)
         if args.command == "wake":
-            return _wake(config)
+            return _wake(args, config)
         if args.command == "doctor":
             return _doctor(args, config)
+        if args.command == "audit":
+            if args.limit < 1:
+                raise Refusal("--limit must be at least 1")
+            return _audit(args, config)
         if args.command == "review":
             return _record_review(config)
         if args.command == "record-state":

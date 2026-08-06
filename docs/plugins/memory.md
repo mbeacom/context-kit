@@ -206,7 +206,7 @@ export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
 `SessionEnd` saves a mode-0600 pending payload and starts a detached worker so
 the short host shutdown budget does not lose the final capture.
 
-GitHub Copilot and APM do not run Claude hooks. Their default remains explicit
+APM does not deploy plugin hooks, so its default remains explicit
 capture unless the user separately configures a native MemPalace integration.
 
 ## Configuration

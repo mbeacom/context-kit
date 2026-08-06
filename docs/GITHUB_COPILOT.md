@@ -42,7 +42,7 @@ Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
 | `plugins/*/skills/<name>/SKILL.md` (+ `references/`) | Installed via `copilot plugin install` | Installed via `/plugin install` |
 | `plugins/retrieval-core/agents/retrieval-strategist.md` | Installed with the plugin | Installed as a subagent |
 | `plugins/local-rag/bin/rag` | Bootstrap manually — see below | Auto-bootstrapped by a Claude `SessionStart` hook |
-| `plugins/memory/scripts/memory-provider.py` | Run explicitly; Copilot does not run Claude hooks | Explicit commands plus opt-in Claude hooks |
+| `plugins/memory/scripts/memory-provider.py` | Explicit commands, plus opt-in hooks — Copilot loads `hooks/hooks.json` | Explicit commands plus the same opt-in hooks |
 | `.claude-plugin/*` manifests | Used to resolve the marketplace | Marketplace packaging |
 
 Copilot's discovery-critical skill frontmatter is `name` and `description`, which
@@ -64,7 +64,7 @@ Once installed, ask Copilot naturally, for example:
 ## Running local-rag outside Claude Code
 
 `local-rag`'s `rag` CLI runs on a uv-managed venv. Claude Code bootstraps it
-automatically via a `SessionStart` hook; GitHub Copilot does not run Claude hooks,
+automatically via a `SessionStart` hook; GitHub Copilot CLI runs that hook too,
 so bootstrap it once yourself from a clone of this repo:
 
 ```bash
@@ -128,9 +128,9 @@ skills expect:
 - Optional for `obsidian-rag-bridge`: the official `obsidian` CLI with Obsidian
   running; otherwise use the `rg`/`fd` fallback over vault files.
 - Required for local `memory` records: Python 3. Optional provider recall uses a
-  separately installed `mempalace` CLI. Copilot does not run the plugin's Claude
-  lifecycle hooks, so capture remains explicit unless a native host integration
-  is configured separately.
+  separately installed `mempalace` CLI. Copilot CLI *does* load the plugin's
+  `hooks/hooks.json`, so opt-in session-start recall and boundary capture work
+  here; both stay off until explicitly enabled.
 
 Run `plugins/code-search/scripts/check-tools.sh` from a clone of this repository to
 see what is already installed and what `brew install ...` command would fill the gaps.

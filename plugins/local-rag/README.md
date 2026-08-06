@@ -48,7 +48,8 @@ venv was built from different `pyproject.toml` metadata and would run outdated
 code, so it is reported as clearly as a missing one. Because `uv` is only
 needed to *build* the venv, an already-usable venv reports `ready` even when
 `uv` is absent. Dependent tooling uses this to detect an unusable runtime on
-hosts that do not run Claude hooks.
+hosts that do not deploy plugin hooks, such as APM. (Claude Code and GitHub
+Copilot CLI both run this plugin's `SessionStart` bootstrap.)
 
 ## Usage
 

@@ -35,9 +35,10 @@ a remote server, in which case record text is submitted to that host.
 
 ## Runtime readiness
 
-`local-rag` runs from a bootstrapped venv. Claude Code builds it from a
-`SessionStart` hook; GitHub Copilot and APM do not run Claude hooks, so `doctor`
-checks readiness itself before probing the CLI:
+`local-rag` runs from a bootstrapped venv. Claude Code **and GitHub Copilot
+CLI** both build it from the `local-rag` `SessionStart` hook; APM does not
+deploy hooks, and any host can end up with a stale venv, so `doctor` checks
+readiness itself before probing the CLI:
 
 ```bash
 python3 "$MEMORY" doctor --provider rag              # report readiness

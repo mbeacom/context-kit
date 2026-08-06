@@ -85,9 +85,9 @@ apm update                   # refresh to the latest matching refs
 ## Running local-rag under APM
 
 `local-rag`'s `rag` CLI runs on a uv-managed virtualenv. Claude Code bootstraps
-it automatically via a `SessionStart` hook; **APM does not run Claude hooks**
-(the same limitation as GitHub Copilot), so bootstrap it once yourself from a
-clone of this repo, exactly as in
+it automatically via a `SessionStart` hook, and GitHub Copilot CLI runs that
+hook too; **APM does not deploy plugin hooks**, so bootstrap it once yourself
+from a clone of this repo, exactly as in
 [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md):
 
 ```bash
