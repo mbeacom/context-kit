@@ -28,6 +28,12 @@
   ~1,800 for the session boundaries, so hooking them would spawn a process per
   tool call to capture noise, and would amount to the continuous transcript
   harvesting the memory contract forbids.
+- Drop the obsolete `wake-up` capability probe. `wake` is now built from local
+  records for every provider, so requiring `wake-up` would refuse a MemPalace
+  install over a command the adapter never calls. Delegation is not restored:
+  MemPalace's `wake-up` returns its own mined L0/L1 context, which is
+  unreviewed, and returning it would violate the active-only, reviewed-only
+  recall contract.
 - Fix venv resolution for the `rag` provider on Copilot. 0.3.0 dropped
   `CLAUDE_PLUGIN_DATA` because it is plugin-scoped, but that also lost the
   ability to locate the dependency. Both hosts lay plugin data out as

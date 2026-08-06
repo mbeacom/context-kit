@@ -41,7 +41,7 @@ Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
 | --- | --- | --- |
 | `plugins/*/skills/<name>/SKILL.md` (+ `references/`) | Installed via `copilot plugin install` | Installed via `/plugin install` |
 | `plugins/retrieval-core/agents/retrieval-strategist.md` | Installed with the plugin | Installed as a subagent |
-| `plugins/local-rag/bin/rag` | Bootstrap manually — see below | Auto-bootstrapped by a Claude `SessionStart` hook |
+| `plugins/local-rag/bin/rag` | Auto-bootstrapped by the plugin's `SessionStart` hook | Auto-bootstrapped by the same hook |
 | `plugins/memory/scripts/memory-provider.py` | Explicit commands, plus opt-in hooks — Copilot loads `hooks/hooks.json` | Explicit commands plus the same opt-in hooks |
 | `.claude-plugin/*` manifests | Used to resolve the marketplace | Marketplace packaging |
 
@@ -61,11 +61,20 @@ Once installed, ask Copilot naturally, for example:
 - "Write a context handoff for the next session."
 - "Recall why this project changed its retry policy, then verify current evidence."
 
-## Running local-rag outside Claude Code
+## Bootstrapping the local-rag runtime
 
-`local-rag`'s `rag` CLI runs on a uv-managed venv. Claude Code bootstraps it
-automatically via a `SessionStart` hook; GitHub Copilot CLI runs that hook too,
-so bootstrap it once yourself from a clone of this repo:
+`local-rag`'s `rag` CLI runs on a uv-managed venv. **Both Claude Code and
+GitHub Copilot CLI bootstrap it automatically** from the plugin's `SessionStart`
+hook, so no manual step is normally needed.
+
+Bootstrap it yourself only when the venv is missing or stale — on APM, which
+does not deploy hooks, or after a `local-rag` upgrade. Check first:
+
+```bash
+bash plugins/local-rag/scripts/bootstrap.sh --check   # exit 0 ready, 3 needs bootstrap
+```
+
+Then, from a clone of this repo:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
@@ -143,6 +152,7 @@ When updating this repo, keep the reusable retrieval instructions agent-neutral:
 2. Keep Claude marketplace mechanics in `.claude-plugin/`, hooks, and Claude-only docs.
 3. Prefer `CONTEXT_KIT_*` in portable examples, with `CLAUDE_PLUGIN_*`
    documented as the Claude fallback.
-4. Mention when a behavior is installed automatically by Claude (for example, the
-   `local-rag` bootstrap hook) but must be run manually for GitHub Copilot.
+4. State host behavior precisely. Claude Code and GitHub Copilot CLI both load a
+   plugin's `hooks/hooks.json`; APM does not deploy hooks, so note when a step
+   is automatic on the hook-running hosts but manual on APM.
 5. Keep command output compact when possible (`rtk` is optional and safe to omit).

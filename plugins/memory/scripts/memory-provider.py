@@ -246,6 +246,9 @@ PROVIDER_SPECS: dict[str, ProviderSpec] = {
         tested_version=MEMPALACE_TESTED_VERSION,
         tested_release_line=MEMPALACE_TESTED_RELEASE_LINE,
         # Each probe mirrors an exact argv the adapter actually invokes.
+        # `wake-up` is deliberately absent: `wake` is built from local
+        # records for every provider, so requiring it would refuse an
+        # install over a command this adapter never calls.
         # Probing `--help` (never the mutating command itself) lets `doctor`
         # catch upstream CLI drift without importing provider internals or
         # writing to a store.
@@ -261,11 +264,6 @@ PROVIDER_SPECS: dict[str, ProviderSpec] = {
                 argv=("search", "--help"),
                 contract="search <query> --results <n>",
                 required_tokens=("--results",),
-            ),
-            CapabilityProbe(
-                name="wake",
-                argv=("wake-up", "--help"),
-                contract="wake-up",
             ),
         ),
     ),

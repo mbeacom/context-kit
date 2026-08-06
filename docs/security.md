@@ -220,8 +220,11 @@ records, pending files, or logs.
 - **Claude Code** loads plugin hooks. `local-rag` has a `SessionStart` bootstrap
   that creates or refreshes its uv environment; `memory` declares opt-in
   lifecycle hooks.
-- **GitHub Copilot CLI and APM** install the shared plugin content but do not run
-  Claude hooks. Bootstrap `local-rag` and capture memory explicitly.
+- **GitHub Copilot CLI** installs the shared plugin content and also loads a
+  plugin's `hooks/hooks.json`, so the same opt-in hooks apply there; they remain
+  disabled by default and are governed by the same switches.
+- **APM** installs the shared plugin content but does not deploy hooks.
+  Bootstrap `local-rag` and capture memory explicitly.
 - **`context-handoff`** has no hooks.
 - **`context-steering`** ships inert hook examples only; copying one into an
   active host configuration is a separate operator action.

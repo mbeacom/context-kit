@@ -177,6 +177,10 @@ as semantic recall.
 
 ## `wake`
 
-`wake` is a MemPalace session-priming command. Under `rag` it performs no
-provider call and reports `status: not-applicable` along with the store path,
-active record count, and whether the index is reconciled.
+`wake` is **provider-neutral**. It builds a bounded, recency-ordered digest of
+accepted/current records from the local store, so it performs no provider call
+and returns the same digest under `none`, `rag`, and `mempalace`. Records are
+the system of record and a provider store is a rebuildable projection of them,
+so there is nothing a provider could add that the records do not already have.
+
+See `automation.md` for using that digest to prime a session.
