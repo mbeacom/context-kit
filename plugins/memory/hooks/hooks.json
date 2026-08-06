@@ -1,6 +1,17 @@
 {
-  "description": "Opt-in local lifecycle queue; never writes to a provider.",
+  "description": "Opt-in memory lifecycle. SessionStart injects reviewed recall; the boundary events queue payloads for review. Neither writes to a provider. Both Claude Code and GitHub Copilot CLI load this file.",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/memory-provider.py\" hook session-start",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

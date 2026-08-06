@@ -95,8 +95,9 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
 
 `doctor` checks the local-rag runtime before probing the CLI and refuses with
 the exact bootstrap command when the venv is missing or stale; `--bootstrap`
-builds it. GitHub Copilot and APM do not run Claude's `SessionStart` hook, so
-this is the host-neutral path to a working runtime.
+builds it. Claude Code and GitHub Copilot CLI both run the `local-rag`
+`SessionStart` hook; APM does not deploy hooks, and any host can end up with a
+stale venv, so this is the host-neutral path to a working runtime.
 
 The index is a rebuildable projection of accepted/current records, never the
 system of record: hits are bound back to the local records, so review,
@@ -206,7 +207,7 @@ export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
 `SessionEnd` saves a mode-0600 pending payload and starts a detached worker so
 the short host shutdown budget does not lose the final capture.
 
-GitHub Copilot and APM do not run Claude hooks. Their default remains explicit
+APM does not deploy plugin hooks, so its default remains explicit
 capture unless the user separately configures a native MemPalace integration.
 
 ## Configuration

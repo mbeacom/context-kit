@@ -1,8 +1,9 @@
 # Agent Package Manager manifest. Keep name/version synchronized with plugin.json.
-# APM does not run Claude hooks; explicit commands remain portable.
+# APM does not deploy plugin hooks, so recall and capture stay explicit
+# commands there. Claude Code and GitHub Copilot CLI both load hooks/hooks.json.
 name: memory
-version: 0.3.0
-description: Provenance-bound durable memory with immutable records, append-only review state, and offline semantic recall via a first-party rag provider.
+version: 0.4.0
+description: Provenance-bound durable memory with immutable records, append-only review state, offline semantic recall, session priming, and drift auditing.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit

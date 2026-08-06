@@ -35,9 +35,10 @@ a remote server, in which case record text is submitted to that host.
 
 ## Runtime readiness
 
-`local-rag` runs from a bootstrapped venv. Claude Code builds it from a
-`SessionStart` hook; GitHub Copilot and APM do not run Claude hooks, so `doctor`
-checks readiness itself before probing the CLI:
+`local-rag` runs from a bootstrapped venv. Claude Code **and GitHub Copilot
+CLI** both build it from the `local-rag` `SessionStart` hook; APM does not
+deploy hooks, and any host can end up with a stale venv, so `doctor` checks
+readiness itself before probing the CLI:
 
 ```bash
 python3 "$MEMORY" doctor --provider rag              # report readiness
@@ -176,6 +177,10 @@ as semantic recall.
 
 ## `wake`
 
-`wake` is a MemPalace session-priming command. Under `rag` it performs no
-provider call and reports `status: not-applicable` along with the store path,
-active record count, and whether the index is reconciled.
+`wake` is **provider-neutral**. It builds a bounded, recency-ordered digest of
+accepted/current records from the local store, so it performs no provider call
+and returns the same digest under `none`, `rag`, and `mempalace`. Records are
+the system of record and a provider store is a rebuildable projection of them,
+so there is nothing a provider could add that the records do not already have.
+
+See `automation.md` for using that digest to prime a session.

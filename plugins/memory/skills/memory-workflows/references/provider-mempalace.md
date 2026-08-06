@@ -10,9 +10,11 @@ does not vendor or import its Python internals.
 This adapter is tested against **MemPalace 3.6.0** (the 3.6.x release line).
 `doctor` never imports MemPalace internals; instead it parses `mempalace
 --version` and probes the exact `--help` surfaces the adapter depends on
-(`mine --help`, `search --help`, and `wake-up --help`) with bounded timeouts,
-so upstream CLI drift is caught before synchronization, search, or wake runs
-against changed argv or missing options.
+(`mine --help` and `search --help`) with bounded timeouts, so upstream CLI
+drift is caught before synchronization or search runs against changed argv or
+missing options. `wake-up` is deliberately not probed: `wake` is built from
+local records for every provider, so requiring it would refuse an install over
+a command this adapter never calls.
 
 | Installed version | `doctor` reports | Meaning |
 | --- | --- | --- |
@@ -22,8 +24,8 @@ against changed argv or missing options.
 | unparseable | `version_status: unknown` | `--version` output changed shape; run `doctor` and consider filing an issue. |
 
 A version outside the tested line is **not** on its own a hard failure —
-`doctor` only refuses when a required capability (`capture`, `search`,
-or `wake`) is actually missing or incompatible. This avoids blocking
+`doctor` only refuses when a required capability (`capture` or `search`) is
+actually missing or incompatible. This avoids blocking
 a working install solely on a patch/minor version mismatch, while still
 refusing clearly when the CLI contract really has changed. Run
 `python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor` after
@@ -68,7 +70,7 @@ MEMORY="$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py"
 
 python3 "$MEMORY" capture record.md
 python3 "$MEMORY" search "why did we change retry policy" --results 8
-python3 "$MEMORY" wake
+python3 "$MEMORY" wake            # local digest; no MemPalace call
 python3 "$MEMORY" review
 python3 "$MEMORY" record-state retry-policy --review accepted \
   --reason "Evidence was reviewed."
@@ -115,8 +117,9 @@ backups.
 
 MemPalace 3.6 ships `mempalace-mcp`, a standalone MCP server. This is a
 **separate integration path from the stdlib adapter above**: the adapter
-above is what `capture`, `search`, `wake`, and `review` use; Claude hooks only
-queue local payloads for explicit review. `mempalace-mcp` instead lets a host's
+above is what `capture`, `search`, and `review` use (`wake` reads local
+records directly); lifecycle hooks only queue local payloads for explicit
+review. `mempalace-mcp` instead lets a host's
 own agent (here, GitHub Copilot CLI) call MemPalace recall directly as MCP
 tools. `context-kit` does not
 auto-register, auto-install, or otherwise wire this up for you — set it up

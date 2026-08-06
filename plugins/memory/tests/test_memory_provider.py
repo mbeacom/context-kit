@@ -739,7 +739,7 @@ class MemoryProviderTests(unittest.TestCase):
             c["name"]: c["status"] for c in compatibility["capabilities"]
         }
         self.assertEqual(
-            {"capture": "ok", "search": "ok", "wake": "ok"},
+            {"capture": "ok", "search": "ok"},
             capability_names,
         )
 
@@ -762,7 +762,11 @@ class MemoryProviderTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
     def test_doctor_refuses_clearly_when_subcommand_is_absent(self) -> None:
-        executable, _ = self.fake_mempalace(exit_overrides={"wake-up --help": 2})
+        # `search` is probed because the adapter actually invokes it. (`wake-up`
+        # is deliberately not probed: `wake` is built from local records for
+        # every provider, so requiring it would refuse an install over a
+        # command this adapter never calls.)
+        executable, _ = self.fake_mempalace(exit_overrides={"search --help": 2})
         with patch.dict(
             os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
         ):
@@ -771,8 +775,23 @@ class MemoryProviderTests(unittest.TestCase):
             )
 
         self.assertEqual(2, result)
-        self.assertIn("wake", stderr)
+        self.assertIn("search", stderr)
         self.assertIn("exited 2", stderr)
+
+    @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
+    def test_doctor_ignores_a_missing_wake_up_subcommand(self) -> None:
+        # A MemPalace install without `wake-up` must still be usable, because
+        # the adapter never calls it.
+        executable, _ = self.fake_mempalace(exit_overrides={"wake-up --help": 2})
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_MEMPALACE_BIN": str(executable)}, clear=True
+        ):
+            result, stdout, stderr = self.invoke(
+                ["doctor", "--provider", "mempalace", *self.base_args()]
+            )
+
+        self.assertEqual(0, result, stderr)
+        self.assertEqual("ready", json.loads(stdout)["status"])
 
     @unittest.skipUnless(os.name == "posix", "fake executable requires POSIX")
     def test_doctor_reports_older_version_without_hard_block(self) -> None:

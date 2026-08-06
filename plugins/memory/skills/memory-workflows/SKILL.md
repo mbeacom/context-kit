@@ -103,20 +103,34 @@ Run review before relying on old records. Consolidation is propose-only:
 
 Never destructively rewrite the only evidence for a remembered claim.
 
-## Optional lifecycle queue
+## Prime a session
 
-Claude hooks ship inert. When explicitly enabled, they queue lifecycle payloads
-under the project-isolated memory home for manual review:
+`wake` builds a bounded, recency-ordered digest of accepted/current records from
+the local store, so it is identical under every provider:
+
+```bash
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" wake --format text
+```
+
+`audit` sweeps the store for records whose cited source drifted or vanished and
+proposes a `record-state` transition for each. It never edits or deletes.
+
+## Optional lifecycle hooks
+
+Hooks ship inert behind two independent switches, because reading and writing
+are different risks:
 
 ```bash
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
-export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
+export CONTEXT_KIT_MEMORY_RECALL_ON_START=true   # SessionStart injects the digest
+export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true      # boundaries queue for review
 ```
 
-Hooks never create reviewed memory records or mutate a provider palace. Review a
-queued payload, create a `memory-v1` artifact, run explicit `capture`, and then
-run `sync-provider --apply` when provider recall should change. GitHub Copilot
-and APM do not run Claude hooks.
+Both Claude Code and GitHub Copilot CLI load `hooks/hooks.json` and honor
+`additionalContext`; APM does not deploy hooks. Capture hooks never create
+reviewed records or mutate a provider store — review a queued payload, create a
+`memory-v1` artifact, run explicit `capture`, then `sync-provider --apply`.
+Tool-level hooks are deliberately not used; see `references/automation.md`.
 
 ## Resources
 

@@ -10,9 +10,9 @@ remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
 It is notes-first but corpus-agnostic: loaders are pluggable, so the same engine
 can index Markdown notes, code, or any text corpus.
 
-GitHub Copilot, APM, or manual users run the CLI by bootstrapping it directly and
-setting the portable `CONTEXT_KIT_DATA` location. The Claude Code plugin
-auto-bootstraps the CLI for you.
+Claude Code and GitHub Copilot CLI both auto-bootstrap the CLI from the
+plugin's `SessionStart` hook. APM and manual users bootstrap it directly and set
+the portable `CONTEXT_KIT_DATA` location.
 
 ## Requirements
 
@@ -23,8 +23,8 @@ auto-bootstraps the CLI for you.
   ollama pull nomic-embed-text
   ```
 
-For GitHub Copilot, APM, or manual usage, bootstrap the venv yourself into a
-neutral data location:
+For APM or manual usage — or on any host where the venv is missing or stale —
+bootstrap it yourself into a neutral data location:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
@@ -32,8 +32,9 @@ bash scripts/bootstrap.sh
 export PATH="$PWD/bin:$PATH"
 ```
 
-Claude Code does this automatically on session start (via a `SessionStart` hook)
-into `${CLAUDE_PLUGIN_DATA}/venv`.
+Claude Code and GitHub Copilot CLI both do this automatically on session start
+(via the plugin's `SessionStart` hook), into `${CLAUDE_PLUGIN_DATA}/venv` — for
+Copilot, `~/.copilot/plugin-data/<marketplace>/local-rag/venv`.
 
 To check readiness without installing anything:
 
@@ -48,7 +49,8 @@ venv was built from different `pyproject.toml` metadata and would run outdated
 code, so it is reported as clearly as a missing one. Because `uv` is only
 needed to *build* the venv, an already-usable venv reports `ready` even when
 `uv` is absent. Dependent tooling uses this to detect an unusable runtime on
-hosts that do not run Claude hooks.
+hosts that do not deploy plugin hooks, such as APM. (Claude Code and GitHub
+Copilot CLI both run this plugin's `SessionStart` bootstrap.)
 
 ## Usage
 

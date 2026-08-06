@@ -68,11 +68,15 @@ bash plugins/code-search/scripts/check-tools.sh
 `rg` is required for `code-search`; most other search tools are optional.
 Plugin installation does not install third-party CLIs.
 
-GitHub Copilot and APM do **not** run Claude hooks:
+**GitHub Copilot CLI loads a plugin's `hooks/hooks.json`** (verified on 1.0.79),
+so `local-rag` auto-bootstraps and `memory`'s opt-in lifecycle hooks work there
+exactly as they do in Claude Code. Both stay off until explicitly enabled.
+
+**APM does not deploy hooks**, so on APM:
 
 - bootstrap `local-rag` manually;
 - use explicit memory commands; and
-- do not expect Claude lifecycle capture or `SessionStart` behavior.
+- do not expect lifecycle capture or `SessionStart` behavior.
 
 Claude Code loads plugin hooks. Check the `/plugin` **Errors** tab when a hook
 fails. `context-handoff` has no hooks, and `context-steering` ships only inert

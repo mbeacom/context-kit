@@ -93,8 +93,9 @@ integration viable over a reasonable horizon.
 ### 12. Host integration boundaries
 
 The provider must operate without requiring a persistent daemon started by
-`context-kit`. It must not assume Claude Code hooks are available, since GitHub
-Copilot and APM do not run them. Any host-specific integration (MCP server,
+`context-kit`. It must not assume plugin hooks are available: Claude Code and
+GitHub Copilot CLI load them, but APM does not deploy them. Any host-specific
+integration (MCP server,
 Copilot extension, IDE plugin) must be separately installable and must not be
 a prerequisite for CLI-driven capture and recall.
 

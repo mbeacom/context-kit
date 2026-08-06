@@ -57,8 +57,8 @@ copilot plugin install plugin-forge@context-kit
 ```
 
 See [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) for details, including the
-`local-rag` CLI bootstrap outside Claude Code (Copilot does not run the plugin's
-`SessionStart` hook).
+`local-rag` CLI bootstrap (Copilot CLI runs the plugin's `SessionStart` hook,
+but a stale venv can still need an explicit rebuild).
 
 ## APM (Agent Package Manager) install
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-08-05
+
+- Correct the host guidance in the skill and README. GitHub Copilot CLI loads a
+  plugin's `hooks/hooks.json` (verified on 1.0.79), so it auto-bootstraps the
+  `rag` venv exactly as Claude Code does; only APM needs a manual bootstrap.
+  The docs previously grouped Copilot with APM and sent Copilot users through
+  an unnecessary manual step.
+
 ## 0.4.0 — 2026-08-04
 
 - Separate venv resolution from index-data location. `CONTEXT_KIT_LOCAL_RAG_HOME`

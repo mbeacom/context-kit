@@ -514,7 +514,39 @@ class RagProviderTests(unittest.TestCase):
         ):
             self.assertEqual("/tmp/explicit", str(memory_provider._local_rag_home()))
 
-    def test_wake_reports_not_applicable_without_invoking_rag(self) -> None:
+    def test_venv_home_resolves_the_sibling_plugin_not_our_own_data(self) -> None:
+        # CLAUDE_PLUGIN_DATA is plugin-scoped, so reading it naively yields
+        # *memory's* data dir. Both hosts lay plugin data out as
+        # `<root>/<plugin>`, so local-rag's home is a sibling of ours —
+        # verified against a real Copilot install at
+        # ~/.copilot/plugin-data/context-kit/{memory,local-rag}.
+        root = self.root / "plugin-data" / "context-kit"
+        (root / "local-rag" / "venv").mkdir(parents=True)
+        (root / "memory").mkdir(parents=True)
+        with patch.dict(
+            os.environ, {"CLAUDE_PLUGIN_DATA": str(root / "memory")}, clear=True
+        ):
+            resolved = memory_provider._local_rag_home()
+        self.assertEqual(root / "local-rag", resolved)
+
+    def test_venv_home_falls_back_when_no_sibling_exists(self) -> None:
+        # A guess that does not exist must degrade to the documented default
+        # rather than pointing the launcher at an empty directory.
+        with patch.dict(
+            os.environ,
+            {"CLAUDE_PLUGIN_DATA": str(self.root / "absent" / "memory")},
+            clear=True,
+        ):
+            resolved = memory_provider._local_rag_home()
+        self.assertNotIn("absent", str(resolved))
+        with patch.dict(
+            os.environ, {"CONTEXT_KIT_LOCAL_RAG_HOME": "/tmp/explicit"}, clear=True
+        ):
+            self.assertEqual("/tmp/explicit", str(memory_provider._local_rag_home()))
+
+    def test_wake_builds_a_digest_without_invoking_rag(self) -> None:
+        # The digest reads local records, which are the system of record, so
+        # it is identical across providers and never shells out.
         executable = self.fake_rag()
         self.capture_and_sync(executable)
         before = len(self.recorded_calls())
@@ -524,8 +556,10 @@ class RagProviderTests(unittest.TestCase):
             )
         self.assertEqual(0, result, stderr)
         payload = json.loads(stdout)
-        self.assertEqual("not-applicable", payload["status"])
+        self.assertEqual("rag", payload["provider"])
+        self.assertEqual(["retry-policy"], [m["id"] for m in payload["memories"]])
         self.assertTrue(payload["reconciled"])
+        self.assertIn("retry", payload["context"])
         self.assertEqual(before, len(self.recorded_calls()))
 
     # ------------------------------------------------------------------
@@ -569,7 +603,7 @@ class RagProviderTests(unittest.TestCase):
         # The refusal must carry the exact command, and say why the host
         # did not do it automatically.
         self.assertIn("bash /plugins/local-rag/scripts/bootstrap.sh", stderr)
-        self.assertIn("Copilot and APM do not run Claude hooks", stderr)
+        self.assertIn("APM does not deploy", stderr)
 
     def test_doctor_refuses_on_a_stale_runtime(self) -> None:
         # A venv built from different project metadata runs stale code

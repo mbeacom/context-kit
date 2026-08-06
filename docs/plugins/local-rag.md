@@ -44,9 +44,10 @@ across sessions for fast repeat queries.
     ollama pull nomic-embed-text
     ```
 
-Claude Code creates the venv automatically on session start (a `SessionStart`
-hook) into `${CLAUDE_PLUGIN_DATA}/venv`. **GitHub Copilot and APM don't run Claude
-hooks**, so bootstrap it once yourself from a clone:
+Claude Code and GitHub Copilot CLI both create the venv automatically on session
+start (the plugin's `SessionStart` hook) into `${CLAUDE_PLUGIN_DATA}/venv`.
+**APM does not deploy hooks**, so bootstrap it once yourself from a clone there
+— or on any host where `--check` reports a missing or stale venv:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"

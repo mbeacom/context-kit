@@ -140,8 +140,9 @@ command has no side effects.
 
 Verify installation with the host-specific checks in
 [Troubleshooting and lifecycle](troubleshooting.md#verify-installation-by-host).
-GitHub Copilot and APM do not run Claude hooks, so `local-rag` needs one manual
-bootstrap from a clone:
+APM does not deploy plugin hooks, so `local-rag` needs one manual bootstrap
+from a clone there. (Claude Code and GitHub Copilot CLI both run the plugin's
+`SessionStart` hook, but a stale venv can still need a rebuild.)
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
