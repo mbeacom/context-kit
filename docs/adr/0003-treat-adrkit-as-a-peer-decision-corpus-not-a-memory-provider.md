@@ -2,7 +2,7 @@
 schemaVersion: 0.1.0
 id: "0003"
 title: "Treat adrkit as a peer decision corpus, not a memory provider"
-status: proposed
+status: accepted
 date: 2026-08-08
 deciders: ["@mbeacom"]
 tags: [memory, adrkit, retrieval, integration, boundaries]
@@ -26,6 +26,7 @@ affects:
     pattern: plugins/deep-review/**
 provenance:
   authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
   agent:
     name: Copilot CLI
     model: claude-opus-5

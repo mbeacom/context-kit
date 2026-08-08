@@ -2,7 +2,7 @@
 schemaVersion: 0.1.0
 id: "0006"
 title: "Publish the retrieval engine and memory contract as installable packages"
-status: proposed
+status: accepted
 date: 2026-08-08
 deciders: ["@mbeacom"]
 tags: [packaging, distribution, local-rag, memory, pypi]
@@ -21,6 +21,7 @@ affects:
     note: The PyPI name claimed by first publish. Name settled by ADR-0007.
 provenance:
   authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
   agent:
     name: Copilot CLI
     model: claude-opus-5

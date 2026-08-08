@@ -2,7 +2,7 @@
 schemaVersion: 0.1.0
 id: "0001"
 title: "Record architecture decisions with adrkit"
-status: proposed
+status: accepted
 date: 2026-08-08
 deciders: ["@mbeacom"]
 tags: [governance, decision-memory, dogfooding]
@@ -19,6 +19,7 @@ affects:
     note: Where corpus linting is enforced.
 provenance:
   authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
   agent:
     name: Copilot CLI
     model: claude-opus-5

@@ -2,7 +2,7 @@
 schemaVersion: 0.1.0
 id: "0005"
 title: "Treat plugin version as the cache key and keep dual manifests in lockstep"
-status: proposed
+status: accepted
 date: 2026-08-08
 deciders: ["@mbeacom"]
 tags: [packaging, versioning, apm, ci]
@@ -21,6 +21,7 @@ affects:
     pattern: plugins/plugin-forge/scripts/check-manifests.sh
 provenance:
   authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
   agent:
     name: Copilot CLI
     model: claude-opus-5

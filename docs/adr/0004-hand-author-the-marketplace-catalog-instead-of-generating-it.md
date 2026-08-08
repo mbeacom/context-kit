@@ -2,7 +2,7 @@
 schemaVersion: 0.1.0
 id: "0004"
 title: "Hand-author the marketplace catalog instead of generating it"
-status: proposed
+status: accepted
 date: 2026-08-08
 deciders: ["@mbeacom"]
 tags: [packaging, apm, catalog]
@@ -15,6 +15,7 @@ affects:
     pattern: .claude-plugin/marketplace.json
 provenance:
   authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
   agent:
     name: Copilot CLI
     model: claude-opus-5

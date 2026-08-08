@@ -2,7 +2,7 @@
 schemaVersion: 0.1.0
 id: "0007"
 title: "Rename local-rag to indexkit before claiming a package name"
-status: proposed
+status: accepted
 date: 2026-08-08
 deciders: ["@mbeacom"]
 tags: [naming, packaging, local-rag, indexkit, migration]
@@ -24,6 +24,7 @@ affects:
     note: PyPI and npm name claimed at first publish. Both unclaimed 2026-08-08.
 provenance:
   authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
   agent:
     name: Copilot CLI
     model: claude-opus-5

@@ -2,7 +2,7 @@
 schemaVersion: 0.1.0
 id: "0002"
 title: "Keep durable memory in the context-kit monorepo"
-status: proposed
+status: accepted
 date: 2026-08-08
 deciders: ["@mbeacom"]
 tags: [memory, repository-structure, packaging]
@@ -24,6 +24,7 @@ affects:
     pattern: .claude-plugin/marketplace.json
 provenance:
   authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
   agent:
     name: Copilot CLI
     model: claude-opus-5
