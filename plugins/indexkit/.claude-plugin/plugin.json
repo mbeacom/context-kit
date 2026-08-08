@@ -1,9 +1,9 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
-  "name": "local-rag",
+  "name": "indexkit",
   "displayName": "Local RAG",
-  "version": "0.4.1",
-  "description": "Local-first semantic and opt-in hybrid search: a bin/rag CLI that embeds through a configurable Ollama endpoint (default localhost), indexes with turbovec, and can fuse FTS5/BM25 candidates. Notes-first, corpus-agnostic via pluggable loaders.",
+  "version": "0.5.0",
+  "description": "Local-first semantic and opt-in hybrid search: a bin/indexkit CLI that embeds through a configurable Ollama endpoint (default localhost), indexes with turbovec, and can fuse FTS5/BM25 candidates. Notes-first, corpus-agnostic via pluggable loaders.",
   "author": {
     "name": "Mark Beacom"
   },

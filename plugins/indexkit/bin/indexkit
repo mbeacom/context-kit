@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Resolve the persistent venv created by scripts/bootstrap.sh.
+# CONTEXT_KIT_DATA locates *index data*. A caller (for example the context-kit
+# `memory` plugin) may redirect it per invocation to isolate indexes into its
+# own store, so the venv is resolved from CONTEXT_KIT_INDEXKIT_HOME first and
+# only falls back to the data dir when that is unset.
+# CONTEXT_KIT_LOCAL_RAG_HOME is the pre-rename name (ADR-0007), still honored so
+# existing environments keep working.
+DATA="${CONTEXT_KIT_DATA:-${PRODUCTIVITY_SKILLS_DATA:-${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/indexkit}}}"
+HOME_DIR="${CONTEXT_KIT_INDEXKIT_HOME:-${CONTEXT_KIT_LOCAL_RAG_HOME:-$DATA}}"
+VENV_PY="$HOME_DIR/venv/bin/python"
+if [[ ! -x "$VENV_PY" ]]; then
+  echo "indexkit venv missing. Run the plugin bootstrap (restart session) or:" >&2
+  echo "  bash \"$(dirname "$0")/../scripts/bootstrap.sh\"" >&2
+  exit 1
+fi
+exec "$VENV_PY" -m indexkit "$@"

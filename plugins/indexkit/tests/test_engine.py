@@ -1,8 +1,8 @@
 import pytest
 
-import local_rag.engine as engine_module
-from local_rag.engine import RRF_K, Engine, reciprocal_rank_fusion, slug
-from local_rag.storage import IndexLock
+import indexkit.engine as engine_module
+from indexkit.engine import RRF_K, Engine, reciprocal_rank_fusion, slug
+from indexkit.storage import IndexLock
 
 
 class StubEmbedder:

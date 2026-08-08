@@ -1,8 +1,8 @@
 ---
-name: local-rag
+name: indexkit
 description: "Use for semantic search over a markdown corpus when keywords aren't enough and you know the meaning, not the exact words, or hybrid semantic plus lexical search. Index once, then query."
 license: MIT
-compatibility: "Requires the bin/rag CLI (auto-bootstrapped via uv) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
+compatibility: "Requires the bin/indexkit CLI (auto-bootstrapped via uv) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
 metadata:
   author: Mark Beacom
   version: "0.3.1"
@@ -22,7 +22,7 @@ remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
   automatically on session start (uv venv). If `rag` is missing or stale, run
   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"`.
 - APM/manual: clone this repo, set `CONTEXT_KIT_DATA`, run
-  `plugins/local-rag/scripts/bootstrap.sh`, and add `plugins/local-rag/bin` to
+  `plugins/indexkit/scripts/bootstrap.sh`, and add `plugins/indexkit/bin` to
   `PATH`.
 
 Check readiness without installing anything — useful on APM, which does not
@@ -45,12 +45,12 @@ plugin variables remain supported as fallbacks.
 ## Use
 
 ```bash
-rag index /path/to/vault --name notes      # build/update the index (incremental)
-rag query "how did we handle retry backoff" --name notes --k 8
-rag query "retry backoff" --name notes --k 8 --hybrid
-rag status --name notes                     # counts, model, dim, FTS5 capability
-rag list                                    # known indexes
-rag remove --name notes --yes               # permanently remove one named index
+indexkit index /path/to/vault --name notes                  # build/update the index (incremental)
+indexkit query "how did we handle retry backoff" --name notes --k 8
+indexkit query "retry backoff" --name notes --k 8 --hybrid
+indexkit status --name notes                                # counts, model, dim, FTS5 capability
+indexkit list                                               # known indexes
+indexkit remove --name notes --yes                          # permanently remove one named index
 ```
 
 Re-running `index` re-embeds only changed files (content hash). Results report
@@ -68,15 +68,15 @@ removal also refuses while the index is in use.
 Semantic-only is the default. Add `--hybrid` to fuse turbovec and SQLite FTS5/BM25
 candidates with deterministic RRF: `1.0 / (60 + semantic_rank) + 1.0 / (60 +
 lexical_rank)`. Each source retrieves `3 × k` candidates before final fusion.
-`rag status` reports the `fts5` capability; if unavailable, `--hybrid` fails
+`indexkit status` reports the `fts5` capability; if unavailable, `--hybrid` fails
 clearly while semantic queries keep working.
 
 Pipe a candidate file set into `--allowlist -` to limit both sources:
 
 ```bash
 # From the obsidian bridge (graph/tags), or any tool that emits file paths:
-obsidian backlinks file="Project X" | rag query "open risks" --name notes --hybrid --allowlist -
-rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --hybrid --allowlist -
+obsidian backlinks file="Project X" | indexkit query "open risks" --name notes --hybrid --allowlist -
+rg -l '#decision' "$VAULT" | indexkit query "why did we choose X" --name notes --hybrid --allowlist -
 ```
 
 `rag` is not rtk-wrapped, so `rtk rag …` is a no-op (passes through). When `rtk`

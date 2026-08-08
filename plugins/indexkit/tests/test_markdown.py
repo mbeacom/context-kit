@@ -1,6 +1,6 @@
 import os
 
-from local_rag.loaders.markdown import iter_corpus, load_markdown
+from indexkit.loaders.markdown import iter_corpus, load_markdown
 
 DOC = """\
 ---

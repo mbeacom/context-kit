@@ -1,6 +1,6 @@
 import pytest
 
-from local_rag.storage import (
+from indexkit.storage import (
     IndexBusyError,
     IndexLock,
     IndexRemovalError,

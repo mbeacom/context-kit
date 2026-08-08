@@ -45,13 +45,13 @@ python3 -m unittest discover -s tests/integration -p 'test_*.py'
 # Lint the ADR corpus (skips cleanly if Node is unavailable)
 bash scripts/check-adr.sh
 
-# Run the local-rag Python tests
-cd plugins/local-rag && uv run --group dev pytest -q
+# Run the indexkit Python tests
+cd plugins/indexkit && uv run --group dev pytest -q
 ```
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including release-readiness and catalog-quality
-checks), and the `local-rag` pytest suite plus all focused standard-library
+checks), and the `indexkit` pytest suite plus all focused standard-library
 suites above.
 The integration suite uses a temporary local Git repository, the real script
 entry points, local memory mode, and no network or external MemPalace process.

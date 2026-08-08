@@ -31,11 +31,11 @@ cross-session handoff, and authoring.
 
     `retrieval` · shipped
 
--   :material-database-search:{ .lg .middle } **[local-rag](local-rag.md)**
+-   :material-database-search:{ .lg .middle } **[indexkit](indexkit.md)**
 
     ---
 
-    Local-first semantic RAG: a `bin/rag` CLI with a configurable Ollama
+    Local-first semantic RAG: a `bin/indexkit` CLI with a configurable Ollama
     endpoint, turbovec vectors, opt-in FTS5/BM25 reciprocal-rank fusion, and
     hybrid `--allowlist` retrieval.
 
@@ -46,7 +46,7 @@ cross-session handoff, and authoring.
     ---
 
     Skill-only RAG bridge: turn a vault's graph and tags into a candidate set
-    fed to `local-rag`.
+    fed to `indexkit`.
 
     `retrieval` · shipped
 
@@ -150,7 +150,7 @@ cross-session handoff, and authoring.
 graph TD
     RC[retrieval-core<br/>routing agent + decision flow]
     CS[code-search]
-    LR[local-rag]
+    LR[indexkit]
     OB[obsidian]
     VF[verify]
     RE[runtime-evidence]
@@ -196,8 +196,8 @@ graph TD
   claims, and reuses `plan-execute`'s fan-out to run lenses independently.
   Verification asks whether a claim is true; deep review asks whether the work
   is good.
-- **`obsidian`** and **`local-rag`** pair: the bridge produces candidate note
-  paths that feed `local-rag`'s hybrid `--allowlist` search.
+- **`obsidian`** and **`indexkit`** pair: the bridge produces candidate note
+  paths that feed `indexkit`'s hybrid `--allowlist` search.
 - **`plan-execute`**, **`context-steering`**, and **`plugin-forge`** are
   independent — orchestration, steering, and authoring around the retrieval core.
   `verify` can optionally use `plan-execute` for broad read-only impact coverage,
@@ -209,8 +209,8 @@ graph TD
 | --- | --- | --- | --- |
 | [retrieval-core](retrieval-core.md) | retrieval | agent + skill | — |
 | [code-search](code-search.md) | retrieval | 2 skills + tool checker | `retrieval-core` |
-| [local-rag](local-rag.md) | retrieval | `bin/rag` CLI + skill | ollama + turbovec + SQLite FTS5 for `--hybrid` |
-| [obsidian](obsidian.md) | retrieval | skill only | `local-rag` (runtime) |
+| [indexkit](indexkit.md) | retrieval | `bin/indexkit` CLI + skill | ollama + turbovec + SQLite FTS5 for `--hybrid` |
+| [obsidian](obsidian.md) | retrieval | skill only | `indexkit` (runtime) |
 | [plan-execute](plan-execute.md) | orchestration | skill + command + workflow + subagent | — |
 | [context-steering](context-steering.md) | steering | skill + examples | — |
 | [verify](verify.md) | verification | subagent + 2 skills + command + stdlib inspection runner | `retrieval-core` |

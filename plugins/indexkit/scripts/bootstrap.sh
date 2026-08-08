@@ -22,11 +22,12 @@ case "${1:-}" in
 esac
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-# CONTEXT_KIT_DATA locates *index data*; CONTEXT_KIT_LOCAL_RAG_HOME locates the
+# CONTEXT_KIT_DATA locates *index data*; CONTEXT_KIT_INDEXKIT_HOME locates the
 # venv. They are the same directory by default. Keeping the seam explicit lets a
 # caller redirect index data (for project isolation) without relocating the venv.
-DATA="${CONTEXT_KIT_DATA:-${PRODUCTIVITY_SKILLS_DATA:-${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/local-rag}}}"
-HOME_DIR="${CONTEXT_KIT_LOCAL_RAG_HOME:-$DATA}"
+# CONTEXT_KIT_LOCAL_RAG_HOME is the pre-rename name (ADR-0007), still honored.
+DATA="${CONTEXT_KIT_DATA:-${PRODUCTIVITY_SKILLS_DATA:-${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/indexkit}}}"
+HOME_DIR="${CONTEXT_KIT_INDEXKIT_HOME:-${CONTEXT_KIT_LOCAL_RAG_HOME:-$DATA}}"
 VENV="$HOME_DIR/venv"
 STAMP="$HOME_DIR/pyproject.sha"
 SRC_PROJECT="$PLUGIN_ROOT/pyproject.toml"
@@ -51,7 +52,7 @@ HAVE_UV=present
 command -v uv >/dev/null 2>&1 || HAVE_UV=missing
 
 if [[ "$HAVE_UV" == missing && $CHECK_ONLY -eq 0 ]]; then
-  echo "local-rag: 'uv' not found. Install uv: https://docs.astral.sh/uv/ " >&2
+  echo "indexkit: 'uv' not found. Install uv: https://docs.astral.sh/uv/ " >&2
   exit 1
 fi
 
@@ -89,9 +90,9 @@ fi
 
 mkdir -p "$HOME_DIR"
 if [[ ! -x "$VENV/bin/python" || "$cur_sha" != "$old_sha" ]]; then
-  echo "local-rag: syncing venv ($VENV)..." >&2
+  echo "indexkit: syncing venv ($VENV)..." >&2
   uv venv "$VENV" >/dev/null
   VIRTUAL_ENV="$VENV" uv pip install --python "$VENV/bin/python" "$PLUGIN_ROOT" >/dev/null
   echo "$cur_sha" > "$STAMP"
 fi
-echo "local-rag: venv ready at $VENV" >&2
+echo "indexkit: venv ready at $VENV" >&2

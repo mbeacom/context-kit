@@ -59,11 +59,11 @@ evidence, token economics, cross-session handoff, and authoring quality.
 
     ---
 
-    `local-rag` chunks and embeds a corpus with **ollama**, indexes it with
+    `indexkit` chunks and embeds a corpus with **ollama**, indexes it with
     **turbovec**, and can fuse FTS5/BM25 lexical candidates with vectors using
     deterministic reciprocal-rank fusion.
 
-    [:octicons-arrow-right-24: local-rag](plugins/local-rag.md)
+    [:octicons-arrow-right-24: indexkit](plugins/indexkit.md)
 
 -   :material-source-branch:{ .lg .middle } **One source, three hosts**
 
@@ -184,7 +184,7 @@ and your first search.
 | the *symbol* — its defs / refs / callers | code-intelligence | `global -xr parseConfig` · `ctags -R` |
 | a JSON/YAML schema path | structured-data | `jq '.scripts' package.json` |
 | *when / why* code changed | history | `git log -S'retry' -- src/` |
-| only the *meaning / intent* | semantic (RAG) | `rag query "how do we handle backoff" --name notes` |
+| only the *meaning / intent* | semantic (RAG) | `indexkit query "how do we handle backoff" --name notes` |
 | the corpus is an Obsidian vault | graph | `obsidian backlinks file="Project X"` |
 | a prior decision, constraint, procedure, or episode | durable memory | `/recall-memory "why did we change retries?"` |
 

@@ -1,6 +1,6 @@
 import random
 
-from local_rag.index import VecIndex
+from indexkit.index import VecIndex
 
 
 def _vec(seed, dim=64):

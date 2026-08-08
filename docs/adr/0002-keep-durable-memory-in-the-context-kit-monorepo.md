@@ -14,8 +14,9 @@ affects:
   - type: path
     pattern: plugins/memory/**
   - type: path
-    pattern: plugins/local-rag/**
-    note: Memory's semantic provider; the coupling that decides this.
+    pattern: plugins/indexkit/**
+    note: Memory's semantic provider; the coupling that decides this. Renamed
+      from local-rag by ADR-0007.
   - type: path
     pattern: plugins/context-handoff/**
     note: Memory's other hard dependency.

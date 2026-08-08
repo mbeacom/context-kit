@@ -1,5 +1,5 @@
 import pytest
-from local_rag.embed import OllamaEmbedder, EmbedError
+from indexkit.embed import OllamaEmbedder, EmbedError
 
 
 class FakeResp:

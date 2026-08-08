@@ -24,7 +24,7 @@ def _first_env(*names: str) -> str | None:
 def _data_dir() -> Path:
     return Path(
         _first_env("CONTEXT_KIT_DATA", "PRODUCTIVITY_SKILLS_DATA", "CLAUDE_PLUGIN_DATA")
-        or Path.home() / ".claude/plugins/data/local-rag"
+        or Path.home() / ".claude/plugins/data/indexkit"
     ).expanduser()
 
 
@@ -80,10 +80,13 @@ def _missing_index(name: str) -> str:
 
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    p = argparse.ArgumentParser(prog="rag", description="Local semantic RAG.")
+    p = argparse.ArgumentParser(
+        prog="indexkit",
+        description="Hybrid semantic and lexical retrieval over a local index.",
+    )
     # Exposed so an integrating adapter can pin/report a provider version the
     # same way it does for other retrieval backends.
-    p.add_argument("--version", action="version", version=f"rag {__version__}")
+    p.add_argument("--version", action="version", version=f"indexkit {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     pi = sub.add_parser("index")

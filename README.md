@@ -43,7 +43,7 @@ GitHub Copilot CLI installs these plugins directly from the marketplace — the 
 ```bash
 copilot plugin marketplace add mbeacom/context-kit
 copilot plugin install code-search@context-kit      # auto-installs retrieval-core
-copilot plugin install local-rag@context-kit
+copilot plugin install indexkit@context-kit
 copilot plugin install obsidian@context-kit
 copilot plugin install plan-execute@context-kit   # plan-big/execute-small orchestration
 copilot plugin install context-steering@context-kit
@@ -57,7 +57,7 @@ copilot plugin install plugin-forge@context-kit
 ```
 
 See [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) for details, including the
-`local-rag` CLI bootstrap (Copilot CLI runs the plugin's `SessionStart` hook,
+`indexkit` CLI bootstrap (Copilot CLI runs the plugin's `SessionStart` hook,
 but a stale venv can still need an explicit rebuild).
 
 ## APM (Agent Package Manager) install
@@ -70,7 +70,7 @@ install:
 ```bash
 apm marketplace add mbeacom/context-kit
 apm install code-search@context-kit      # also pulls retrieval-core (the spine)
-apm install local-rag@context-kit
+apm install indexkit@context-kit
 apm install obsidian@context-kit
 apm install plan-execute@context-kit
 apm install context-steering@context-kit
@@ -88,7 +88,7 @@ layout directly; each per-plugin `apm.yml` carries APM metadata and dependencies
 `runtime-evidence` and `context-handoff` depend on `verify`, which transitively
 pulls `retrieval-core`; `memory` depends on `context-handoff`. See
 [docs/APM.md](docs/APM.md) for
-targets, the `local-rag` bootstrap (APM does not run Claude's `SessionStart` hook),
+targets, the `indexkit` bootstrap (APM does not run Claude's `SessionStart` hook),
 and maintainer notes.
 
 ## Claude Code install
@@ -101,7 +101,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 
 ```bash
 /plugin install code-search@context-kit     # lexical/structural/data/history search
-/plugin install local-rag@context-kit        # local semantic search (turbovec + ollama)
+/plugin install indexkit@context-kit        # local semantic search (turbovec + ollama)
 /plugin install obsidian@context-kit          # Obsidian vault → RAG bridge
 /plugin install plan-execute@context-kit      # plan-big/execute-small orchestration
 /plugin install context-steering@context-kit  # place guidance at the cheapest layer
@@ -121,8 +121,8 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 | --- | --- |
 | **retrieval-core** | The spine: a `retrieval-strategist` agent + `retrieval-strategy` skill that choose and compose modalities. Other plugins depend on it. |
 | **code-search** | Lexical (`rg`/`fd`), structural (`ast-grep`/`semgrep`), code-intelligence (LSP/`global`/`ctags`), structured-data (`jq`/`yq`/`gron`), history (`git` pickaxe/`difftastic`), structured rewrite (`comby`), metrics (`tokei`/`scc`), and non-code docs (`rga`/`pandoc`/`pdftotext`). Two skills: `code-search` (code) and `data-and-docs-search` (data/docs). |
-| **local-rag** | Local-first semantic search: a `bin/rag` CLI that chunks a corpus, embeds it through a configurable **ollama** endpoint, and indexes it with **turbovec**. Adds opt-in FTS5/BM25 + vector reciprocal-rank fusion with `--hybrid`, incremental indexing, source offsets, and hybrid `--allowlist` scoping. |
-| **obsidian** | A skill-only **RAG bridge**: turn an Obsidian vault's graph/tags (official `obsidian` CLI, or `rg` fallback) into a candidate set fed to `local-rag`. For authoring/Bases/Canvas, use [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills). |
+| **indexkit** | Local-first semantic search: a `bin/indexkit` CLI that chunks a corpus, embeds it through a configurable **ollama** endpoint, and indexes it with **turbovec**. Adds opt-in FTS5/BM25 + vector reciprocal-rank fusion with `--hybrid`, incremental indexing, source offsets, and hybrid `--allowlist` scoping. |
+| **obsidian** | A skill-only **RAG bridge**: turn an Obsidian vault's graph/tags (official `obsidian` CLI, or `rg` fallback) into a candidate set fed to `indexkit`. For authoring/Bases/Canvas, use [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills). |
 | **plan-execute** | Plan-big/execute-small **orchestration**: a strong model plans and delegates token-heavy work to cheaper subagents. Ships a strategy skill (`CLAUDE_CODE_SUBAGENT_MODEL` + delegation prompt, and how `/advisor` differs), a `/plan-big-execute-small` command, a bundled Workflow, and an `execution-worker` subagent. |
 | **context-steering** | **Steering**: a `context-budget` skill for choosing where each piece of guidance lives — always-on memory (`CLAUDE.md`/`AGENTS.md`), path-scoped rules, on-demand skills, subagents, MCP servers, or deterministic hooks — plus inert, copy-paste rule and hook examples. Keeps the always-on context budget small. |
 | **verify** | **Verification and impact**: a read-only `verifier`, `verify-before-trust`, and prospective `change-impact` skill plus `/analyze-impact`. Checks claims and maps blast radius without editing or executing. Ships an enforced read-only inspection runner — a POSIX Python 3 stdlib executor with a fixed, plugin-owned catalog of non-mutating `git`/`jq`/`yq` operations, no shell, validated positional parameters, and a scrubbed environment — so history, structural, and structured-data evidence comes with a real guarantee or an explicit `unavailable`, never a silent downgrade. Composes with `retrieval-core`; `plan-execute` is optional for broad read-only coverage, not a dependency. |
@@ -141,7 +141,7 @@ The skills degrade gracefully and tell you what's missing.
 - **code-search** — needs `rg` (ripgrep); the rest are optional. Run
   `bash plugins/code-search/scripts/check-tools.sh` to see what's installed and
   the `brew install …` line for the rest.
-- **local-rag** — needs [`uv`](https://docs.astral.sh/uv/) and a running
+- **indexkit** — needs [`uv`](https://docs.astral.sh/uv/) and a running
   [ollama](https://ollama.com) with an embedding model. For GitHub Copilot, APM,
   or manual use, run the bootstrap step in
   [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) (`ollama serve` +
@@ -182,31 +182,31 @@ the skills automatically based on your task. The **`retrieval-strategist`** agen
 | the *symbol* — its defs / refs / callers | code-intelligence | `global -xr parseConfig` · `ctags -R` |
 | a JSON/YAML schema path | structured-data | `jq '.scripts' package.json` · `gron x.json \| rg token` |
 | *when/why* code changed | history | `git log -S'retry' -- src/` |
-| only the *meaning/intent* | semantic (RAG) | `rag query "how do we handle backoff" --name notes` |
+| only the *meaning/intent* | semantic (RAG) | `indexkit query "how do we handle backoff" --name notes` |
 | the corpus is an Obsidian vault | graph | `obsidian backlinks file="Project X"` |
 | a prior decision, constraint, or episode | durable memory | `/recall-memory "why did we change retries?"` |
 
-**Semantic search (local-rag):**
+**Semantic search (indexkit):**
 
 ```bash
-ollama pull nomic-embed-text                 # once
-rag index /path/to/vault --name notes        # build/update (incremental)
-rag query "open questions about billing" --name notes --k 8
-rag query "open questions about billing" --name notes --k 8 --hybrid
-rag status --name notes                       # counts, model, dim
-rag list                                      # known indexes
-rag remove --name notes --yes                 # permanent; --yes is required
+ollama pull nomic-embed-text                                              # once
+indexkit index /path/to/vault --name notes                                # build/update (incremental)
+indexkit query "open questions about billing" --name notes --k 8
+indexkit query "open questions about billing" --name notes --k 8 --hybrid
+indexkit status --name notes                                              # counts, model, dim
+indexkit list                                                             # known indexes
+indexkit remove --name notes --yes                                        # permanent; --yes is required
 ```
 
 **Hybrid retrieval (the payoff) — narrow with the graph/lexical, rerank with vectors:**
 
 ```bash
 # Obsidian graph → semantic rerank (official CLI)
-obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
+obsidian backlinks file="Project X" | indexkit query "open risks" --name notes --allowlist -
 
 # rg fallback when Obsidian isn't running ($VAULT defaults to the plugin's configured vault_path)
 VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
-rg -l '#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
+rg -l '#decision' "$VAULT" | indexkit query "why did we choose X" --name notes --allowlist -
 ```
 
 `--hybrid` fuses vector and SQLite FTS5/BM25 candidates with deterministic
@@ -240,8 +240,8 @@ python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/deep-review/tests -p 'test_*.py'
 python3 -m unittest discover -s tests/integration -p 'test_*.py'
 
-# Run the local-rag Python tests
-cd plugins/local-rag && uv run --group dev pytest -q
+# Run the indexkit Python tests
+cd plugins/indexkit && uv run --group dev pytest -q
 ```
 
 See [CLAUDE.md](CLAUDE.md) and

@@ -1,7 +1,7 @@
 # Local RAG
 
-A local-first semantic search engine with an opt-in hybrid mode. `local-rag`
-ships a `bin/rag` CLI that chunks and embeds a corpus through
+A local-first semantic search engine with an opt-in hybrid mode. `indexkit`
+ships a `bin/indexkit` CLI that chunks and embeds a corpus through
 [`ollama`](https://ollama.com) and indexes it with
 [`turbovec`](https://github.com/RyanCodrai/turbovec) (a quantized vector index).
 The default Ollama endpoint is localhost and needs no API key; a configured
@@ -34,7 +34,7 @@ export PATH="$PWD/bin:$PATH"
 
 Claude Code and GitHub Copilot CLI both do this automatically on session start
 (via the plugin's `SessionStart` hook), into `${CLAUDE_PLUGIN_DATA}/venv` — for
-Copilot, `~/.copilot/plugin-data/<marketplace>/local-rag/venv`.
+Copilot, `~/.copilot/plugin-data/<marketplace>/indexkit/venv`.
 
 To check readiness without installing anything:
 
@@ -57,12 +57,12 @@ Copilot CLI both run this plugin's `SessionStart` bootstrap.)
 Index a corpus, then query it:
 
 ```bash
-rag index <path> --name X
-rag query "your question" --name X
-rag query "exact terms and intent" --name X --hybrid
-rag status --name X
-rag list
-rag remove --name X --yes
+indexkit index <path> --name X
+indexkit query "your question" --name X
+indexkit query "exact terms and intent" --name X --hybrid
+indexkit status --name X
+indexkit list
+indexkit remove --name X --yes
 ```
 
 Each named index is persisted under
@@ -77,7 +77,7 @@ spaces or more than 80 characters. Path separators (`/` and `\`) and NUL are
 rejected. These containment rules apply consistently to `index`, `query`,
 `status`, and `remove`.
 
-`rag remove --name X --yes` permanently removes one named index. The command is
+`indexkit remove --name X --yes` permanently removes one named index. The command is
 non-interactive and refuses to run without `--yes`; missing indexes fail clearly.
 Indexing, querying, status inspection, and removal share a per-index process
 lock, so removal fails clearly while that index is in use. Once locked, removal
@@ -91,12 +91,12 @@ Portable environment variables:
 | Variable | Purpose | Claude fallback |
 | --- | --- | --- |
 | `CONTEXT_KIT_DATA` | venv and index storage | `CLAUDE_PLUGIN_DATA` |
-| `CONTEXT_KIT_LOCAL_RAG_HOME` | venv location only, when it must differ from index storage | — (defaults to `CONTEXT_KIT_DATA`) |
+| `CONTEXT_KIT_INDEXKIT_HOME` | venv location only, when it must differ from index storage | — (defaults to `CONTEXT_KIT_DATA`) |
 | `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
 | `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
 
 `CONTEXT_KIT_DATA` normally holds both the venv and the indexes. Set
-`CONTEXT_KIT_LOCAL_RAG_HOME` only when a caller needs to redirect *index data*
+`CONTEXT_KIT_INDEXKIT_HOME` only when a caller needs to redirect *index data*
 to an isolated store while still using one shared bootstrapped venv — the
 `memory` plugin does this to keep each project's index inside its own
 project-isolated provider directory. When it is unset, behavior is unchanged.
@@ -113,15 +113,15 @@ Each source retrieves `3 × k` candidates before fusion, so the candidate depth 
 greater than the requested final result count. JSON results include source offsets
 and per-source rank/score metadata; text output remains compact.
 
-`rag query` also accepts an `--allowlist` of candidate documents (read from a file,
+`indexkit query` also accepts an `--allowlist` of candidate documents (read from a file,
 or `-` for stdin), which applies to both semantic and lexical candidates. For
 example, feeding Obsidian backlinks into a hybrid query:
 
 ```bash
-obsidian backlinks file="X" | rag query "..." --hybrid --allowlist -
+obsidian backlinks file="X" | indexkit query "..." --hybrid --allowlist -
 ```
 
-FTS5 is detected and backfilled automatically for existing indexes. `rag status`
+FTS5 is detected and backfilled automatically for existing indexes. `indexkit status`
 reports its `fts5` capability. If the SQLite build lacks FTS5, semantic retrieval
 continues to work but `--hybrid` exits with a clear error.
 

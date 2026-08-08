@@ -15,7 +15,7 @@ Register this marketplace, then install the plugins you want:
 ```bash
 copilot plugin marketplace add mbeacom/context-kit
 copilot plugin install code-search@context-kit      # auto-installs retrieval-core
-copilot plugin install local-rag@context-kit
+copilot plugin install indexkit@context-kit
 copilot plugin install obsidian@context-kit
 copilot plugin install plan-execute@context-kit
 copilot plugin install context-steering@context-kit
@@ -41,7 +41,7 @@ Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
 | --- | --- | --- |
 | `plugins/*/skills/<name>/SKILL.md` (+ `references/`) | Installed via `copilot plugin install` | Installed via `/plugin install` |
 | `plugins/retrieval-core/agents/retrieval-strategist.md` | Installed with the plugin | Installed as a subagent |
-| `plugins/local-rag/bin/rag` | Auto-bootstrapped by the plugin's `SessionStart` hook | Auto-bootstrapped by the same hook |
+| `plugins/indexkit/bin/indexkit` | Auto-bootstrapped by the plugin's `SessionStart` hook | Auto-bootstrapped by the same hook |
 | `plugins/memory/scripts/memory-provider.py` | Explicit commands, plus opt-in hooks — Copilot loads `hooks/hooks.json` | Explicit commands plus the same opt-in hooks |
 | `.claude-plugin/*` manifests | Used to resolve the marketplace | Marketplace packaging |
 
@@ -54,43 +54,43 @@ Once installed, ask Copilot naturally, for example:
 
 - "Use the retrieval strategy to find where retry backoff is handled."
 - "Use code-search to find structural React `useEffect` cleanup issues."
-- "Use local-rag to query my notes for billing open questions."
+- "Use indexkit to query my notes for billing open questions."
 - "Use the Obsidian RAG bridge to search notes linked to Project X."
 - "Analyze the prospective impact of changing this schema."
 - "Collect bounded runtime evidence for this unable-to-check claim."
 - "Write a context handoff for the next session."
 - "Recall why this project changed its retry policy, then verify current evidence."
 
-## Bootstrapping the local-rag runtime
+## Bootstrapping the indexkit runtime
 
-`local-rag`'s `rag` CLI runs on a uv-managed venv. **Both Claude Code and
+`indexkit`'s `rag` CLI runs on a uv-managed venv. **Both Claude Code and
 GitHub Copilot CLI bootstrap it automatically** from the plugin's `SessionStart`
 hook, so no manual step is normally needed.
 
 Bootstrap it yourself only when the venv is missing or stale — on APM, which
-does not deploy hooks, or after a `local-rag` upgrade. Check first:
+does not deploy hooks, or after a `indexkit` upgrade. Check first:
 
 ```bash
-bash plugins/local-rag/scripts/bootstrap.sh --check   # exit 0 ready, 3 needs bootstrap
+bash plugins/indexkit/scripts/bootstrap.sh --check   # exit 0 ready, 3 needs bootstrap
 ```
 
 Then, from a clone of this repo:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
-bash plugins/local-rag/scripts/bootstrap.sh
-export PATH="$PWD/plugins/local-rag/bin:$PATH"
+bash plugins/indexkit/scripts/bootstrap.sh
+export PATH="$PWD/plugins/indexkit/bin:$PATH"
 ollama pull nomic-embed-text
-rag index /path/to/vault --name notes
-rag query "open questions about billing" --name notes --k 8
-rag query "open questions about billing" --name notes --k 8 --hybrid
+indexkit index /path/to/vault --name notes
+indexkit query "open questions about billing" --name notes --k 8
+indexkit query "open questions about billing" --name notes --k 8 --hybrid
 ```
 
 Supported neutral environment variables:
 
 | Variable | Purpose | Claude fallback |
 | --- | --- | --- |
-| `CONTEXT_KIT_DATA` | venv and index storage for `local-rag` | `CLAUDE_PLUGIN_DATA` |
+| `CONTEXT_KIT_DATA` | venv and index storage for `indexkit` | `CLAUDE_PLUGIN_DATA` |
 | `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
 | `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
 | `CONTEXT_KIT_OBSIDIAN_VAULT` | vault path used by examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
@@ -122,7 +122,7 @@ skills expect:
 - Optional but useful: `fd`, `ast-grep`/`sg`, `semgrep`, `jq`, `yq`, `gron`,
   `duckdb`, `sqlite-utils`, `rga`, `pandoc`, `pdftotext`, `difftastic`, `tokei`,
   `scc`, and `rtk`.
-- Required for `local-rag`: `uv`, `ollama`, and an embedding model such as
+- Required for `indexkit`: `uv`, `ollama`, and an embedding model such as
   `nomic-embed-text`. SQLite FTS5 is required only for opt-in `--hybrid`; the
   default semantic mode remains available without it.
 - Required for `runtime-evidence` and `context-handoff`: Python 3. Their runner

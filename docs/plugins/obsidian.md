@@ -34,21 +34,21 @@
 obsidian backlinks / rg tag search
           │
           ▼  candidate note paths
-    rag query --allowlist -
+    indexkit query --allowlist -
           │
           ▼  ranked results (path > heading + snippet)
 ```
 
 1. **Produce candidates** — use the official `obsidian` CLI (requires Obsidian
    running) or fall back to `rg`/`fd` directly over vault files.
-2. **Rerank semantically** — pipe candidate paths to `rag query --allowlist -`,
+2. **Rerank semantically** — pipe candidate paths to `indexkit query --allowlist -`,
    which runs hybrid search only over that file set.
 3. **Pin exact lines** — use `rg` on the returned `path > heading` hits.
 
 ## Prerequisites
 
-- **[`local-rag`](local-rag.md)** (required) — provides the `rag` CLI. Index your
-  vault once: `rag index /path/to/vault --name notes`.
+- **[`indexkit`](indexkit.md)** (required) — provides the `rag` CLI. Index your
+  vault once: `indexkit index /path/to/vault --name notes`.
 - **Official `obsidian` CLI** (optional, recommended) — ships with Obsidian
   desktop; enables graph-aware backlink and full-text queries.
 - **`rg` / `fd`** (fallback) — used when Obsidian isn't running. Operates on files
@@ -58,11 +58,11 @@ obsidian backlinks / rg tag search
 
 ```bash
 # Graph-aware (official CLI)
-obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
+obsidian backlinks file="Project X" | indexkit query "open risks" --name notes --allowlist -
 
 # Tag-based fallback (rg)
 VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-.}"
-rg -l '(^|\s)#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
+rg -l '(^|\s)#decision' "$VAULT" | indexkit query "why did we choose X" --name notes --allowlist -
 ```
 
 Set the vault path via Claude `userConfig` (`vault_path`) or
@@ -82,5 +82,5 @@ Set the vault path via Claude `userConfig` (`vault_path`) or
 | --- | --- |
 | **Category** | retrieval |
 | **Provides** | 1 skill (`obsidian-rag-bridge`), no binaries |
-| **Pairs with** | [`local-rag`](local-rag.md) (runtime dependency) |
+| **Pairs with** | [`indexkit`](indexkit.md) (runtime dependency) |
 | **License** | MIT |

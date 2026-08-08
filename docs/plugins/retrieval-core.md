@@ -61,7 +61,7 @@ The decision flow keys off **what you already know** about the target:
 | a large tabular CSV/Parquet corpus | data files (`duckdb`, `sqlite-utils`) | [code-search](code-search.md) |
 | codebase size or complexity | metrics (`tokei`, `scc`) | [code-search](code-search.md) |
 | content inside PDFs, Office files, or archives | docs (`rga`, `pandoc`, `pdftotext`) | [code-search](code-search.md) |
-| only the meaning / intent | semantic (RAG) | [local-rag](local-rag.md) |
+| only the meaning / intent | semantic (RAG) | [indexkit](indexkit.md) |
 | the corpus is an Obsidian vault | graph (backlinks / tags) | [obsidian](obsidian.md) |
 | a prior decision, constraint, procedure, preference, or episode | durable memory | [memory](memory.md) |
 | current task state and next action | validated handoff | [context-handoff](context-handoff.md) |
@@ -74,7 +74,7 @@ The decision flow keys off **what you already know** about the target:
 Modalities are layers, not rivals. The strategist sequences them:
 
 - **Hybrid rerank** — lexical or structured-data narrows to a candidate file set
-  → `rag query --allowlist -` reranks only those by meaning.
+  → `indexkit query --allowlist -` reranks only those by meaning.
 - **Scope then search** — graph backlinks or tags bound a subgraph → RAG within it.
 - **Find then pin** — RAG surfaces `path > heading` regions → `rg` pins exact lines.
 - **Resolve then pin** — code-intelligence resolves true symbol references → `rg`

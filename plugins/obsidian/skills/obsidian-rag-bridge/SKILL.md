@@ -1,8 +1,8 @@
 ---
 name: obsidian-rag-bridge
-description: "Use to retrieve from an Obsidian vault by combining its link graph/tags with semantic search: build a candidate note set for local-rag's --allowlist. Not for writing notes, Bases, or Canvas."
+description: "Use to retrieve from an Obsidian vault by combining its link graph/tags with semantic search: build a candidate note set for indexkit's --allowlist. Not for writing notes, Bases, or Canvas."
 license: MIT
-compatibility: "Best with the official obsidian CLI (Obsidian running). Falls back to rg/fd over the vault. Pairs with the local-rag plugin."
+compatibility: "Best with the official obsidian CLI (Obsidian running). Falls back to rg/fd over the vault. Pairs with the indexkit plugin."
 metadata:
   author: Mark Beacom
   version: "0.1.0"
@@ -43,14 +43,14 @@ fd -e md . "$VAULT"                      # all notes
 
 ## 2. Rerank semantically
 
-Pipe candidate paths into `local-rag`'s allowlist:
+Pipe candidate paths into `indexkit`'s allowlist:
 
 ```bash
-obsidian backlinks file="Project X" | rag query "open risks and mitigations" --name notes --allowlist -
-rg -l '(^|\s)#decision' "$VAULT"        | rag query "why did we choose X"      --name notes --allowlist -
+obsidian backlinks file="Project X" | indexkit query "open risks and mitigations" --name notes --allowlist -
+rg -l '(^|\s)#decision' "$VAULT"        | indexkit query "why did we choose X"      --name notes --allowlist -
 ```
 
-(Index the vault first: `rag index "$VAULT" --name notes`.)
+(Index the vault first: `indexkit index "$VAULT" --name notes`.)
 
 ## 3. Pin exact lines
 

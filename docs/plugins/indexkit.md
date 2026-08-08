@@ -1,12 +1,12 @@
-# local-rag
+# indexkit
 
 !!! abstract "Local-first semantic and hybrid search"
-    A `bin/rag` CLI that chunks and embeds a corpus with **ollama** and indexes it
+    A `bin/indexkit` CLI that chunks and embeds a corpus with **ollama** and indexes it
     with **turbovec** (a quantized vector index). Optional `--hybrid` retrieval
     fuses vectors with SQLite FTS5/BM25. The default Ollama endpoint is localhost
     and needs no API key; a configured remote endpoint receives submitted text.
 
-`local-rag` is notes-first but corpus-agnostic: loaders are pluggable, so the same
+`indexkit` is notes-first but corpus-agnostic: loaders are pluggable, so the same
 engine can index Markdown notes, code, or any text corpus. Named indexes persist
 across sessions for fast repeat queries.
 
@@ -16,21 +16,21 @@ across sessions for fast repeat queries.
 
     ```bash
     copilot plugin marketplace add mbeacom/context-kit
-    copilot plugin install local-rag@context-kit
+    copilot plugin install indexkit@context-kit
     ```
 
 === "APM"
 
     ```bash
     apm marketplace add mbeacom/context-kit
-    apm install local-rag@context-kit
+    apm install indexkit@context-kit
     ```
 
 === "Claude Code"
 
     ```bash
     /plugin marketplace add mbeacom/context-kit
-    /plugin install local-rag@context-kit
+    /plugin install indexkit@context-kit
     ```
 
 ## Requirements
@@ -51,19 +51,19 @@ start (the plugin's `SessionStart` hook) into `${CLAUDE_PLUGIN_DATA}/venv`.
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
-bash plugins/local-rag/scripts/bootstrap.sh
-export PATH="$PWD/plugins/local-rag/bin:$PATH"
+bash plugins/indexkit/scripts/bootstrap.sh
+export PATH="$PWD/plugins/indexkit/bin:$PATH"
 ```
 
 ## Usage
 
 ```bash
-rag index <path> --name notes        # build/update (incremental)
-rag query "your question" --name notes --k 8
-rag query "your question" --name notes --k 8 --hybrid
-rag status --name notes               # counts, model, dim
-rag list                              # known indexes
-rag remove --name notes --yes         # permanent, non-interactive removal
+indexkit index <path> --name notes                     # build/update (incremental)
+indexkit query "your question" --name notes --k 8
+indexkit query "your question" --name notes --k 8 --hybrid
+indexkit status --name notes                           # counts, model, dim
+indexkit list                                          # known indexes
+indexkit remove --name notes --yes                     # permanent, non-interactive removal
 ```
 
 Each named index is persisted under `${CONTEXT_KIT_DATA}/indexes/<name>/` (or
@@ -78,7 +78,7 @@ spaces or more than 80 characters. Path separators (`/` and `\`) and NUL are
 rejected. The same containment validation protects `index`, `query`, `status`,
 and `remove`.
 
-`rag remove --name NAME --yes` permanently removes exactly one named index and
+`indexkit remove --name NAME --yes` permanently removes exactly one named index and
 never prompts. It refuses to run without `--yes`, fails clearly for missing
 indexes, and refuses while that index is in use. Indexing, querying, status
 inspection, and removal share a per-index process lock. Once locked, removal
@@ -93,19 +93,19 @@ deterministic reciprocal-rank fusion. It preserves vector similarity, BM25,
 per-source ranks, fused rank/score, and source offsets in JSON output:
 
 ```bash
-rag query "billing retry policy" --name notes --hybrid --json
+indexkit query "billing retry policy" --name notes --hybrid --json
 ```
 
 This helps exact names and intent reinforce one another without pretending their
 raw scores are directly comparable. If FTS5 is unavailable, `--hybrid` fails
 clearly; it never silently degrades to semantic-only results.
 
-`rag query` accepts an `--allowlist` of candidate documents (from a file, or `-`
+`indexkit query` accepts an `--allowlist` of candidate documents (from a file, or `-`
 for stdin). The allowlist scopes both semantic and lexical candidates:
 
 ```bash
 # Feed Obsidian backlinks into a semantic query
-obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
+obsidian backlinks file="Project X" | indexkit query "open risks" --name notes --allowlist -
 ```
 
 This is the bridge the [obsidian](obsidian.md) plugin drives. After either query
@@ -130,7 +130,7 @@ The pre-rename `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias
 | | |
 | --- | --- |
 | **Category** | retrieval |
-| **Provides** | `bin/rag` CLI, a skill, a bootstrap hook |
+| **Provides** | `bin/indexkit` CLI, a skill, a bootstrap hook |
 | **Engine** | ollama embeddings + turbovec vectors + optional SQLite FTS5/BM25 RRF |
 | **Dependencies** | `uv`, `ollama` + an embedding model; SQLite FTS5 for `--hybrid` |
 | **License** | MIT |

@@ -5,12 +5,12 @@
 # stays authoritative; APM consumes it as a plugin collection.
 # Keep name/version/description in sync with .claude-plugin/plugin.json.
 #
-# This is a skill-only RAG bridge that feeds local-rag; it degrades gracefully
+# This is a skill-only RAG bridge that feeds indexkit; it degrades gracefully
 # without it, so no hard apm dependency is declared. Set the vault path via
 # CONTEXT_KIT_OBSIDIAN_VAULT (apm has no Claude userConfig). See docs/APM.md.
 name: obsidian
-version: 0.1.8
-description: Skill-only RAG bridge — turn an Obsidian vault's graph and tags into a candidate set fed to local-rag.
+version: 0.1.9
+description: Skill-only RAG bridge — turn an Obsidian vault's graph and tags into a candidate set fed to indexkit.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit

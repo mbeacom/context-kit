@@ -2,8 +2,8 @@ import sqlite3
 
 import pytest
 
-from local_rag.loaders.markdown import Chunk
-from local_rag.store import MetaStore
+from indexkit.loaders.markdown import Chunk
+from indexkit.store import MetaStore
 
 
 def _chunk(path, text, heading="H"):

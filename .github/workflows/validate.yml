@@ -83,8 +83,8 @@ jobs:
         # are not bundled; provide a system OpenBLAS and preload it so the
         # dynamic loader resolves them at import time.
         run: sudo apt-get update && sudo apt-get install -y libopenblas-dev
-      - name: Run local-rag tests
-        working-directory: plugins/local-rag
+      - name: Run indexkit tests
+        working-directory: plugins/indexkit
         run: |
           LIB="$(ldconfig -p | awk '/libopenblas\.so/ {print $NF; exit}')"
           echo "Preloading OpenBLAS: ${LIB:-<none found>}"

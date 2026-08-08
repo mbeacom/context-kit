@@ -28,8 +28,8 @@ ships automatically with `code-search`.
 - Tabular data at scale (CSV/Parquet)? → **data files** (`duckdb`, `sqlite-utils`)
 - Sizing / complexity of a codebase? → **metrics** (`tokei`, `scc`)
 - Content inside PDFs / Office docs / archives? → **docs** (`rga`, `pandoc`)
-- Only know the *meaning/intent*, or corpus is huge / unfamiliar / prose? → **semantic / RAG** (`local-rag`: `rag index` then `rag query`)
-- Corpus is an Obsidian vault / link graph? → **graph** (`obsidian` bridge: graph/tags → `rag query --allowlist`). For authoring/Bases/Canvas use `kepano/obsidian-skills`.
+- Only know the *meaning/intent*, or corpus is huge / unfamiliar / prose? → **semantic / RAG** (`indexkit`: `indexkit index` then `indexkit query`)
+- Corpus is an Obsidian vault / link graph? → **graph** (`obsidian` bridge: graph/tags → `indexkit query --allowlist`). For authoring/Bases/Canvas use `kepano/obsidian-skills`.
 - Asking about a prior decision, constraint, procedure, preference, or bounded
   episode across sessions? → **durable memory** (`memory`: project-scoped recall,
   then open and verify the source).
@@ -40,12 +40,12 @@ ships automatically with `code-search`.
   retrieval (`corpus-review`: inventory, bounded shards, coverage ledger).
 
 Lexical/structural/code-intelligence/structured-data/history/metrics/docs live in **code-search**.
-Semantic, graph, and durable recall are available as the **local-rag**,
+Semantic, graph, and durable recall are available as the **indexkit**,
 **obsidian**, and **memory** plugins.
 
 ## Composition (modalities are layers, not rivals)
 
-- **Hybrid rerank:** narrow with lexical/structured-data or the obsidian graph → pipe candidate file paths to `rag query --allowlist -` (turbovec reranks only those).
+- **Hybrid rerank:** narrow with lexical/structured-data or the obsidian graph → pipe candidate file paths to `indexkit query --allowlist -` (turbovec reranks only those).
 - **Scope then search:** graph backlinks narrow to a subgraph → RAG within it.
 - **Find then pin:** RAG surfaces candidate regions → `rg` pins exact lines.
 - **Resolve then pin:** code-intelligence (LSP/`global`) returns the true symbol definition or references → `rg` pins and expands the exact lines.
@@ -70,7 +70,7 @@ Semantic, graph, and durable recall are available as the **local-rag**,
    query (intent without known terms) or the corpus is too large/unfamiliar.
 4. Treat RAG and memory results as candidate locations, not proof. Preserve source
    labels and freshness; current repository/runtime evidence wins conflicts.
-5. If a needed plugin (`local-rag`, `obsidian`, `memory`) isn't installed, say so and
+5. If a needed plugin (`indexkit`, `obsidian`, `memory`) isn't installed, say so and
    suggest installing it — don't assume its tools exist.
 6. Verification, runtime evidence, handoff, and exhaustive corpus review are
    separate plugins too. Recommend those routes when warranted, but do not

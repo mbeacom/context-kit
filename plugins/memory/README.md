@@ -5,9 +5,9 @@ facts, and bounded episodes. The plugin adds a portable memory contract,
 capture/recall/review commands, a standard-library provider adapter, and
 opt-in Claude lifecycle hooks.
 
-The bundled `rag` provider gives offline semantic recall using `local-rag`,
+The bundled `rag` provider gives offline semantic recall using `indexkit`,
 which is a hard dependency. MemPalace remains optional and is installed
-separately. `local-rag` is also the general corpus RAG engine;
+separately. `indexkit` is also the general corpus RAG engine;
 `context-handoff` remains the authoritative current-task artifact.
 
 ## Install
@@ -54,12 +54,12 @@ Use `search --include-inactive` for a local audit of inactive history.
 ## Semantic recall with the bundled `rag` provider
 
 Local recall is lexical. For meaning-based recall, use the first-party `rag`
-provider — this repository's `local-rag` plugin, installed automatically as a
+provider — this repository's `indexkit` plugin, installed automatically as a
 dependency, so **no external memory provider is required**. It still needs a
 running Ollama for embeddings (and `uv` once, to bootstrap the venv):
 
 ```bash
-bash plugins/local-rag/scripts/bootstrap.sh   # Claude runs this on SessionStart
+bash plugins/indexkit/scripts/bootstrap.sh   # Claude runs this on SessionStart
 ollama pull nomic-embed-text
 export CONTEXT_KIT_MEMORY_PROVIDER=rag
 
@@ -69,9 +69,9 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
   search "why did we change retry policy"
 ```
 
-`doctor` verifies the local-rag runtime before probing the CLI and refuses with
+`doctor` verifies the indexkit runtime before probing the CLI and refuses with
 the exact bootstrap command when the venv is missing or stale; `--bootstrap`
-builds it in place. Claude Code and GitHub Copilot CLI both run the `local-rag`
+builds it in place. Claude Code and GitHub Copilot CLI both run the `indexkit`
 `SessionStart` hook, so this matters most on APM, which does not deploy hooks,
 and after an upgrade leaves a stale venv.
 
@@ -179,7 +179,7 @@ explicit command there.
 ## Supported providers
 
 Three provider modes are supported: `none` (lexical, no dependencies), `rag`
-(first-party offline semantic recall via the bundled `local-rag` dependency),
+(first-party offline semantic recall via the bundled `indexkit` dependency),
 and `mempalace` (optional, installed separately). Memora informed the memory
 contract design but is not a runtime provider today.
 See [`skills/memory-workflows/references/provider-qualification.md`](skills/memory-workflows/references/provider-qualification.md)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 — 2026-08-08
+
+- Update retrieval references for the `local-rag` → `indexkit` rename (ADR-0007).
+
 ## 0.1.2 — 2026-08-04
 
 - Shorten the `corpus-review` skill trigger to free aggregate discovery budget for the new

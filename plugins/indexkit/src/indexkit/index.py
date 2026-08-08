@@ -10,7 +10,7 @@ class VecIndex:
     """Thin wrapper around turbovec's ``IdMapIndex``.
 
     Isolates all turbovec-specific quirks (2-D batch queries, numpy
-    dtypes, return shapes) so the rest of ``local_rag`` works with plain
+    dtypes, return shapes) so the rest of ``indexkit`` works with plain
     Python ``int``/``float`` ids and scores.
     """
 

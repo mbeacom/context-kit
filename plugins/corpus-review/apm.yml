@@ -6,7 +6,7 @@
 # Keep name/version in sync with .claude-plugin/plugin.json; description is a
 # concise APM/CLI listing variant.
 name: corpus-review
-version: 0.1.2
+version: 0.1.3
 description: Exhaustive corpus review with bounded shards, resumable dispatch, and a provable coverage ledger.
 author: Mark Beacom
 license: MIT

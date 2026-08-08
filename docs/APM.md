@@ -22,7 +22,7 @@ name defaults to the repo name, `context-kit`:
 ```bash
 apm marketplace add mbeacom/context-kit
 apm install code-search@context-kit      # also pulls retrieval-core (the spine)
-apm install local-rag@context-kit
+apm install indexkit@context-kit
 apm install obsidian@context-kit
 apm install plan-execute@context-kit
 apm install context-steering@context-kit
@@ -82,9 +82,9 @@ apm audit                    # re-hash deployed files; catch drift
 apm update                   # refresh to the latest matching refs
 ```
 
-## Running local-rag under APM
+## Running indexkit under APM
 
-`local-rag`'s `rag` CLI runs on a uv-managed virtualenv. Claude Code bootstraps
+`indexkit`'s `rag` CLI runs on a uv-managed virtualenv. Claude Code bootstraps
 it automatically via a `SessionStart` hook, and GitHub Copilot CLI runs that
 hook too; **APM does not deploy plugin hooks**, so bootstrap it once yourself
 from a clone of this repo, exactly as in
@@ -92,20 +92,20 @@ from a clone of this repo, exactly as in
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
-bash plugins/local-rag/scripts/bootstrap.sh
-export PATH="$PWD/plugins/local-rag/bin:$PATH"
+bash plugins/indexkit/scripts/bootstrap.sh
+export PATH="$PWD/plugins/indexkit/bin:$PATH"
 ollama pull nomic-embed-text
-rag index /path/to/vault --name notes
-rag query "open questions about billing" --name notes --k 8
+indexkit index /path/to/vault --name notes
+indexkit query "open questions about billing" --name notes --k 8
 ```
 
-APM plugins have no Claude-style `userConfig`, so configure `local-rag` and
+APM plugins have no Claude-style `userConfig`, so configure `indexkit` and
 `obsidian` with the portable environment variables (documented in
-[docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#running-local-rag-outside-claude-code)):
+[docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#running-indexkit-outside-claude-code)):
 
 | Variable | Purpose | Claude fallback |
 | --- | --- | --- |
-| `CONTEXT_KIT_DATA` | venv and index storage for `local-rag` | `CLAUDE_PLUGIN_DATA` |
+| `CONTEXT_KIT_DATA` | venv and index storage for `indexkit` | `CLAUDE_PLUGIN_DATA` |
 | `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
 | `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
 | `CONTEXT_KIT_OBSIDIAN_VAULT` | vault path for `obsidian` examples/fallbacks | `CLAUDE_PLUGIN_OPTION_VAULT_PATH` |
@@ -126,7 +126,7 @@ The pre-rename `PRODUCTIVITY_SKILLS_*` names still work as a deprecated alias
 APM installs the plugins, not the CLI tools they drive. Install the same tools
 listed in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#tooling-expectations):
 `rg` (required for `code-search`); `uv` + `ollama` + an embedding model
-(required for `local-rag`); the rest optional. Run
+(required for `indexkit`); the rest optional. Run
 `plugins/code-search/scripts/check-tools.sh` from a clone to see the gaps.
 Python 3 is required for the stdlib `runtime-evidence` runner and
 `context-handoff` validator. The runtime runner requires POSIX and refuses
@@ -176,5 +176,5 @@ explicit unless the target host is configured separately.
 
 - [Home](index.md) — the plugin catalog and GitHub Copilot / APM / Claude Code install.
 - [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md) — the shared portable-config and
-  `local-rag` bootstrap notes APM reuses.
+  `indexkit` bootstrap notes APM reuses.
 - [docs/ARCHITECTURE.md](ARCHITECTURE.md) — the retrieval-modality model.

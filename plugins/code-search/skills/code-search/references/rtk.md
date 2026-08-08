@@ -41,7 +41,7 @@ that parses it. Two safe rules:
 
 - rtk's grep/rg filter passes the format flags `-c -l -L -o -Z` through **raw**,
   so `rtk rg -c …` (count) and `rtk rg -l …` (paths) are pipe-safe — including
-  `rtk rg -l … | rag query --allowlist -`.
+  `rtk rg -l … | indexkit query --allowlist -`.
 - For any other wrapped tool feeding another program, use the bare CLI or
   `rtk proxy <cmd>` (forces raw output). Prefix `rtk` freely on the final stage
   whose output you read.

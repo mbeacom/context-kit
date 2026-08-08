@@ -46,7 +46,7 @@ porting.
      observations for a final verdict.
    - **Verify then hand off** — `verify-before-trust` establishes
      provenance-backed facts before `context-handoff` compiles proven task state.
-   - For hybrid retrieval, emit candidate file paths (lexical/graph) and pipe to `rag query --allowlist -`.
+   - For hybrid retrieval, emit candidate file paths (lexical/graph) and pipe to `indexkit query --allowlist -`.
 5. Stop when you can answer; report the answer, the exact locations
    (`path:line`), and the strategy/tools you used.
 
@@ -56,7 +56,7 @@ porting.
 - Retrieval surfaces the relevant; it does not prove the exhaustive. When the
   ask is that *every* unit be accounted for, route to `corpus-review` rather than
   presenting ranked hits as complete coverage.
-- Semantic (`local-rag`), graph (`obsidian`), and durable memory (`memory`) ship
+- Semantic (`indexkit`), graph (`obsidian`), and durable memory (`memory`) ship
   as separate plugins and may be absent. Do not fabricate their tools.
 - Verification, runtime evidence, and handoff are separate plugins and may be
   absent. Recommend the route when warranted; do not fabricate unavailable agents

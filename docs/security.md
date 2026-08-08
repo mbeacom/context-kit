@@ -28,7 +28,7 @@ canonical component pages. Host-specific installation remains in
 | --- | --- | --- | --- |
 | Skills and agents | Installed plugin content plus the current host | Can recommend tool calls or delegate work | Host permissions and operator review still govern actual execution |
 | Third-party CLIs | Executable resolved by the host environment | May read files, write files, use credentials, or access networks | Plugin installation does not audit or sandbox the executable |
-| `local-rag` | Chosen corpus, data directory, embedding model, and Ollama endpoint | Stores chunks, metadata, and vectors; sends text to the configured endpoint | "Local" assumes a trusted local endpoint; a configured remote host receives corpus chunks and queries |
+| `indexkit` | Chosen corpus, data directory, embedding model, and Ollama endpoint | Stores chunks, metadata, and vectors; sends text to the configured endpoint | "Local" assumes a trusted local endpoint; a configured remote host receives corpus chunks and queries |
 | `runtime-evidence` | User-owned allowlist mapping an exact ID to literal argv, or a user-approved optional tool when no command fits | Executes one selected process and writes bounded artifacts, or performs an approved browser/debugger observation the plugin does not bound | Exact selection is not proof that the executable is safe or side-effect-free; the optional-tool path is bounded by operator approval plus host policy, with nothing enforced by the plugin |
 | `verify` | Plugin-owned catalog of read-only inspection operations; an analysis root supplied by the caller | Runs one selected read-only operation over history, structured-data, or `git grep`, with no shell, then reports bounded output | The catalog is read-only by construction, but the runner cannot prove the installed `git`/`jq`/`yq` is side-effect-free; code-intelligence and absent-`yq` YAML have no enforced operation and are reached only by disclosed delegation |
 | `deep-review` | A caller-supplied artifact, frame, and lens charters | Reads the artifact and its surrounding context; writes findings, a ledger, and a report to a caller-chosen directory outside the findings dir | Lens workers read whatever their charter's evidence list allows; findings are judgment, and a `DEFECT` remains an unverified hypothesis until `verify` returns a verdict |
@@ -39,7 +39,7 @@ canonical component pages. Host-specific installation remains in
 
 ## Local RAG: endpoint and storage
 
-[`local-rag`](plugins/local-rag.md) defaults
+[`indexkit`](plugins/indexkit.md) defaults
 `CONTEXT_KIT_OLLAMA_HOST` to `http://localhost:11434`. Indexing sends each text
 chunk to that endpoint, and querying sends the query text. If you point the
 variable at another host, that server receives the submitted text; evaluate its
@@ -53,7 +53,7 @@ ${CONTEXT_KIT_DATA}/indexes/<name>/
 ```
 
 They include source text chunks and metadata in SQLite plus a vector index.
-`local-rag` does not add encryption or a retention policy. Protect and delete
+`indexkit` does not add encryption or a retention policy. Protect and delete
 the directory using the controls of the account and filesystem that own it.
 Claude Code may supply `CLAUDE_PLUGIN_DATA` as the fallback data root.
 
@@ -217,14 +217,14 @@ records, pending files, or logs.
 
 ## Host and hook boundaries
 
-- **Claude Code** loads plugin hooks. `local-rag` has a `SessionStart` bootstrap
+- **Claude Code** loads plugin hooks. `indexkit` has a `SessionStart` bootstrap
   that creates or refreshes its uv environment; `memory` declares opt-in
   lifecycle hooks.
 - **GitHub Copilot CLI** installs the shared plugin content and also loads a
   plugin's `hooks/hooks.json`, so the same opt-in hooks apply there; they remain
   disabled by default and are governed by the same switches.
 - **APM** installs the shared plugin content but does not deploy hooks.
-  Bootstrap `local-rag` and capture memory explicitly.
+  Bootstrap `indexkit` and capture memory explicitly.
 - **`context-handoff`** has no hooks.
 - **`context-steering`** ships inert hook examples only; copying one into an
   active host configuration is a separate operator action.

@@ -40,13 +40,13 @@ Copilot setup notes.
 - `code-search` — lexical/structural/structured-data/history/rewrite/metrics/doc
   search (two skills: `code-search` and `data-and-docs-search`). Declares
   `dependencies: ["retrieval-core"]`, so installing it pulls the spine.
-- `local-rag` — local-first semantic RAG. A `bin/rag` CLI (Python package under
-  `src/local_rag/`, run via a uv venv bootstrapped into `${CLAUDE_PLUGIN_DATA}`
+- `indexkit` — local-first semantic RAG. A `bin/indexkit` CLI (Python package under
+  `src/indexkit/`, run via a uv venv bootstrapped into `${CLAUDE_PLUGIN_DATA}`
   by a Claude `SessionStart` hook, or `${CONTEXT_KIT_DATA}` for
   Copilot/manual usage) that chunks → embeds via `ollama` → indexes with
-  `turbovec`. All turbovec usage is isolated to `src/local_rag/index.py`.
+  `turbovec`. All turbovec usage is isolated to `src/indexkit/index.py`.
 - `obsidian` — a **skill-only** RAG bridge (no code/deps): vault graph/tags
-  (official `obsidian` CLI, or `rg` fallback) → `rag query --allowlist`. Authoring
+  (official `obsidian` CLI, or `rg` fallback) → `indexkit query --allowlist`. Authoring
   / Bases / Canvas are out of scope (defer to `kepano/obsidian-skills`).
 - `plan-execute` — plan-big/execute-small **orchestration**: a strong planner
   delegates token-heavy work to a cheap `execution-worker` subagent. Ships a
@@ -134,7 +134,7 @@ Copilot setup notes.
   `code-search` and the `retrieval-core` spine, then `apm marketplace remove ps`.
 - Report which search CLIs are installed: `bash plugins/code-search/scripts/check-tools.sh`
   (a non-zero exit listing `brew install …` for missing optional tools is expected, not a failure).
-- Run the `local-rag` Python tests: `cd plugins/local-rag && uv run --group dev pytest -q`
+- Run the `indexkit` Python tests: `cd plugins/indexkit && uv run --group dev pytest -q`
   (uv resolves a dev venv; no live ollama needed — the embed client is mocked, turbovec is exercised for real).
 - Run the stdlib plugin tests:
   `python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'` ·
@@ -146,12 +146,12 @@ Copilot setup notes.
   `python3 -m unittest discover -s plugins/token-economics/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/plugin-forge/tests -p 'test_command_frontmatter.py'` ·
   `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
-- Rebuild the `local-rag` runtime venv manually: `bash plugins/local-rag/scripts/bootstrap.sh`
+- Rebuild the `indexkit` runtime venv manually: `bash plugins/indexkit/scripts/bootstrap.sh`
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including catalog gates), the pull-request-only
-version-bump gate, and the `local-rag` pytest suite plus the runtime-evidence,
+version-bump gate, and the `indexkit` pytest suite plus the runtime-evidence,
 context-handoff, memory, corpus-review, deep-review, and cross-plugin
 standard-library
 suites.

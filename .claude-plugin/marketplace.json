@@ -36,8 +36,8 @@
       ]
     },
     {
-      "name": "local-rag",
-      "source": "./plugins/local-rag",
+      "name": "indexkit",
+      "source": "./plugins/indexkit",
       "description": "Local-first semantic RAG: embed through a configurable Ollama endpoint, index with turbovec, and optionally fuse FTS5/BM25.",
       "category": "retrieval",
       "tags": [
@@ -51,7 +51,7 @@
     {
       "name": "obsidian",
       "source": "./plugins/obsidian",
-      "description": "Skill-only RAG bridge: turn an Obsidian vault's graph and tags into a candidate set fed to local-rag.",
+      "description": "Skill-only RAG bridge: turn an Obsidian vault's graph and tags into a candidate set fed to indexkit.",
       "category": "retrieval",
       "tags": [
         "obsidian",

@@ -3,8 +3,8 @@ import json
 
 import pytest
 
-from local_rag import cli
-from local_rag.engine import Engine
+from indexkit import cli
+from indexkit.engine import Engine
 from tests.test_engine import StubEmbedder
 
 

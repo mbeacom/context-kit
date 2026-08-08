@@ -14,7 +14,7 @@ the [security and trust boundaries](security.md).
 
 **Plugins:** [`retrieval-core`](plugins/retrieval-core.md) plus the relevant
 retrieval plugin, usually [`code-search`](plugins/code-search.md) or
-[`local-rag`](plugins/local-rag.md).
+[`indexkit`](plugins/indexkit.md).
 
 1. State the corpus and what you know: exact token, code shape, symbol, history,
    schema path, or meaning.
@@ -26,7 +26,7 @@ retrieval plugin, usually [`code-search`](plugins/code-search.md) or
 For semantic notes:
 
 ```bash
-rag query "why was retry backoff changed?" --name notes --k 8 --json
+indexkit query "why was retry backoff changed?" --name notes --k 8 --json
 rg -n "retry|backoff" path/from/result.md
 ```
 
@@ -39,24 +39,24 @@ vector similarity.
 semantic query.
 
 **Plugins:** [`obsidian`](plugins/obsidian.md) and
-[`local-rag`](plugins/local-rag.md).
+[`indexkit`](plugins/indexkit.md).
 
 1. Index the vault once with a stable name.
 2. Produce candidate note paths from the Obsidian graph or a file-based fallback.
-3. Pipe those paths to `rag query --allowlist -`.
+3. Pipe those paths to `indexkit query --allowlist -`.
 4. Pin the winning note and heading with `rg` or a direct read.
 
 ```bash
 export CONTEXT_KIT_OBSIDIAN_VAULT="/path/to/vault"
-rag index "$CONTEXT_KIT_OBSIDIAN_VAULT" --name notes
+indexkit index "$CONTEXT_KIT_OBSIDIAN_VAULT" --name notes
 
 # Graph-aware, when the official CLI and Obsidian are available.
 obsidian backlinks file="Project X" |
-  rag query "open risks" --name notes --allowlist -
+  indexkit query "open risks" --name notes --allowlist -
 
 # Portable file fallback.
 rg -l '(^|\s)#decision' "$CONTEXT_KIT_OBSIDIAN_VAULT" |
-  rag query "why did we choose X" --name notes --allowlist -
+  indexkit query "why did we choose X" --name notes --allowlist -
 ```
 
 Claude's configured vault path remains available through

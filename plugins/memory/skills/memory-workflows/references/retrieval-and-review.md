@@ -30,7 +30,7 @@ patterns:
 - lexical and semantic signals should be fused rather than substituted;
 - recency may break ties but must not erase provenance or validity.
 
-`local-rag --hybrid` applies deterministic semantic plus lexical fusion for
+`indexkit --hybrid` applies deterministic semantic plus lexical fusion for
 document corpora. MemPalace provides its own hybrid retrieval for durable
 memory. Do not merge scores from unrelated stores without preserving their
 source labels.

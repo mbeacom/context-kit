@@ -2,7 +2,7 @@
 name: memory-workflows
 description: "Use when capturing, recalling, reviewing, or consolidating durable project memory across sessions — decisions, constraints, procedures, and episodes that must retain provenance and freshness."
 license: MIT
-compatibility: "Python 3 is required for the bundled validator/provider adapter. Offline semantic recall uses the bundled local-rag dependency (needs its venv bootstrap plus ollama). MemPalace is optional and installed separately."
+compatibility: "Python 3 is required for the bundled validator/provider adapter. Offline semantic recall uses the bundled indexkit dependency (needs its venv bootstrap plus ollama). MemPalace is optional and installed separately."
 metadata:
   author: Mark Beacom
   version: "0.3.0"
@@ -19,7 +19,7 @@ as a transcript dump or a replacement for current repository evidence.
 | Need | Use |
 | --- | --- |
 | Current task state and next action | `context-handoff` |
-| Meaning-based search across a document corpus | `local-rag` |
+| Meaning-based search across a document corpus | `indexkit` |
 | Prior decisions, constraints, procedures, or bounded episodes | durable memory |
 | Exact current implementation or history | lexical/code-intelligence/Git |
 
@@ -32,7 +32,7 @@ provider-neutral.
 | Provider | Recall | Needs |
 | --- | --- | --- |
 | `none` | Lexical over primary memories and cue anchors | nothing |
-| `rag` | **Offline semantic** (first-party, bundled) | local-rag venv + ollama |
+| `rag` | **Offline semantic** (first-party, bundled) | indexkit venv + ollama |
 | `mempalace` | Semantic/hybrid | MemPalace installed separately |
 
 Provider-backed recall is active-only and requires explicit reconciliation:

@@ -98,12 +98,12 @@ FRESHNESS_TRANSITIONS = {
 # compatibility matrix and how `doctor` reports drift.
 MEMPALACE_TESTED_VERSION = (3, 6, 0)
 MEMPALACE_TESTED_RELEASE_LINE = "3.6.x"
-# The first-party `rag` provider is this repository's own `local-rag` plugin.
-# `CONTEXT_KIT_LOCAL_RAG_HOME` (local-rag >= 0.4.0) separates venv resolution
+# The first-party `rag` provider is this repository's own `indexkit` plugin.
+# `CONTEXT_KIT_INDEXKIT_HOME` (indexkit >= 0.4.0) separates venv resolution
 # from index-data location, which is what lets this adapter redirect index data
 # into a project-isolated store without relocating the shared venv.
-RAG_TESTED_VERSION = (0, 4, 0)
-RAG_TESTED_RELEASE_LINE = "0.4.x"
+RAG_TESTED_VERSION = (0, 5, 0)
+RAG_TESTED_RELEASE_LINE = "0.5.x"
 RAG_INDEX_NAME = "memory"
 # One record spans several indexed chunks, so ask for more chunks than the
 # caller asked for records and deduplicate back down.
@@ -190,6 +190,11 @@ class ProviderSpec:
     tested_version: tuple[int, int, int]
     tested_release_line: str
     capabilities: tuple[CapabilityProbe, ...]
+    # Pre-rename names still honored so an install predating a rename keeps
+    # resolving. Declarative for the same reason the rest of this class is:
+    # the migration is provider data, not branching in the resolver.
+    legacy_bin_env: str | None = None
+    legacy_executables: tuple[str, ...] = ()
 
     def index_argv(self, projection: Path, project_key: str) -> list[str]:
         raise NotImplementedError
@@ -226,12 +231,12 @@ class RagSpec(ProviderSpec):
 
     def store_env(self, store: Path) -> dict[str, str]:
         # CONTEXT_KIT_DATA relocates *index data* into the isolated store.
-        # CONTEXT_KIT_LOCAL_RAG_HOME pins the venv to its normal location so
+        # CONTEXT_KIT_INDEXKIT_HOME pins the venv to its normal location so
         # redirecting data does not make `bin/rag` look for a venv that only
-        # exists in the shared local-rag home.
+        # exists in the shared indexkit home.
         return {
             "CONTEXT_KIT_DATA": str(store),
-            "CONTEXT_KIT_LOCAL_RAG_HOME": str(_local_rag_home()),
+            "CONTEXT_KIT_INDEXKIT_HOME": str(_indexkit_home()),
         }
 
 
@@ -271,11 +276,13 @@ PROVIDER_SPECS: dict[str, ProviderSpec] = {
         name="rag",
         store_dirname="store",
         backup_prefix="store-backup-",
-        bin_env="CONTEXT_KIT_RAG_BIN",
-        executable="rag",
+        bin_env="CONTEXT_KIT_INDEXKIT_BIN",
+        executable="indexkit",
+        legacy_bin_env="CONTEXT_KIT_RAG_BIN",
+        legacy_executables=("rag",),
         install_hint=(
-            "install the context-kit `local-rag` plugin and run "
-            "`bash plugins/local-rag/scripts/bootstrap.sh`"
+            "install the context-kit `indexkit` plugin and run "
+            "`bash plugins/indexkit/scripts/bootstrap.sh`"
         ),
         tested_version=RAG_TESTED_VERSION,
         tested_release_line=RAG_TESTED_RELEASE_LINE,
@@ -372,23 +379,29 @@ def _truthy(value: str | None) -> bool:
     return bool(value and value.strip().lower() in {"1", "true", "yes", "on"})
 
 
-def _local_rag_home() -> Path:
-    """Where local-rag keeps its bootstrapped venv.
+def _indexkit_home() -> Path:
+    """Where indexkit keeps its bootstrapped venv.
 
     Resolution is deliberately not a naive read of `CLAUDE_PLUGIN_DATA`: that
     variable is *plugin-scoped*, so inside this plugin it points at memory's
     own data directory. Both Claude Code and GitHub Copilot CLI lay plugin data
-    out as `<root>/<plugin>`, and `memory` hard-depends on `local-rag`, so the
+    out as `<root>/<plugin>`, and `memory` hard-depends on `indexkit`, so the
     dependency's home is a **sibling** of ours. Verified on a real Copilot
-    install: `~/.copilot/plugin-data/context-kit/{memory,local-rag}`.
+    install: `~/.copilot/plugin-data/context-kit/{memory,indexkit}`.
 
     The sibling is used only when it actually exists, so a wrong guess degrades
     to the documented default rather than pointing at an empty directory.
 
     Read from the *ambient* environment, before this adapter redirects
     `CONTEXT_KIT_DATA` at the provider store.
+
+    The engine was renamed from `local-rag` to `indexkit` (ADR-0007). A host
+    that installed the plugin before the rename still has a `local-rag` data
+    directory, and a user may still export `CONTEXT_KIT_LOCAL_RAG_HOME`, so both
+    names are accepted with the current one preferred.
     """
     configured = _first_env(
+        "CONTEXT_KIT_INDEXKIT_HOME",
         "CONTEXT_KIT_LOCAL_RAG_HOME",
         "CONTEXT_KIT_DATA",
         "PRODUCTIVITY_SKILLS_DATA",
@@ -397,10 +410,16 @@ def _local_rag_home() -> Path:
         return Path(configured).expanduser()
     plugin_data = _first_env("CLAUDE_PLUGIN_DATA")
     if plugin_data:
-        sibling = Path(plugin_data).expanduser().parent / "local-rag"
-        if (sibling / "venv").is_dir() or (sibling / "pyproject.sha").is_file():
-            return sibling
-    return Path.home() / ".claude/plugins/data/local-rag"
+        root = Path(plugin_data).expanduser().parent
+        for name in ("indexkit", "local-rag"):
+            sibling = root / name
+            if (sibling / "venv").is_dir() or (sibling / "pyproject.sha").is_file():
+                return sibling
+    default_root = Path.home() / ".claude/plugins/data"
+    legacy = default_root / "local-rag"
+    if not (default_root / "indexkit" / "venv").is_dir() and (legacy / "venv").is_dir():
+        return legacy
+    return default_root / "indexkit"
 
 
 def _config(args: argparse.Namespace) -> Config:
@@ -1132,19 +1151,25 @@ def _provider_receipt(
 
 
 def _provider_executable(spec: ProviderSpec) -> str:
-    override = _first_env(spec.bin_env)
-    if override:
+    bin_envs = [spec.bin_env]
+    if spec.legacy_bin_env:
+        bin_envs.append(spec.legacy_bin_env)
+    for bin_env in bin_envs:
+        override = _first_env(bin_env)
+        if not override:
+            continue
         candidate = Path(override).expanduser()
         if not candidate.is_absolute():
-            raise Refusal(f"{spec.bin_env} must be an absolute path")
+            raise Refusal(f"{bin_env} must be an absolute path")
         if not candidate.is_file() or not os.access(candidate, os.X_OK):
             raise Refusal(
                 f"configured {spec.name} executable is not runnable: {candidate}"
             )
         return str(candidate)
-    executable = shutil.which(spec.executable)
-    if executable:
-        return executable
+    for name in (spec.executable, *spec.legacy_executables):
+        executable = shutil.which(name)
+        if executable:
+            return executable
     bundled = _bundled_executable(spec)
     if bundled is not None:
         return str(bundled)
@@ -1154,16 +1179,18 @@ def _provider_executable(spec: ProviderSpec) -> str:
     )
 
 
-def _local_rag_root() -> Path | None:
-    """The sibling local-rag plugin root, when deployed alongside `memory`.
+def _indexkit_root() -> Path | None:
+    """The sibling indexkit plugin root, when deployed alongside `memory`.
 
-    `memory` hard-depends on `local-rag`, so both are installed together and
+    `memory` hard-depends on `indexkit`, so both are installed together and
     the dependency's launcher and bootstrap are reachable without a PATH entry
-    or extra configuration.
+    or extra configuration. `local-rag` is the pre-rename directory (ADR-0007).
     """
-    candidate = Path(__file__).resolve().parents[2] / "local-rag"
-    if (candidate / "scripts" / "bootstrap.sh").is_file():
-        return candidate
+    siblings = Path(__file__).resolve().parents[2]
+    for name in ("indexkit", "local-rag"):
+        candidate = siblings / name
+        if (candidate / "scripts" / "bootstrap.sh").is_file():
+            return candidate
     return None
 
 
@@ -1171,35 +1198,36 @@ def _bundled_executable(spec: ProviderSpec) -> Path | None:
     """Resolve a sibling context-kit plugin launcher that is not on PATH."""
     if spec.name != "rag":
         return None
-    root = _local_rag_root()
+    root = _indexkit_root()
     if root is None:
         return None
-    candidate = root / "bin" / "rag"
-    if candidate.is_file() and os.access(candidate, os.X_OK):
-        return candidate
+    for name in (spec.executable, *spec.legacy_executables):
+        candidate = root / "bin" / name
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
     return None
 
 
 def _rag_runtime_status(*, bootstrap: bool = False) -> dict[str, object]:
-    """Report whether the local-rag venv is usable, optionally building it.
+    """Report whether the indexkit venv is usable, optionally building it.
 
-    Claude Code and GitHub Copilot CLI both bootstrap local-rag from its
+    Claude Code and GitHub Copilot CLI both bootstrap indexkit from its
     `SessionStart` hook, but APM does not deploy hooks and any host may have a
     stale or half-built venv, so readiness is checked explicitly here rather
     than surfacing later as an opaque provider failure. A venv built from
     different project metadata is reported as loudly as a missing one, because
     it otherwise runs stale code silently.
     """
-    root = _local_rag_root()
+    root = _indexkit_root()
     if root is None:
         return {
             "status": "unknown",
-            "detail": "the local-rag plugin was not found next to memory; "
+            "detail": "the indexkit plugin was not found next to memory; "
             "runtime readiness could not be checked",
         }
     script = root / "scripts" / "bootstrap.sh"
     env = os.environ.copy()
-    env["CONTEXT_KIT_LOCAL_RAG_HOME"] = str(_local_rag_home())
+    env["CONTEXT_KIT_INDEXKIT_HOME"] = str(_indexkit_home())
     if bootstrap:
         try:
             built = subprocess.run(
@@ -1210,10 +1238,10 @@ def _rag_runtime_status(*, bootstrap: bool = False) -> dict[str, object]:
                 env=env,
             )
         except (subprocess.TimeoutExpired, OSError) as exc:
-            raise Refusal(f"local-rag bootstrap could not run: {exc}") from exc
+            raise Refusal(f"indexkit bootstrap could not run: {exc}") from exc
         if built.returncode != 0:
             detail = built.stderr.decode("utf-8", errors="replace").strip()
-            raise Refusal(f"local-rag bootstrap failed: {detail or 'no error output'}")
+            raise Refusal(f"indexkit bootstrap failed: {detail or 'no error output'}")
     try:
         checked = subprocess.run(
             ["bash", str(script), "--check"],
@@ -1877,7 +1905,7 @@ def _doctor(args: argparse.Namespace, config: Config) -> int:
     executable = _provider_executable(spec)
     if spec.name == "rag":
         # The venv only backs the bundled `bin/rag` launcher. A user-supplied
-        # executable (CONTEXT_KIT_RAG_BIN or one on PATH) manages its own
+        # executable (CONTEXT_KIT_INDEXKIT_BIN or one on PATH) manages its own
         # runtime, so gating on our bootstrap would be wrong there.
         bundled = _bundled_executable(spec)
         if bundled is not None and str(bundled) == executable:
@@ -1891,13 +1919,13 @@ def _doctor(args: argparse.Namespace, config: Config) -> int:
             status = str(runtime.get("status"))
             if status not in {"ready", "unknown"}:
                 command = runtime.get("bootstrap_command") or (
-                    "bash plugins/local-rag/scripts/bootstrap.sh"
+                    "bash plugins/indexkit/scripts/bootstrap.sh"
                 )
                 raise Refusal(
-                    f"the local-rag runtime is {status} "
+                    f"the indexkit runtime is {status} "
                     f"({runtime.get('detail', 'no detail')}); run: {command} "
                     "— Claude Code and GitHub Copilot CLI bootstrap this from "
-                    "the local-rag SessionStart hook, but APM does not deploy "
+                    "the indexkit SessionStart hook, but APM does not deploy "
                     "hooks and an existing venv can be stale. Re-run `doctor "
                     "--bootstrap` to build it now."
                 )
@@ -2735,7 +2763,7 @@ def _parser() -> argparse.ArgumentParser:
     doctor.add_argument(
         "--bootstrap",
         action="store_true",
-        help="Build the local-rag runtime if it is missing or stale (rag provider).",
+        help="Build the indexkit runtime if it is missing or stale (rag provider).",
     )
     _add_config_args(doctor)
 

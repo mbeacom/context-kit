@@ -12,12 +12,13 @@ blastRadius: cross-team
 relatesTo: ["0002", "0005"]
 affects:
   - type: path
-    pattern: plugins/local-rag/**
+    pattern: plugins/indexkit/**
+    note: Renamed from local-rag by ADR-0007; prose below predates the rename.
   - type: path
     pattern: plugins/memory/**
   - type: package
-    pattern: local-rag
-    note: The PyPI name claimed by first publish. Unclaimed as of 2026-08-08.
+    pattern: indexkit
+    note: The PyPI name claimed by first publish. Name settled by ADR-0007.
 provenance:
   authoredBy: agent-drafted
   agent:

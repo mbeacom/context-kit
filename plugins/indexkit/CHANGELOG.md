@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0 — 2026-08-08
+
+- **Renamed from `local-rag` to `indexkit`** (ADR-0007). The name encoded a
+  deployment property that a supported setting falsifies: pointing
+  `CONTEXT_KIT_OLLAMA_HOST` at a remote ollama made "local" untrue. "RAG" also
+  understated an engine that does lexical BM25 alongside semantic search.
+- Unify all four naming surfaces on `indexkit`: the package, the console script,
+  the CLI `prog`, and the launcher (`bin/rag` is now `bin/indexkit`).
+- Honor `CONTEXT_KIT_LOCAL_RAG_HOME` as a fallback for
+  `CONTEXT_KIT_INDEXKIT_HOME`, so existing environments keep resolving.
+- Add package keywords (`rag`, `local-rag`, `offline`, `hybrid-retrieval`) so the
+  pre-rename search terms still find the project.
+
 ## 0.4.1 — 2026-08-05
 
 - Correct the host guidance in the skill and README. GitHub Copilot CLI loads a
@@ -10,7 +23,7 @@
 
 ## 0.4.0 — 2026-08-04
 
-- Separate venv resolution from index-data location. `CONTEXT_KIT_LOCAL_RAG_HOME`
+- Separate venv resolution from index-data location. `CONTEXT_KIT_INDEXKIT_HOME`
   now locates the bootstrapped venv (and its `pyproject.sha` stamp), while
   `CONTEXT_KIT_DATA` continues to locate index data. Previously both were derived
   from `CONTEXT_KIT_DATA`, so a caller redirecting index data to an isolated
@@ -87,12 +100,12 @@
   `CONTEXT_KIT_EMBED_MODEL`, `CONTEXT_KIT_OLLAMA_HOST`); the former
   `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias, so resolution
   order is `CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback. Updated URLs
-  and install commands (`… install local-rag@context-kit`).
+  and install commands (`… install indexkit@context-kit`).
 
 ## 0.1.4 — 2026-07-13
 
 - Add an `apm.yml` manifest so Agent Package Manager (`microsoft/apm`) users can
-  install this plugin (`apm install local-rag@context-kit`) alongside the
+  install this plugin (`apm install indexkit@context-kit`) alongside the
   Claude Code and GitHub Copilot flows. As with Copilot, APM does not run the
   Claude `SessionStart` bootstrap hook — bootstrap `bin/rag` manually and use the
   `PRODUCTIVITY_SKILLS_*` env vars (see docs/APM.md).

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9 — 2026-08-08
+
+- Update the bridge for the `local-rag` → `indexkit` rename (ADR-0007).
+
 ## 0.1.8 — 2026-08-04
 
 - Shorten the `obsidian-rag-bridge` skill trigger to free aggregate discovery budget for the new
@@ -52,4 +56,4 @@
 ## 0.1.0 — 2026-05-24
 
 Replace placeholder stub with the skill-only Obsidian RAG bridge (graph/tags →
-local-rag allowlist). Authoring/Bases/Canvas deferred to kepano/obsidian-skills.
+indexkit allowlist). Authoring/Bases/Canvas deferred to kepano/obsidian-skills.
