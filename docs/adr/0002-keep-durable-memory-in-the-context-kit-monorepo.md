@@ -9,7 +9,7 @@ tags: [memory, repository-structure, packaging]
 scope: org
 reversibility: two-way-door
 blastRadius: cross-team
-relatesTo: ["0001"]
+relatesTo: ["0001", "0006"]
 affects:
   - type: path
     pattern: plugins/memory/**
@@ -43,6 +43,27 @@ its own MCP server, hook set, and 3,700 lines of tests looks like a project, not
 a catalog entry. The relevant question is not whether it is *large* but whether
 it is *separable* — whether it has an audience or a release cadence independent
 of the catalog.
+
+**Separability and repository location are different questions, and an earlier
+draft of this record conflated them.** "Should this be independently
+consumable?" is not "should this live in another repository?" A monorepo
+routinely publishes multiple independently installable packages; that is the
+normal arrangement, not an exception. Distribution is a packaging decision.
+Repository location is a source-control decision. Answering the second does not
+answer the first.
+
+This matters because the catalog's components are *not* currently consumable on
+their own. `local-rag` already carries a real `pyproject.toml`, a
+`local-rag = "local_rag.cli:main"` console entry point, pinned dependencies, and
+a `uv.lock` — but it is unpublished, and its `bin/rag` shim resolves a venv
+bootstrapped by a plugin hook with a `~/.claude/plugins/data/` default. `memory`
+has no `pyproject.toml` at all, though it is pure standard library and would be
+trivial to package. Both are usable only by an agent inside a plugin host.
+
+An earlier draft of this record cited "nothing outside the catalog depends on
+these" as evidence for keeping them here. That reasoning is circular: nothing
+can depend on software that is not distributed. See ADR-0006, which separates
+the distribution question and resolves it independently.
 
 Measured on 2026-08-08:
 
@@ -121,12 +142,15 @@ installs.
 
 ### Option D: Extract only the MCP server and record contract
 
-**Pros:** The genuinely separable unit. `mcp/server.py` (344 lines) plus the
+**Pros:** The genuinely separable *unit*. `mcp/server.py` (344 lines) plus the
 `memory-v1` contract and validator has no `local-rag` coupling and a real
 audience outside this catalog — any agent harness wanting provenance-bound
 records.
-**Cons:** Premature today; there is no external consumer asking for it. Held
-open as the *correct* split if one appears.
+**Cons:** Extraction is still the wrong *mechanism*. Everything this option
+wants — an installable artifact with its own version and its own users — is
+obtained by publishing a package from this repository (ADR-0006), without
+paying the cross-repo coordination cost. Option D therefore stops being the
+"correct split held in reserve" and becomes redundant with publishing.
 
 ### Option E: Do nothing and leave the question open
 
@@ -147,15 +171,23 @@ now consumed analysis time more than once with no durable answer.
 
 - **Easier:** refactors that span memory, handoff, and rag land in one commit
   with one version bump; the sibling path assumption stays valid.
-- **Harder:** memory cannot be released independently of the catalog.
-- **How we would know this was wrong:** a consumer outside `context-kit` adopts
-  the `memory-v1` record contract or the MCP server, *or* `local-rag` churn
-  drops below memory's for two consecutive quarters (removing the
-  chasing-a-faster-dependency objection). Either condition makes Option D live.
-- **Revisit if:** either trigger above fires, or `memory` gains a second
+- **Harder:** memory cannot be released *as a plugin* independently of the
+  catalog. It can still be released as a *package* (ADR-0006).
+- **How we would know this was wrong:** published-package downloads or issues
+  show sustained use by consumers who do not install the plugin catalog at all,
+  *and* those consumers are hindered by catalog-paced releases. That is a
+  reachable, falsifiable signal.
+
+  An earlier draft used "an outside consumer adopts the contract" as the
+  trigger. That was unfalsifiable by construction — nothing was published, so no
+  outside consumer could exist, and the condition could never fire no matter how
+  wrong the decision was. Publishing (ADR-0006) is what makes any trigger here
+  observable; without it this record could not be disproven, only believed.
+- **Revisit if:** the trigger above fires, or `memory` gains a second
   independent consumer inside the catalog.
 
 ## Action items
 
 1. [x] Record the measurement that decides this, so it is not re-derived.
-2. [ ] Note Option D in `plugins/memory/README.md` as the sanctioned split path.
+2. [ ] Resolve distribution separately in ADR-0006; this record governs only
+   repository location, not consumability.
