@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "memory",
   "displayName": "Durable Memory",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Provenance-bound durable memory across sessions: immutable records, append-only review state, active-only recall, offline semantic recall via a first-party rag provider, and explicit provider reconciliation.",
   "author": {
     "name": "Mark Beacom"

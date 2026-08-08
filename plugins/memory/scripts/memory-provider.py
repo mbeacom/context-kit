@@ -102,8 +102,8 @@ MEMPALACE_TESTED_RELEASE_LINE = "3.6.x"
 # `CONTEXT_KIT_INDEXKIT_HOME` (indexkit >= 0.4.0) separates venv resolution
 # from index-data location, which is what lets this adapter redirect index data
 # into a project-isolated store without relocating the shared venv.
-RAG_TESTED_VERSION = (0, 5, 0)
-RAG_TESTED_RELEASE_LINE = "0.5.x"
+RAG_TESTED_VERSION = (0, 6, 0)
+RAG_TESTED_RELEASE_LINE = "0.6.x"
 RAG_INDEX_NAME = "memory"
 # One record spans several indexed chunks, so ask for more chunks than the
 # caller asked for records and deduplicate back down.

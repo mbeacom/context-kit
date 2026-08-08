@@ -1,40 +1,66 @@
-# Local RAG
+# indexkit
 
-A local-first semantic search engine with an opt-in hybrid mode. `indexkit`
-ships a `bin/indexkit` CLI that chunks and embeds a corpus through
-[`ollama`](https://ollama.com) and indexes it with
-[`turbovec`](https://github.com/RyanCodrai/turbovec) (a quantized vector index).
-The default Ollama endpoint is localhost and needs no API key; a configured
-remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
+Offline hybrid retrieval: build a local semantic + lexical index over your files
+and query it. Chunks and embeds a corpus through [`ollama`](https://ollama.com),
+indexes it with [`turbovec`](https://github.com/RyanCodrai/turbovec) (a quantized
+vector index), and fuses that with SQLite FTS5/BM25 for opt-in hybrid search.
 
-It is notes-first but corpus-agnostic: loaders are pluggable, so the same engine
-can index Markdown notes, code, or any text corpus.
+No API key and no network egress by default — the embedding endpoint is
+localhost. A configured remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks
+and queries, so that is the one setting that sends data off the machine.
 
-Claude Code and GitHub Copilot CLI both auto-bootstrap the CLI from the
-plugin's `SessionStart` hook. APM and manual users bootstrap it directly and set
-the portable `CONTEXT_KIT_DATA` location.
+Notes-first but corpus-agnostic: loaders are pluggable, so the same engine can
+index Markdown notes, code, or any text corpus.
+
+> Formerly `local-rag`. The old name claimed a deployment property that a
+> supported setting falsifies, and understated an engine that also does lexical
+> retrieval. Pre-rename environment variables are still honored.
+
+## Install
+
+```bash
+pip install indexkit          # or: uv tool install indexkit
+ollama pull nomic-embed-text  # once
+```
+
+That is the whole setup — no plugin host, no bootstrap step. Indexes default to
+`${XDG_DATA_HOME:-~/.local/share}/indexkit`.
+
+```bash
+indexkit index ~/notes --name notes
+indexkit query "how did we handle retry backoff" --name notes --k 8
+```
+
+### As a context-kit plugin
+
+Claude Code and GitHub Copilot CLI auto-bootstrap the bundled `bin/indexkit`
+launcher from the plugin's `SessionStart` hook, into `${CLAUDE_PLUGIN_DATA}/venv`
+— for Copilot, `~/.copilot/plugin-data/<marketplace>/indexkit/venv`. In that
+mode the host controls where indexes live.
+
+The launcher prefers that bootstrapped venv, then falls back to an `indexkit`
+already on your `PATH`, then to any importable `indexkit` module. So a
+pip-installed copy satisfies the plugin too, and a missing venv is not fatal.
 
 ## Requirements
 
-- [`uv`](https://docs.astral.sh/uv/) — used to bootstrap the plugin's Python venv.
-- [`ollama`](https://ollama.com) running locally with the embedding model pulled:
+- [`ollama`](https://ollama.com) running with an embedding model pulled:
 
   ```bash
   ollama pull nomic-embed-text
   ```
 
-For APM or manual usage — or on any host where the venv is missing or stale —
-bootstrap it yourself into a neutral data location:
+- [`uv`](https://docs.astral.sh/uv/) — **only** for the plugin bootstrap path.
+  A `pip install` needs nothing beyond Python 3.10+.
+
+For APM or manual plugin usage — or on any host where the venv is missing or
+stale — bootstrap it yourself into a neutral data location:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash scripts/bootstrap.sh
 export PATH="$PWD/bin:$PATH"
 ```
-
-Claude Code and GitHub Copilot CLI both do this automatically on session start
-(via the plugin's `SessionStart` hook), into `${CLAUDE_PLUGIN_DATA}/venv` — for
-Copilot, `~/.copilot/plugin-data/<marketplace>/indexkit/venv`.
 
 To check readiness without installing anything:
 
@@ -65,9 +91,16 @@ indexkit list
 indexkit remove --name X --yes
 ```
 
-Each named index is persisted under
-`${CONTEXT_KIT_DATA}/indexes/<name>/` (or `${CLAUDE_PLUGIN_DATA}` inside
-Claude Code), so queries are fast and survive across sessions.
+Each named index is persisted under `<data-dir>/indexes/<name>/`, so queries are
+fast and survive across sessions. The data directory resolves in this order:
+
+1. `CONTEXT_KIT_DATA` (or the `PRODUCTIVITY_SKILLS_DATA` alias)
+2. `CLAUDE_PLUGIN_DATA`, set by a plugin host
+3. `${XDG_DATA_HOME:-~/.local/share}/indexkit` — the standalone default
+
+An existing `~/.claude/plugins/data/indexkit` directory still wins over the
+standalone default while that default has not been created, so upgrading a
+plugin install does not orphan indexes you already built.
 
 ### Index lifecycle
 
@@ -94,6 +127,11 @@ Portable environment variables:
 | `CONTEXT_KIT_INDEXKIT_HOME` | venv location only, when it must differ from index storage | — (defaults to `CONTEXT_KIT_DATA`) |
 | `CONTEXT_KIT_EMBED_MODEL` | ollama embedding model | `CLAUDE_PLUGIN_OPTION_EMBED_MODEL` |
 | `CONTEXT_KIT_OLLAMA_HOST` | ollama base URL | `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` |
+| `XDG_DATA_HOME` | relocates the standalone default data directory | — |
+
+None of these are required for a standalone install; all have defaults.
+The pre-rename `CONTEXT_KIT_LOCAL_RAG_HOME` is still read as a fallback for
+`CONTEXT_KIT_INDEXKIT_HOME`.
 
 `CONTEXT_KIT_DATA` normally holds both the venv and the indexes. Set
 `CONTEXT_KIT_INDEXKIT_HOME` only when a caller needs to redirect *index data*

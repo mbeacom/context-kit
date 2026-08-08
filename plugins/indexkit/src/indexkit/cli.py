@@ -21,11 +21,45 @@ def _first_env(*names: str) -> str | None:
     return None
 
 
+def _legacy_data_dir() -> Path:
+    """Where a plugin install kept index data before standalone packaging.
+
+    Kept resolvable so upgrading does not silently orphan existing indexes.
+    """
+    return Path.home() / ".claude/plugins/data/indexkit"
+
+
+def _default_data_dir() -> Path:
+    """Host-neutral default for a plain `pip install indexkit`.
+
+    A user who installed from PyPI has no plugin host, so writing under
+    `~/.claude/` would create a directory for an unrelated tool. Follow the XDG
+    base-directory spec instead, honoring `XDG_DATA_HOME` when set.
+
+    An existing plugin-managed directory still wins when the new location has
+    not been created yet, so upgrading in place keeps working (ADR-0006).
+    """
+    xdg = os.environ.get("XDG_DATA_HOME")
+    default = (Path(xdg).expanduser() if xdg else Path.home() / ".local/share") / "indexkit"
+    if not default.exists():
+        legacy = _legacy_data_dir()
+        if legacy.is_dir():
+            return legacy
+    return default
+
+
 def _data_dir() -> Path:
-    return Path(
-        _first_env("CONTEXT_KIT_DATA", "PRODUCTIVITY_SKILLS_DATA", "CLAUDE_PLUGIN_DATA")
-        or Path.home() / ".claude/plugins/data/indexkit"
-    ).expanduser()
+    """Resolve where indexes live.
+
+    Explicit configuration wins, then the host-provided plugin data directory,
+    then a host-neutral default. `CLAUDE_PLUGIN_DATA` is set by the plugin host,
+    so honoring it keeps plugin installs pointed at host-managed storage while a
+    standalone install never touches it.
+    """
+    configured = _first_env("CONTEXT_KIT_DATA", "PRODUCTIVITY_SKILLS_DATA", "CLAUDE_PLUGIN_DATA")
+    if configured:
+        return Path(configured).expanduser()
+    return _default_data_dir().expanduser()
 
 
 def _make_embedder(args):

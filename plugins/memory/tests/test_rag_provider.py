@@ -121,7 +121,7 @@ class RagProviderTests(unittest.TestCase):
         self,
         *,
         query_result: object = None,
-        version_output: str = "indexkit 0.5.0\n",
+        version_output: str = "indexkit 0.6.0\n",
         help_overrides: dict[str, str] | None = None,
         exit_overrides: dict[str, int] | None = None,
     ) -> Path:

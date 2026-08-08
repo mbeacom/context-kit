@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1 — 2026-08-08
+
+- Move the `rag` provider's tested-version pin to indexkit 0.6.x, the release
+  this adapter is exercised against.
+
 ## 0.5.0 — 2026-08-08
 
 - Track the `local-rag` → `indexkit` rename (ADR-0007) without breaking existing

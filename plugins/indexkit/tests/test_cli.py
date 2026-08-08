@@ -364,3 +364,81 @@ def test_index_rejects_path_traversal_name(tmp_path, capsys):
 
     assert raised.value.code == 2
     assert "index name must" in capsys.readouterr().err
+
+
+# --- Standalone (non-plugin) installs: ADR-0006 ------------------------------
+# A `pip install indexkit` user has no plugin host, so the default must not be a
+# host-specific directory. These pin the resolution order and the migration
+# path, which is the part that can silently orphan an existing index.
+
+
+def _clear_data_env(monkeypatch):
+    for name in (
+        "CONTEXT_KIT_DATA",
+        "PRODUCTIVITY_SKILLS_DATA",
+        "CLAUDE_PLUGIN_DATA",
+        "XDG_DATA_HOME",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_default_data_dir_is_host_neutral(tmp_path, monkeypatch):
+    """With no plugin env at all, indexes land under XDG, not ~/.claude."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+
+    resolved = cli._data_dir()
+
+    assert resolved == home / ".local/share/indexkit"
+    assert ".claude" not in str(resolved)
+
+
+def test_default_data_dir_honors_xdg_data_home(tmp_path, monkeypatch):
+    """XDG_DATA_HOME relocates the default, per the base-directory spec."""
+    home = tmp_path / "home"
+    home.mkdir()
+    xdg = tmp_path / "xdg"
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+    monkeypatch.setenv("XDG_DATA_HOME", str(xdg))
+
+    assert cli._data_dir() == xdg / "indexkit"
+
+
+def test_existing_plugin_data_dir_still_wins(tmp_path, monkeypatch):
+    """Upgrading in place must not orphan indexes written by a plugin install."""
+    home = tmp_path / "home"
+    legacy = home / ".claude/plugins/data/indexkit"
+    legacy.mkdir(parents=True)
+    (legacy / "indexes").mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+
+    assert cli._data_dir() == legacy
+
+
+def test_new_default_wins_once_it_exists(tmp_path, monkeypatch):
+    """Once the host-neutral dir exists it is authoritative, even beside a legacy one."""
+    home = tmp_path / "home"
+    legacy = home / ".claude/plugins/data/indexkit"
+    legacy.mkdir(parents=True)
+    new = home / ".local/share/indexkit"
+    new.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+
+    assert cli._data_dir() == new
+
+
+def test_plugin_data_env_still_beats_default(tmp_path, monkeypatch):
+    """A plugin host setting CLAUDE_PLUGIN_DATA keeps control of storage."""
+    home = tmp_path / "home"
+    home.mkdir()
+    plugin_data = tmp_path / "plugin-data"
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(plugin_data))
+
+    assert cli._data_dir() == plugin_data

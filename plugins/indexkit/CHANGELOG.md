@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.6.0 — 2026-08-08
+
+- **Installable and usable without a plugin host** (ADR-0006). `pip install
+  indexkit` now works standalone: the default index location is
+  `${XDG_DATA_HOME:-~/.local/share}/indexkit` instead of
+  `~/.claude/plugins/data/indexkit`, so a user with no Claude install no longer
+  gets a `.claude` directory created for an unrelated tool.
+- An existing `~/.claude/plugins/data/indexkit` still wins while the new default
+  has not been created, so upgrading a plugin install does not orphan indexes.
+- `bin/indexkit` degrades instead of refusing: bootstrapped venv, then an
+  `indexkit` on `PATH`, then any importable `indexkit` module. A guard prevents
+  the launcher re-executing itself when the plugin `bin/` is on `PATH`.
+- Add publish metadata (readme, license, authors, classifiers, project URLs);
+  `twine check` passes on both sdist and wheel.
+- Rewrite the README to lead with standalone install, since it is now the
+  package's PyPI landing page.
+
 ## 0.5.0 — 2026-08-08
 
 - **Renamed from `local-rag` to `indexkit`** (ADR-0007). The name encoded a
