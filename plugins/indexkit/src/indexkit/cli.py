@@ -25,7 +25,10 @@ def _legacy_data_dir() -> Path:
     """Where a plugin install kept index data before standalone packaging.
 
     Kept resolvable so upgrading does not silently orphan existing indexes.
+    This is deliberate compatibility, not dead code — see the governing records.
     """
+    # @adr 0006
+    # @adr 0007
     return Path.home() / ".claude/plugins/data/indexkit"
 
 

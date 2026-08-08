@@ -99,10 +99,15 @@ The `main` branch deploys to GitHub Pages automatically via
   managed by [adrkit](https://github.com/mbeacom/adrkit) ([ADR-0001](https://github.com/mbeacom/context-kit/blob/main/docs/adr/0001-record-architecture-decisions-with-adrkit.md)).
   The instruction files keep the *rules*; the corpus keeps the *reasoning, the
   rejected options, and the revisit conditions*. Create one with
-  `npx @adrkit/cli@0.3.0 new "<title>"`, fill in `affects` so the decision is
+  `npx @adrkit/cli@0.4.0 new "<title>"`, fill in `affects` so the decision is
   locatable by path, and check what already governs a file with
-  `npx @adrkit/cli@0.3.0 explain <path>`. Do **not** write an ADR for naming,
+  `npx @adrkit/cli@0.4.0 explain <path>`. Do **not** write an ADR for naming,
   formatting, or anything a contributor can flip in one commit.
+  Code that exists *because of* a decision — compatibility shims especially —
+  can declare it inline with a dedicated `# @adr NNNN` comment line, which
+  `adr explain` reports as `declared by <file>:<line>`. Markers must be real
+  comment lines (not docstrings) within the first 8192 bytes of the file, so in
+  a large module put them in the header.
   adrkit is contributor-side only — no shipped plugin depends on it, and
   `scripts/check-adr.sh` skips cleanly when Node is absent, so you can work
   without it. An agent-drafted record cannot reach `accepted` without a named

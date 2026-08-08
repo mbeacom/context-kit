@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Validate durable memories and invoke an optional MemPalace provider."""
 
+# Governing decisions. adrkit scans only the first 8192 bytes of a file for
+# markers, and this module is far larger, so file-level declarations belong
+# here in the header rather than beside the code they explain.
+# @adr 0002
+# @adr 0003
+# @adr 0007
+
 from __future__ import annotations
 
 import argparse

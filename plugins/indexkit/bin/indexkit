@@ -11,6 +11,8 @@ set -euo pipefail
 # (ADR-0006): a user may have indexkit from PyPI and no bootstrapped venv, and
 # in that case refusing to run would be wrong. Only when nothing can serve the
 # command do we explain how to bootstrap.
+# @adr 0006
+# @adr 0007
 #
 # CONTEXT_KIT_DATA locates *index data*. A caller (for example the context-kit
 # `memory` plugin) may redirect it per invocation to isolate indexes into its
