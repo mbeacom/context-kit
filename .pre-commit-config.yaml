@@ -101,3 +101,12 @@ repos:
         language: system
         pass_filenames: false
         files: '^(plugins/.*/(SKILL\.md|agents/.*\.md)|plugins/plan-execute/workflows/plan-big-execute-small\.workflow\.js|plugins/plugin-forge/(quality/.*\.json|scripts/(catalog_quality\.py|test-catalog-quality\.sh)|tests/.*))$'
+      - id: check-adr
+        # adrkit (ADR-0001) is a contributor-side, Apache-2.0, Node-based tool.
+        # The wrapper skips when the toolchain is absent so a Node-less
+        # contributor is never blocked, and fails only on real lint errors.
+        name: ADR corpus lint (skipped without Node)
+        entry: bash scripts/check-adr.sh
+        language: system
+        pass_filenames: false
+        files: '^(docs/adr/.*\.md|scripts/check-adr\.sh)$'

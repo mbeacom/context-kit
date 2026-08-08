@@ -1,0 +1,12 @@
+{
+  // adrkit records carry the canonical title in typed YAML frontmatter *and*
+  // as an H1 (see the upstream `adr new` template). markdownlint counts the
+  // frontmatter `title:` as the document title, so the H1 reads as a second
+  // top-level heading. Clearing `front_matter_title` tells MD025 to ignore
+  // frontmatter when deciding what the single H1 is — it keeps the rule active
+  // for genuine duplicate headings instead of switching it off.
+  "extends": "../../.markdownlint-cli2.jsonc",
+  "config": {
+    "MD025": { "front_matter_title": "" }
+  }
+}

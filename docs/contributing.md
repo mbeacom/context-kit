@@ -42,6 +42,9 @@ python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
 python3 -m unittest discover -s tests/integration -p 'test_*.py'
 
+# Lint the ADR corpus (skips cleanly if Node is unavailable)
+bash scripts/check-adr.sh
+
 # Run the local-rag Python tests
 cd plugins/local-rag && uv run --group dev pytest -q
 ```
@@ -91,10 +94,26 @@ The `main` branch deploys to GitHub Pages automatically via
   environment variables in examples, with `CLAUDE_PLUGIN_*` documented as the
   Claude fallback. Keep marketplace mechanics in `.claude-plugin/` and Claude-only
   docs.
+- **Architecture decisions** — decisions that are hard to reverse, contested, or
+  govern a path are recorded as ADRs in [`docs/adr/`](https://github.com/mbeacom/context-kit/tree/main/docs/adr),
+  managed by [adrkit](https://github.com/mbeacom/adrkit) ([ADR-0001](https://github.com/mbeacom/context-kit/blob/main/docs/adr/0001-record-architecture-decisions-with-adrkit.md)).
+  The instruction files keep the *rules*; the corpus keeps the *reasoning, the
+  rejected options, and the revisit conditions*. Create one with
+  `npx @adrkit/cli@0.3.0 new "<title>"`, fill in `affects` so the decision is
+  locatable by path, and check what already governs a file with
+  `npx @adrkit/cli@0.3.0 explain <path>`. Do **not** write an ADR for naming,
+  formatting, or anything a contributor can flip in one commit.
+  adrkit is contributor-side only — no shipped plugin depends on it, and
+  `scripts/check-adr.sh` skips cleanly when Node is absent, so you can work
+  without it. An agent-drafted record cannot reach `accepted` without a named
+  human ratifier in `provenance.ratifiedBy`; that refusal is intentional.
 - **Licensing** — repo and all plugins are MIT (Mark Beacom). Content is written
-  fresh; do not copy text from externally licensed sources.
+  fresh; do not copy text from externally licensed sources. adrkit is Apache-2.0,
+  so we invoke it as an external CLI and never vendor its code.
 - **Markdown** — `.markdownlint-cli2.jsonc` disables MD013/MD033/MD041/MD060. Fix
-  real lint findings rather than disabling more rules.
+  real lint findings rather than disabling more rules. `docs/adr/` extends that
+  config with one scoped option so MD025 tolerates adrkit's frontmatter title
+  alongside its H1.
 
 See [`CLAUDE.md`](https://github.com/mbeacom/context-kit/blob/main/CLAUDE.md) and
 [`.github/copilot-instructions.md`](https://github.com/mbeacom/context-kit/blob/main/.github/copilot-instructions.md)
