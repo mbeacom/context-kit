@@ -2,18 +2,19 @@
 name: indexkit
 description: "Use for semantic search over a markdown corpus when keywords aren't enough and you know the meaning, not the exact words, or hybrid semantic plus lexical search. Index once, then query."
 license: MIT
-compatibility: "Requires the bin/indexkit CLI (auto-bootstrapped via uv) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
+compatibility: "Requires the indexkit CLI (pip install indexkit, or auto-bootstrapped via uv in a plugin host) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
 metadata:
   author: Mark Beacom
   version: "0.3.1"
-allowed-tools: Bash(rag:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
+allowed-tools: Bash(indexkit:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
 ---
 
-# Local RAG
+# indexkit
 
-Local-first semantic search: `rag` chunks a corpus, embeds it through the
-configured Ollama endpoint (default localhost), and indexes it with turbovec. A
-remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
+Offline hybrid retrieval: `indexkit` chunks a corpus, embeds it through the
+configured Ollama endpoint (default localhost), indexes it with turbovec, and
+fuses that with SQLite FTS5/BM25 for opt-in lexical search. A remote
+`CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
 
 ## Prerequisites
 
@@ -21,7 +22,8 @@ remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
 - Claude Code and GitHub Copilot CLI: the `indexkit` CLI is bootstrapped
   automatically on session start (uv venv). If it is missing or stale, run
   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"`.
-- APM/manual: clone this repo, set `CONTEXT_KIT_DATA`, run
+- APM/manual: `pip install indexkit` is enough — the launcher falls back to an
+  `indexkit` on `PATH`. To work from a clone instead, set `CONTEXT_KIT_DATA`, run
   `plugins/indexkit/scripts/bootstrap.sh`, and add `plugins/indexkit/bin` to
   `PATH`.
 
@@ -79,7 +81,7 @@ obsidian backlinks file="Project X" | indexkit query "open risks" --name notes -
 rg -l '#decision' "$VAULT" | indexkit query "why did we choose X" --name notes --hybrid --allowlist -
 ```
 
-`rag` is not rtk-wrapped, so `rtk rag …` is a no-op (passes through). When `rtk`
+`indexkit` is not rtk-wrapped, so `rtk indexkit …` is a no-op (passes through). When `rtk`
 is installed, prefix the surrounding `rg` step instead — `rtk rg -l` keeps `-l`
 raw, so the piped paths above stay intact.
 
