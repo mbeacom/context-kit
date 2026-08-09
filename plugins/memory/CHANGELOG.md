@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.6.0 — 2026-08-09
+
+- **Package the memory contract, validator, and MCP server as `memorykit`, ready
+  to publish to PyPI** (ADR-0006 item 3, ADR-0009). Nothing is uploaded yet and
+  the name is unclaimed; publishing is a separate, deliberate act. The
+  implementation moved to
+  `src/memorykit/{provider,mcp}.py` and is installable as `memorykit`, which
+  provides the `memorykit` and `memorykit-mcp` console scripts. The package has
+  **no Python package dependencies** — that property is what makes this unit
+  separable from the plugin at all, and it is now enforced by a test rather than
+  a convention. It is not free of *system* dependencies: `validate` and
+  `capture` shell out to `git check-ref-format`, so `git` must be on `PATH`.
+  That is documented rather than removed, because reimplementing Git's refname
+  rules would be an unreviewed reimplementation and skipping the check would
+  silently weaken provenance.
+- The two files moved whole. `memory-provider.py` was not split along its
+  contract/validator/provider/CLI seams: `capture` needs the review-state
+  machine, and the MCP server needs the provider, so no narrower cut is a
+  working unit. Single-file-ness is a property of that script, not an accident.
+- `scripts/memory-provider.py` and `mcp/server.py` remain as launchers, so
+  `hooks/hooks.json`, `.mcp.json`, the slash commands, and every reference doc
+  keep working unchanged. Unlike the `indexkit` launcher, these prefer the
+  **bundled** source over an installed package, so plugin version X always runs
+  provider version X.
+- Fix `_indexkit_root()`, which resolved a fixed `parents[2]`. That is correct
+  for at most one of the two deployment shapes; it now walks ancestors for a
+  directory that actually contains the launcher, and finds nothing (rather than
+  something wrong) in `site-packages`.
+
 ## 0.5.5 — 2026-08-09
 
 - Correct the `rag` provider reference, which described a bootstrapped venv as

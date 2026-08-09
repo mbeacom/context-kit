@@ -9,7 +9,7 @@ tags: [packaging, distribution, local-rag, memory, pypi]
 scope: org
 reversibility: one-way-door
 blastRadius: cross-team
-relatesTo: ["0002", "0005"]
+relatesTo: ["0002", "0005", "0008", "0009"]
 affects:
   - type: path
     pattern: plugins/indexkit/**
@@ -156,9 +156,16 @@ this is how it will ship, since `local-rag` is ready first.
 2. [x] Make the CLI work with no plugin host: host-neutral default data dir
    (`${XDG_DATA_HOME:-~/.local/share}/indexkit`), and a launcher that degrades
    to an installed console script or an importable module.
-3. [ ] Add a `pyproject.toml` for the memory contract/validator/MCP server.
+3. [x] Add a `pyproject.toml` for the memory contract/validator/MCP server.
+   Resolved by ADR-0009 as the `memorykit` distribution, with one correction to
+   this record: the three named parts are not a shippable unit on their own. The
+   MCP server shells out to the provider for every operation by design, and
+   `capture` cannot be separated from the review state machine, so the package
+   ships the provider and the MCP server whole rather than a narrow core. That
+   is a superset of what this item asked for, chosen over a narrower cut that
+   would have had to duplicate the state machine or drop the MCP server.
 4. [x] Add a release workflow; keep package and plugin versions reconciled with
-   ADR-0005. See ADR-0008.
+   ADR-0005. See ADR-0008 for `indexkit` and ADR-0009 for `memorykit`.
 
 `indexkit` 0.6.1 was published to PyPI on 2026-08-09, so this record's central
 claim is now testable rather than asserted: `pip install indexkit` works with no

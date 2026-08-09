@@ -31,7 +31,7 @@ import unittest
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = PLUGIN_ROOT / "scripts" / "memory-provider.py"
+SCRIPT = PLUGIN_ROOT / "src" / "memorykit" / "provider.py"
 SPEC = importlib.util.spec_from_file_location("memory_provider_compat", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 memory_provider = importlib.util.module_from_spec(SPEC)

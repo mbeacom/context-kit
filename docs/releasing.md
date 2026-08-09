@@ -47,6 +47,21 @@ other plugin version. This convention is forward-only: existing versions do not
 need historical tags, and the first tag for each plugin starts with its first
 release under this policy.
 
+One exception, and it is mechanical rather than stylistic. When a plugin also
+publishes a Python package whose **distribution name differs from the plugin
+directory name**, the tag prefix is the *distribution* name:
+
+| Plugin | Package | Tag prefix |
+|---|---|---|
+| `plugins/indexkit` | `indexkit` | `indexkit/v…` |
+| `plugins/memory` | `memorykit` | `memorykit/v…` |
+
+`scripts/release_version.py` refuses a tag whose prefix is not the distribution
+name — "the tag prefix and the distribution name must agree" — because the tag
+is what names an irreversible PyPI upload, and `memory/v0.6.0` would not say
+which package was published. It is still one tag per release: it releases the
+plugin *and* the package, exactly as `indexkit/v…` does. See ADR-0009.
+
 Point the tag at the exact merged `main` commit, push it, and create a GitHub
 release with the same tag. Use the matching changelog entry as the release notes;
 add dependency or migration details only when they affect installation or use.
@@ -169,6 +184,51 @@ Prerequisites a maintainer must configure once, outside this repository:
 Because Trusted Publishing binds to `(owner, repo, workflow filename,
 environment)`, **renaming `release-indexkit.yml` breaks publishing** until the
 PyPI configuration is updated to match.
+
+## Publishing memorykit to PyPI
+
+`memory` also ships its contract, validator, and MCP server as the `memorykit`
+Python package (ADR-0006 item 3, ADR-0009). The procedure is identical to
+`indexkit` above — same guard, same rehearsal, same per-file attestation check —
+so it is not repeated. Only these differ:
+
+| | `indexkit` | `memorykit` |
+|---|---|---|
+| Tag | `indexkit/v<version>` | `memorykit/v<version>` |
+| Workflow | `release-indexkit.yml` | `release-memorykit.yml` |
+| Plugin dir | `plugins/indexkit` | `plugins/memory` |
+| Project page | <https://pypi.org/p/indexkit> | <https://pypi.org/p/memorykit> |
+| Runtime deps | `turbovec`, `httpx` | **none** |
+
+```bash
+python3 scripts/release_version.py \
+  --package memorykit \
+  --tag memorykit/v<version> \
+  --plugin-dir plugins/memory
+```
+
+Substitute `memorykit` for `indexkit` in the attestation check too; both files
+must report `workflow: "release-memorykit.yml"`.
+
+`release-memorykit.yml` is a **copy** of `release-indexkit.yml`, not a call into
+a shared reusable workflow. PyPI does not accept a reusable workflow as a Trusted
+Publisher (the OIDC claim names the calling workflow), so the duplication is
+forced. Fixes to release hardening must be applied to both files; ADR-0009
+records this so the duplication is not mistaken for an oversight.
+
+The same one-time prerequisites apply, with `memorykit` values: a PyPI **pending
+publisher** for `memorykit` — owner `mbeacom`, repository `context-kit`, workflow
+`release-memorykit.yml`, environment `pypi`. As of this writing that publisher
+has not been created and nothing has been uploaded; the name is unclaimed on
+PyPI, and the first upload claims it permanently.
+
+**Before the first `memorykit` release, remove the "Not on PyPI yet" note from
+`plugins/memory/README.md`** and promote `pip install memorykit` from "once
+published" to the primary instruction. That README *is* the PyPI long
+description, so leaving the note in place would publish a project page that
+says the project is not published. This is not hypothetical: the same note had
+to be cleaned up for `indexkit` after it shipped (PR #45). Treat it as part of
+the release, not as follow-up.
 
 ## Recovery
 

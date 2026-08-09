@@ -22,7 +22,7 @@ HANDOFF_VALIDATOR = (
     REPOSITORY_ROOT / "plugins" / "context-handoff" / "scripts" / "validate-handoff.py"
 )
 MEMORY_PROVIDER = (
-    REPOSITORY_ROOT / "plugins" / "memory" / "scripts" / "memory-provider.py"
+    REPOSITORY_ROOT / "plugins" / "memory" / "src" / "memorykit" / "provider.py"
 )
 PROJECT = "mbeacom/context-kit"
 
