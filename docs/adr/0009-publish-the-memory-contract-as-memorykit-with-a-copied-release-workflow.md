@@ -2,9 +2,9 @@
 schemaVersion: 0.1.0
 id: "0009"
 title: "Publish the memory contract as memorykit with a copied release workflow"
-status: proposed
+status: accepted
 date: 2026-08-09
-deciders: []
+deciders: ["@mbeacom"]
 tags: [packaging, release, pypi, memory, supply-chain, one-way-door]
 scope: org
 reversibility: one-way-door
@@ -39,7 +39,12 @@ affects:
     pattern: docs/releasing.md
     note: Where the tag-prefix rule is generalized to distribution names.
 provenance:
-  authoredBy: agent
+  authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
+  agent:
+    name: Copilot CLI
+    model: claude-opus-5
+    harness: github-copilot-cli
 ---
 
 # ADR-0009: Publish the memory contract as memorykit with a copied release workflow
