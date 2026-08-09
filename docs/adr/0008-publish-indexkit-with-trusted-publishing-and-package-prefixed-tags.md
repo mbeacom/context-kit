@@ -2,9 +2,9 @@
 schemaVersion: 0.1.0
 id: "0008"
 title: "Publish indexkit with trusted publishing and package-prefixed tags"
-status: proposed
+status: accepted
 date: 2026-08-09
-deciders: []
+deciders: ["@mbeacom"]
 tags: [packaging, release, ci, pypi, supply-chain, indexkit]
 scope: org
 reversibility: one-way-door
@@ -26,6 +26,7 @@ affects:
     pattern: indexkit
 provenance:
   authoredBy: agent-drafted
+  ratifiedBy: "@mbeacom"
   agent:
     name: Copilot CLI
     model: claude-opus-5
@@ -191,10 +192,13 @@ front of the irreversible step.
   workflow filename would normally not be worth a decision record; under OIDC it
   becomes a configuration key, and that is why this is listed rather than
   assumed.
-- **The `pypi` environment is a gate we have not configured.** The workflow
-  declares it; whether it carries a required reviewer is a repository setting,
-  not something this record can enforce. Declaring the environment without
-  approvers gives provenance scoping but not human review.
+- **The `pypi` environment's protection is a repository setting, not something
+  this record can enforce.** The workflow declares the environment; whether it
+  carries a required reviewer lives in repository settings, and declaring it
+  without approvers would give provenance scoping but not human review. It was
+  configured with a required reviewer before the first release (see action item
+  2), so the gate exists — but nothing in this repository prevents it from being
+  removed later, and no CI check would notice.
 - **One tag now means two things.** `indexkit/v0.6.0` triggers the PyPI upload
   *and* is the plugin release tag `docs/releasing.md` describes. That is the
   point — one release, one identifier — but it means a plugin-only release of
@@ -242,13 +246,21 @@ front of the irreversible step.
 
 ## Action items
 
-1. [ ] **Maintainer-only, before the first tag:** configure a PyPI pending
+1. [x] **Maintainer-only, before the first tag:** configure a PyPI pending
    publisher for `indexkit` — owner `mbeacom`, repo `context-kit`, workflow
    `release-indexkit.yml`, environment `pypi`. The name was unclaimed as of
-   2026-08-08 (verified: `GET /pypi/indexkit/json` returned 404).
-2. [ ] Decide whether the `pypi` GitHub environment requires a reviewer, and
-   configure it. The workflow cannot enforce this.
-3. [ ] Rehearse with `workflow_dispatch` (verification only) before tagging.
+   2026-08-08 (verified: `GET /pypi/indexkit/json` returned 404). Configured,
+   and exercised by the 0.6.1 release on 2026-08-09.
+2. [x] Decide whether the `pypi` GitHub environment requires a reviewer, and
+   configure it. The workflow cannot enforce this. **Decided: yes.** The `pypi`
+   environment exists with a `required_reviewers` protection rule, so a human
+   approves between `verify` and the irreversible upload. Verified against the
+   repository environments API on 2026-08-09.
+3. [x] Rehearse with `workflow_dispatch` (verification only) before tagging.
+   The rehearsal earned its cost on first use: it failed on a `dist/.gitignore`
+   that `uv build` writes, which the artifact assertion counted but `ls -l` did
+   not display. On a tag push that failure would have arrived after the version
+   was permanently spent, with the publish job next in line (fixed in #42).
 4. [ ] When `memory` is packaged (ADR-0006 action item 3), either copy this
    workflow or factor both onto a reusable one; do not add `memory` to the
    `indexkit` trigger.

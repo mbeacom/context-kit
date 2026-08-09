@@ -156,8 +156,11 @@ after release strands installs and splits the package's history.
 
 ## Action items
 
-1. [ ] Rename directories, module, CLI, and shim; unify all four surfaces.
-2. [ ] Keep `CONTEXT_KIT_LOCAL_RAG_*` readable as a documented fallback.
-3. [ ] Keep `memory` sibling resolution working for both directory names.
-4. [ ] Put "local RAG", "offline", and "hybrid retrieval" in package keywords.
-5. [ ] Note the migration in the plugin `CHANGELOG.md`.
+1. [x] Rename directories, module, CLI, and shim; unify all four surfaces.
+2. [x] Keep `CONTEXT_KIT_LOCAL_RAG_*` readable as a documented fallback.
+3. [x] Keep `memory` sibling resolution working for both directory names.
+4. [x] Put "local RAG", "offline", and "hybrid retrieval" in package keywords.
+5. [x] Note the migration in the plugin `CHANGELOG.md`.
+
+Completed by the 0.6.1 release (2026-08-09). The name is now permanently claimed
+on PyPI, so the one-way door declared in this record's frontmatter is closed.
