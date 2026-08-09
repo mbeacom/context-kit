@@ -301,7 +301,21 @@ class McpProtocolTests(unittest.TestCase):
         )
         responses = self.converse([self.call(1, "memory_capture", {"record": forged})])
         self.assertTrue(responses[0]["result"]["isError"])
-        self.assertIn("does not exist", self.text(responses[0]))
+        self.assertIn("not a readable file", self.text(responses[0]))
+
+    def test_capture_refuses_a_source_that_is_a_directory(self) -> None:
+        # A directory passes `exists()` but not the provider's `is_file()`
+        # hashing gate, so an `exists()` check here would admit a record citing
+        # a directory alongside *any* 64-character hash: the capture would be
+        # persisted and the hash never verified. The two gates have to agree.
+        directory = self.root / "a-directory"
+        directory.mkdir()
+        forged = self.record("retry", "proposed").replace(
+            f"source: {self.source}", f"source: {directory}"
+        )
+        responses = self.converse([self.call(1, "memory_capture", {"record": forged})])
+        self.assertTrue(responses[0]["result"]["isError"])
+        self.assertIn("not a readable file", self.text(responses[0]))
 
     def test_capture_refuses_a_record_without_a_source(self) -> None:
         stripped = "\n".join(

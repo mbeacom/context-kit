@@ -205,16 +205,18 @@ def _tool_memory_capture(arguments: dict[str, Any]) -> str:
             "with `memory-provider.py record-state <id> --review accepted "
             "--reason ...` after the evidence has been checked."
         )
-    # `validate_memory` verifies `source_hash` only when the source exists, so
-    # without this an agent could cite a nonexistent path plus any 64-character
-    # hash and have the proposal persisted with unverifiable provenance.
+    # `validate_memory` verifies `source_hash` only when the source is a
+    # *regular file* (`source.is_file()`), so `exists()` here would be a weaker
+    # gate than the one it exists to mirror: a record citing a directory would
+    # pass this check, skip hash verification entirely, and persist with any
+    # 64-character hash and unverifiable provenance. Match the provider.
     source = _frontmatter_value(record, "source")
     if not source:
         raise ToolError("record is missing a `source` field citing its evidence")
-    if not Path(source).expanduser().exists():
+    if not Path(source).expanduser().is_file():
         raise ToolError(
-            f"the cited source does not exist: {source}. A memory must point at "
-            "evidence that can be re-read and hashed."
+            f"the cited source is not a readable file: {source}. A memory must "
+            "point at evidence that can be re-read and hashed."
         )
     handle, temporary = tempfile.mkstemp(prefix="memory-capture-", suffix=".md")
     path = Path(temporary)

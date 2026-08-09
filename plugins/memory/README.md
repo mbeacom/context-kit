@@ -29,14 +29,31 @@ apm install memory@context-kit
 Installing `memory` also installs `context-handoff`, `verify`, and
 `retrieval-core`.
 
-### Without a plugin host: `pip install memorykit`
+### Without a plugin host: the `memorykit` package
 
-The contract, validator, and MCP server are also published as **`memorykit`**, a
-Python package with **no runtime dependencies** — pure standard library, which is
-why this part is separable from the plugin at all (ADR-0002, ADR-0009):
+The contract, validator, and MCP server are also packaged as **`memorykit`**, a
+pure-standard-library Python package (ADR-0002, ADR-0009).
+
+> **Not on PyPI yet.** The package is publish-ready but the name has not been
+> claimed, so `pip install memorykit` does **not** currently install this — it
+> will fail, or, if someone else claims the name first, install something else
+> entirely. Until the release workflow runs, install from a clone.
 
 ```bash
-pip install memorykit          # or: uv tool install memorykit
+# From a clone of https://github.com/mbeacom/context-kit
+pip install ./plugins/memory      # or: uv tool install ./plugins/memory
+```
+
+Once published, that becomes:
+
+```bash
+pip install memorykit             # or: uv tool install memorykit
+```
+
+Either way that is the whole install: no bootstrap step, no plugin runtime, no
+Claude-specific paths.
+
+```bash
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 
 memorykit validate record.md
@@ -45,12 +62,24 @@ memorykit search "why did we change retry policy"
 memorykit-mcp                  # stdio MCP server, for an MCP client to spawn
 ```
 
-That is the whole install: no bootstrap step, no plugin runtime, no
-Claude-specific paths. What it does **not** include is the plugin — the
-`memory-workflows` skill, the `/capture-memory`, `/recall-memory`,
-`/review-memory`, and `/archive-handoff` commands, and the lifecycle hooks are
-agent-host content, not a Python package, and remain plugin-only. The package is
-the engine; the plugin is the engine plus the workflow that drives it.
+**Requirements: Python 3.10+ and `git` on `PATH`.** The package has no Python
+package dependencies — `pip install` pulls in nothing else, and the test suite
+enforces that, because being importable with an empty `site-packages` is what
+makes this separable from the plugin at all. It is not, however, free of *system*
+dependencies: `validate` and `capture` shell out to `git check-ref-format` to
+check the `branch` field, so both refuse on a machine with no `git`. That is
+deliberate. Reimplementing Git's refname rules in Python would be a fresh,
+unreviewed reimplementation of a validation the contract depends on, and skipping
+the check when `git` is missing would silently weaken provenance exactly where a
+mistake benefits from it. Records describe a Git checkout — they carry
+`repository`, `branch`, and `head` — so requiring Git to validate one is close to
+tautological.
+
+What the package does **not** include is the plugin — the `memory-workflows`
+skill, the `/capture-memory`, `/recall-memory`, `/review-memory`, and
+`/archive-handoff` commands, and the lifecycle hooks are agent-host content, not
+a Python package, and remain plugin-only. The package is the engine; the plugin
+is the engine plus the workflow that drives it.
 
 The plugin bundles this same code and prefers its **bundled** copy over any
 installed `memorykit`, so plugin version X always runs provider version X. That
@@ -198,7 +227,7 @@ explicit command there.
 | `/review-memory` | Review freshness, conflicts, and consolidation proposals. |
 | `/archive-handoff` | Explicitly preserve a validated handoff as historical memory. |
 | `memory-provider.py` | Launcher for the `memorykit` provider: stdlib validator, local store, MemPalace adapter, and hook dispatcher. |
-| `src/memorykit/` | The published package (`pip install memorykit`): contract, validator, provider, MCP server. |
+| `src/memorykit/` | The packaged engine (`memorykit`, not yet on PyPI): contract, validator, provider, MCP server. |
 
 ## Safety boundaries
 

@@ -119,7 +119,18 @@ class PurityTests(unittest.TestCase):
             0,
             f"import failed without site-packages:\n{result.stderr}",
         )
-        self.assertEqual(result.stdout.strip(), "0.6.0")
+        # Deliberately not asserting a literal version. This test is about
+        # import purity; the printed value only has to prove `__version__`
+        # survived an import with no site-packages. Pinning the number here
+        # would add a sixth version surface outside the five that
+        # `scripts/release_version.py` reconciles, so the next bump would fail
+        # this suite until someone hand-edited a test that is not about
+        # versioning. `test_version_surfaces_agree` owns that check.
+        self.assertRegex(
+            result.stdout.strip(),
+            r"^\d+\.\d+\.\d+",
+            "memorykit.__version__ did not survive the site-packages-free import",
+        )
 
 
 class SurfaceTests(unittest.TestCase):

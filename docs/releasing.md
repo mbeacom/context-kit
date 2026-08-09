@@ -222,6 +222,14 @@ publisher** for `memorykit` — owner `mbeacom`, repository `context-kit`, workf
 has not been created and nothing has been uploaded; the name is unclaimed on
 PyPI, and the first upload claims it permanently.
 
+**Before the first `memorykit` release, remove the "Not on PyPI yet" note from
+`plugins/memory/README.md`** and promote `pip install memorykit` from "once
+published" to the primary instruction. That README *is* the PyPI long
+description, so leaving the note in place would publish a project page that
+says the project is not published. This is not hypothetical: the same note had
+to be cleaned up for `indexkit` after it shipped (PR #45). Treat it as part of
+the release, not as follow-up.
+
 ## Recovery
 
 - **Before merge:** correct the release PR in place; do not tag it.

@@ -2,13 +2,19 @@
 
 ## 0.6.0 — 2026-08-09
 
-- **Publish the memory contract, validator, and MCP server as `memorykit` on
-  PyPI** (ADR-0006 item 3, ADR-0009). The implementation moved to
-  `src/memorykit/{provider,mcp}.py` and is installable with
-  `pip install memorykit`, which provides the `memorykit` and `memorykit-mcp`
-  console scripts. The package has **no runtime dependencies** — that property
-  is what makes this unit separable from the plugin at all, and it is now
-  enforced by a test rather than a convention.
+- **Package the memory contract, validator, and MCP server as `memorykit`, ready
+  to publish to PyPI** (ADR-0006 item 3, ADR-0009). Nothing is uploaded yet and
+  the name is unclaimed; publishing is a separate, deliberate act. The
+  implementation moved to
+  `src/memorykit/{provider,mcp}.py` and is installable as `memorykit`, which
+  provides the `memorykit` and `memorykit-mcp` console scripts. The package has
+  **no Python package dependencies** — that property is what makes this unit
+  separable from the plugin at all, and it is now enforced by a test rather than
+  a convention. It is not free of *system* dependencies: `validate` and
+  `capture` shell out to `git check-ref-format`, so `git` must be on `PATH`.
+  That is documented rather than removed, because reimplementing Git's refname
+  rules would be an unreviewed reimplementation and skipping the check would
+  silently weaken provenance.
 - The two files moved whole. `memory-provider.py` was not split along its
   contract/validator/provider/CLI seams: `capture` needs the review-state
   machine, and the MCP server needs the provider, so no narrower cut is a

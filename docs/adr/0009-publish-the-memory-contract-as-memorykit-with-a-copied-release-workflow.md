@@ -202,8 +202,12 @@ unpublished is the same isolation with none of the benefit.
 ## Consequences
 
 - **Easier:** using the memory contract, validator, and MCP server from any host
-  — `pip install memorykit` and one environment variable. Zero dependencies means
-  no resolver conflicts and no build toolchain.
+  — `pip install memorykit` and one environment variable. No Python dependencies
+  means no resolver conflicts and no build toolchain. It is not dependency-free
+  in the broader sense: `validate` and `capture` require `git` on `PATH` for
+  `git check-ref-format`, which is documented rather than removed (reimplementing
+  Git's refname rules would be unreviewed, and skipping the check when `git` is
+  absent would weaken provenance silently).
 - **Harder:** every release-hardening fix now lands in two workflow files.
   Changing the provider's internal structure now has an external audience.
 - **How we would know this was wrong:** the boundary is wrong if, within two

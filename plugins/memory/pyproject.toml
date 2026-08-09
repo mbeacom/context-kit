@@ -1,7 +1,7 @@
 [project]
 name = "memorykit"
 version = "0.6.0"
-description = "Provenance-bound durable memory: an immutable record contract, a validator, append-only review state, and a standard-library stdio MCP server. No runtime dependencies."
+description = "Provenance-bound durable memory: an immutable record contract, a validator, append-only review state, and a standard-library stdio MCP server. No Python dependencies; requires git on PATH."
 requires-python = ">=3.10"
 keywords = [
   "memory",
