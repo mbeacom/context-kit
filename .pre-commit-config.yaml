@@ -30,9 +30,9 @@ repos:
     rev: v0.6.9
     hooks:
       - id: ruff
-        files: '^(plugins/(indexkit|memory|runtime-evidence|context-handoff|corpus-review|deep-review|plugin-forge|token-economics|verify)|tests/integration)/.*\.py$'
+        files: '^(plugins/(indexkit|memory|runtime-evidence|context-handoff|corpus-review|deep-review|plugin-forge|token-economics|verify)|tests|scripts)/.*\.py$'
       - id: ruff-format
-        files: '^(plugins/(indexkit|memory|runtime-evidence|context-handoff|corpus-review|deep-review|plugin-forge|token-economics|verify)|tests/integration)/.*\.py$'
+        files: '^(plugins/(indexkit|memory|runtime-evidence|context-handoff|corpus-review|deep-review|plugin-forge|token-economics|verify)|tests|scripts)/.*\.py$'
 
   - repo: local
     hooks:
@@ -69,6 +69,15 @@ repos:
         language: system
         pass_filenames: false
         files: '^plugins/verify/(scripts|tests)/.*\.py$'
+      - id: test-release-version
+        # Guards an irreversible step: a wrong version cannot be replaced on
+        # PyPI, only yanked. The guard runs in the release workflow; these are
+        # its hermetic regression tests.
+        name: release version guard tests
+        entry: python3 -m unittest discover -s tests/release -p 'test_*.py'
+        language: system
+        pass_filenames: false
+        files: '^(scripts/release_version\.py|tests/release/.*\.py|plugins/indexkit/(pyproject\.toml|apm\.yml|CHANGELOG\.md|\.claude-plugin/plugin\.json|src/indexkit/__init__\.py))$'
       - id: check-skills
         name: skill/agent discovery frontmatter
         entry: bash plugins/plugin-forge/scripts/check-skills.sh

@@ -40,6 +40,7 @@ python3 -m unittest discover -s plugins/runtime-evidence/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/verify/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/context-handoff/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
+python3 -m unittest discover -s tests/release -p 'test_*.py'
 python3 -m unittest discover -s tests/integration -p 'test_*.py'
 
 # Lint the ADR corpus (skips cleanly if Node is unavailable)

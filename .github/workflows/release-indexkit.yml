@@ -1,0 +1,167 @@
+name: Release indexkit
+
+# Publishes the `indexkit` Python package to PyPI (ADR-0006 action item 4).
+#
+# Trigger: the plugin release tag this repository already defines in
+# `docs/releasing.md` — `indexkit/v<version>`. A bare `v0.6.0` would not say
+# *what* is at 0.6.0 in a tree that ships 14 plugins, and would force every
+# publishable component onto one shared version line. One tag drives both
+# distributions of the same release; see ADR-0008.
+#
+# `workflow_dispatch` runs verification only. It never publishes, so a
+# maintainer can rehearse the whole pipeline without spending a tag.
+#
+# Credentials: none. Publishing uses PyPI Trusted Publishing (OIDC), so no PyPI
+# API token exists in this repository's secrets. That binds the publisher to
+# (owner, repo, THIS workflow filename, environment `pypi`) — renaming this file
+# breaks publishing until the PyPI configuration is updated to match.
+
+on:
+  push:
+    tags:
+      - "indexkit/v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to rehearse, e.g. indexkit/v0.6.0 (verification only; never publishes)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# A re-run must not race a first run into a duplicate upload. In-progress runs
+# are left alone: cancelling mid-publish is worse than letting one finish.
+concurrency:
+  group: release-indexkit-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+env:
+  PACKAGE: indexkit
+  PLUGIN_DIR: plugins/indexkit
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Resolve release tag
+        id: resolve
+        env:
+          # `github.ref_name` is the tag on a tag push; the dispatch input is a
+          # rehearsal target and need not exist as a tag yet.
+          RAW_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          echo "tag=$RAW_TAG" >> "$GITHUB_OUTPUT"
+          # Quoted inside ${..} so the prefix is stripped literally rather than
+          # being treated as a glob pattern (shellcheck SC2295).
+          echo "version=${RAW_TAG#"$PACKAGE"/v}" >> "$GITHUB_OUTPUT"
+          echo "Releasing tag: $RAW_TAG"
+
+      # First, and blocking. A wrong version is the only failure here that
+      # cannot be undone after the fact: PyPI files cannot be replaced, only
+      # yanked, and the version number is permanently consumed.
+      - name: Reconcile tag against every version surface
+        env:
+          # Via env, not `${{ }}` inline: an expression is substituted into the
+          # script text before bash parses it, so a tag containing a quote would
+          # break out of the quoting and execute. The value is attacker-shaped —
+          # `workflow_dispatch` input is free-form text.
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          python3 scripts/release_version.py \
+            --package "$PACKAGE" \
+            --tag "$TAG" \
+            --plugin-dir "$PLUGIN_DIR"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install OpenBLAS (turbovec native dependency)
+        # Mirrors validate.yml: turbovec's Linux extension references cblas
+        # symbols that are not bundled, so provide a system OpenBLAS and preload
+        # it for the dynamic loader.
+        run: sudo apt-get update && sudo apt-get install -y libopenblas-dev
+
+      - name: Run the test suite
+        working-directory: plugins/indexkit
+        run: |
+          LIB="$(ldconfig -p | awk '/libopenblas\.so/ {print $NF; exit}')"
+          echo "Preloading OpenBLAS: ${LIB:-<none found>}"
+          LD_PRELOAD="$LIB" uv run --group dev pytest -q
+
+      - name: Build sdist and wheel
+        working-directory: plugins/indexkit
+        run: uv build --out-dir dist
+
+      - name: Check distribution metadata
+        working-directory: plugins/indexkit
+        # --strict: a rendering warning on the PyPI long description becomes a
+        # failure here rather than a broken project page after an upload that
+        # cannot be replaced.
+        run: uvx twine check --strict dist/*
+
+      - name: Confirm built filenames carry the tagged version
+        working-directory: plugins/indexkit
+        # The metadata check above validates the artifacts; this checks they are
+        # the ones the tag asked for, catching a stale dist/ or a build backend
+        # that ignored the declared version.
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          ls -l dist
+          test -f "dist/${PACKAGE}-${VERSION}.tar.gz"
+          test -f "dist/${PACKAGE}-${VERSION}-py3-none-any.whl"
+          # Exactly two files: an extra artifact would be published silently.
+          count="$(find dist -maxdepth 1 -type f | wc -l | tr -d ' ')"
+          test "$count" = "2" || { echo "unexpected artifacts in dist/"; exit 1; }
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: indexkit-dist
+          path: plugins/indexkit/dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish to PyPI
+    # Verification is a hard gate: this job does not exist if `verify` failed,
+    # so there is no path that publishes unverified artifacts.
+    needs: verify
+    # Tag pushes only. A `workflow_dispatch` rehearsal stops at `verify`.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/indexkit
+    permissions:
+      # Mint the short-lived OIDC token Trusted Publishing exchanges for an
+      # upload credential. No PyPI API token is stored in this repository.
+      id-token: write
+    steps:
+      - name: Download verified distributions
+        # Publishes exactly what `verify` built and checked, never a rebuild.
+        uses: actions/download-artifact@v8
+        with:
+          name: indexkit-dist
+          path: dist
+
+      - name: Publish
+        # PyPA publishes this action from a moving `release/v1` branch and
+        # documents that reference; it is the upstream-supported entry point.
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Default (false). A version already on PyPI means the tag is a
+          # mistake, and silently skipping would report success for a release
+          # that never happened.
+          skip-existing: false
