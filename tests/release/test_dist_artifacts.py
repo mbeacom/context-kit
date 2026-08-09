@@ -167,11 +167,14 @@ class WorkflowWiring(unittest.TestCase):
         gains the one capability it exists to withhold — and the failure would
         only ever be observed as an irreversible upload.
         """
-        self.assertIn(
-            "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')",
-            self.workflow,
-            "publish must require a push event, not merely a tag ref",
-        )
+        self.assertIn("github.event_name == 'push'", self.workflow,
+                      "publish must require a push event, not merely a tag ref")
+        # The prefix is pinned so this workflow cannot publish `indexkit` off
+        # another component's tag. `on.push.tags` filters the same way, but the
+        # two are independently editable and the failure they jointly permit is
+        # an irreversible upload.
+        self.assertIn("startsWith(github.ref, 'refs/tags/indexkit/v')", self.workflow,
+                      "publish must be pinned to the indexkit tag prefix")
 
     def test_workflow_pins_attestations(self) -> None:
         """PEP 740 provenance is the upstream default, so losing it is silent.
