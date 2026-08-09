@@ -158,6 +158,21 @@ class WorkflowWiring(unittest.TestCase):
         self.assertIn("plugins/indexkit/dist/*.tar.gz", self.workflow)
         self.assertNotIn("path: plugins/indexkit/dist/\n", self.workflow)
 
+    def test_workflow_pins_attestations(self) -> None:
+        """PEP 740 provenance is the upstream default, so losing it is silent.
+
+        The action is pinned to a moving `release/v1`, and PyPI's JSON API
+        reports `provenance: null` for every file whether attested or not — so
+        a flipped upstream default would not surface anywhere an operator
+        looks. Stating the input is what makes that regression detectable.
+        """
+        self.assertIn("attestations: true", self.workflow)
+        self.assertNotIn("attestations: false", self.workflow)
+
+    def test_publish_job_can_mint_an_oidc_token(self) -> None:
+        """Attestations and Trusted Publishing both need `id-token: write`."""
+        self.assertIn("id-token: write", self.workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

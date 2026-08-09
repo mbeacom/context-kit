@@ -101,6 +101,48 @@ Then:
 2. **Tag and push**, as above. The `publish` job runs only on a tag push, and
    only if `verify` succeeded.
 3. **Confirm** the release on <https://pypi.org/p/indexkit>.
+4. **Confirm provenance.** Publishing emits PEP 740 attestations for **both**
+   distributions; check that both landed, using the endpoint below rather than
+   the obvious one.
+
+Attestations are verified through PyPI's integrity endpoint, which is per-file —
+so the wheel and the sdist have separate URLs and must be checked separately:
+
+```bash
+set -o pipefail  # without this, a 404 from curl is masked by the exit of jq
+version=<version>
+for file in "indexkit-${version}-py3-none-any.whl" "indexkit-${version}.tar.gz"; do
+  echo "== ${file}"
+  curl -fsS -H 'Accept: application/vnd.pypi.integrity.v1+json' \
+    "https://pypi.org/integrity/indexkit/${version}/${file}/provenance" \
+    | jq -e '.attestation_bundles[0].publisher | {repository, workflow}' || echo "MISSING"
+done
+```
+
+Both files must report `repository: "mbeacom/context-kit"` and `workflow:
+"release-indexkit.yml"`. That pair is the point of the check: a stored bundle
+alone only proves *some* attestation exists, while the publisher identity is what
+binds the artifact to this repository's release workflow. Do not reduce this to a
+presence test, and do not truncate the response with `head` — the identity fields
+sit past the first few hundred bytes. `pipefail` is load-bearing for the same
+reason `-f` is: a pipeline reports its *last* command's status, so without it a
+`404` from curl is reported as a pass by whatever runs next.
+
+If either file is missing an attestation:
+
+- Retry once after ~60s. PyPI indexes the integrity endpoint asynchronously, so a
+  `404` immediately after publish can be indexing lag rather than a real gap.
+- If it is still absent, **fix forward**. Attestations cannot be added to an
+  already-published file, and the upload is irreversible. Note the gap on the
+  GitHub release, then correct the workflow and cut the next patch version.
+
+This step is manual by design. A post-publish CI gate would race that same
+indexing delay, and a red job after an irreversible upload reports a problem it
+cannot fix. See ADR-0008 for the full reasoning.
+
+Do **not** judge any of this from the JSON API's `provenance` field: it reads
+`null` for every file on PyPI, attested or not, so it reports a false negative on
+a perfectly good release.
 
 The build stage asserts that `dist/` holds exactly the two distributions the tag
 asked for, catching a stale wheel or a backend that ignored the declared

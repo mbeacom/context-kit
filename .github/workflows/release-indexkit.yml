@@ -178,3 +178,13 @@ jobs:
           # mistake, and silently skipping would report success for a release
           # that never happened.
           skip-existing: false
+          # Also the upstream default today — stated anyway to guard against a
+          # silent attestation-default regression, since `release/v1` is a moving
+          # reference. PyPI's JSON API reports `provenance: null` for every file,
+          # attested or not, so a flipped upstream default would not show up
+          # where anyone would look for it. This pin addresses that one failure
+          # mode; it does not otherwise bound what a moving ref can change (see
+          # ADR-0008 for that trade-off). Requires Trusted Publishing, which the
+          # action verifies by the absence of a password, and the
+          # `id-token: write` above; both hold here.
+          attestations: true
