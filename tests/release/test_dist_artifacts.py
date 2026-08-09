@@ -158,6 +158,21 @@ class WorkflowWiring(unittest.TestCase):
         self.assertIn("plugins/indexkit/dist/*.tar.gz", self.workflow)
         self.assertNotIn("path: plugins/indexkit/dist/\n", self.workflow)
 
+    def test_dispatch_cannot_reach_the_publish_job(self) -> None:
+        """A ref check alone does not stop a rehearsal from publishing.
+
+        `workflow_dispatch` can be run against a tag, in which case
+        `github.ref` is `refs/tags/...` exactly as it is for a tag push. The
+        guard therefore has to test the *event*, or the dispatch path silently
+        gains the one capability it exists to withhold — and the failure would
+        only ever be observed as an irreversible upload.
+        """
+        self.assertIn(
+            "github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')",
+            self.workflow,
+            "publish must require a push event, not merely a tag ref",
+        )
+
     def test_workflow_pins_attestations(self) -> None:
         """PEP 740 provenance is the upstream default, so losing it is silent.
 
