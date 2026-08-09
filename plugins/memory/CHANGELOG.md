@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.5 — 2026-08-09
+
+- Correct the `rag` provider reference, which described a bootstrapped venv as
+  the only runtime and `doctor` as verifying that venv. `indexkit` is published
+  on PyPI, and `doctor` reports `ready` for a packaged install too, so agents
+  loading this reference were giving stale `uv`-only instructions. Also record
+  the one asymmetry that survives: the launcher prefers an existing venv over
+  `PATH`, so a packaged install does not displace a stale venv.
+
 ## 0.5.4 — 2026-08-08
 
 - Assess criteria 2 and 5 explicitly for adrkit. The table claimed criteria

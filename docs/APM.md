@@ -84,10 +84,11 @@ apm update                   # refresh to the latest matching refs
 
 ## Running indexkit under APM
 
-`indexkit`'s CLI runs on a uv-managed virtualenv. Claude Code bootstraps
-it automatically via a `SessionStart` hook, and GitHub Copilot CLI runs that
-hook too; **APM does not deploy plugin hooks**, so give APM a runnable CLI
-yourself. The simplest way is to install the published package — the plugin's
+`indexkit` can run either from the published package or from a uv-managed
+virtualenv that the plugin bootstraps. Claude Code builds that venv
+automatically via a `SessionStart` hook, and GitHub Copilot CLI runs that hook
+too; **APM does not deploy plugin hooks**, so give APM a runnable CLI yourself.
+The simplest way is to install the published package — the plugin's
 `bin/indexkit` launcher falls back to an `indexkit` found on `PATH`:
 
 ```bash

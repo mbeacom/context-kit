@@ -142,9 +142,9 @@ command has no side effects.
 Verify installation with the host-specific checks in
 [Troubleshooting and lifecycle](troubleshooting.md#verify-installation-by-host).
 Claude Code and GitHub Copilot CLI both run the plugin's `SessionStart` hook, so
-`indexkit` bootstraps itself there. APM does not deploy plugin hooks, and a
-stale venv can still need a rebuild on any host. The simplest fix is to install
-the published CLI — the plugin launcher picks up an `indexkit` on `PATH`:
+`indexkit` bootstraps itself there. APM does not deploy plugin hooks, so it
+starts with **no** venv — install the published CLI and the plugin launcher
+picks it up from `PATH`:
 
 ```bash
 pip install indexkit          # or: uv tool install indexkit
@@ -152,7 +152,9 @@ ollama pull nomic-embed-text
 indexkit list
 ```
 
-To build the plugin's own venv from a clone instead:
+To build the plugin's own venv from a clone instead — and the route to take when
+`bootstrap.sh --check` reports a **stale** venv, since the launcher runs an
+existing venv in preference to `PATH`:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"

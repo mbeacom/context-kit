@@ -57,15 +57,17 @@ when to reach for semantic retrieval:
 
 Claude Code and GitHub Copilot CLI both create the venv automatically on session
 start (the plugin's `SessionStart` hook) into `${CLAUDE_PLUGIN_DATA}/venv`.
-**APM does not deploy hooks**, so on APM — or on any host where `--check`
-reports a missing or stale venv — either install the package, which the plugin
-launcher will find on `PATH`:
+**APM does not deploy hooks**, so on APM — or wherever `--check` reports a
+**missing** venv — install the package and the plugin launcher will find it on
+`PATH`:
 
 ```bash
 pip install indexkit
 ```
 
-or bootstrap the plugin's own venv from a clone:
+When `--check` reports **stale**, bootstrap instead: the launcher prefers an
+existing venv over `PATH`, so a packaged install would be shadowed by the stale
+one. Rebuild it from a clone:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
