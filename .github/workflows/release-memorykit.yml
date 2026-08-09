@@ -1,0 +1,197 @@
+name: Release memorykit
+
+# Publishes the `memorykit` Python package — the durable-memory contract,
+# validator, and stdio MCP server — to PyPI (ADR-0006 action item 3, ADR-0009).
+#
+# This file is a deliberate copy of `release-indexkit.yml`, not a call into a
+# shared reusable workflow. PyPI documents that "reusable workflows cannot
+# currently be used as the workflow in a Trusted Publisher"
+# (https://docs.pypi.org/trusted-publishers/troubleshooting/, tracked as
+# pypi/warehouse#11096), because the OIDC claim names the *calling* workflow.
+# That resolves ADR-0008 action item 4 on a technical constraint rather than a
+# preference: factoring these onto one reusable workflow would break publishing
+# for both packages. The duplication is real and is the cost of the constraint;
+# ADR-0009 records it so a future contributor does not "fix" it and break a
+# release.
+#
+# Trigger: `memorykit/v<version>`. Note the prefix is the *distribution* name,
+# not the plugin directory name (`memory`) — `scripts/release_version.py`
+# requires the tag prefix and the distribution name to agree, and the tag should
+# name the irreversible artifact. See `docs/releasing.md`. `memory` is NOT added
+# to the `indexkit` trigger; the two packages release independently.
+#
+# `workflow_dispatch` runs verification only. It never publishes, so a
+# maintainer can rehearse the whole pipeline without spending a tag.
+#
+# Credentials: none. Publishing uses PyPI Trusted Publishing (OIDC), so no PyPI
+# API token exists in this repository's secrets. That binds the publisher to
+# (owner, repo, THIS workflow filename, environment `pypi`) — renaming this file
+# breaks publishing until the PyPI configuration is updated to match.
+
+on:
+  push:
+    tags:
+      - "memorykit/v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to rehearse, e.g. memorykit/v0.6.0 (verification only; never publishes)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# A re-run must not race a first run into a duplicate upload. In-progress runs
+# are left alone: cancelling mid-publish is worse than letting one finish.
+concurrency:
+  group: release-memorykit-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+env:
+  PACKAGE: memorykit
+  PLUGIN_DIR: plugins/memory
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Resolve release tag
+        id: resolve
+        env:
+          # `github.ref_name` is the tag on a tag push; the dispatch input is a
+          # rehearsal target and need not exist as a tag yet.
+          RAW_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          echo "tag=$RAW_TAG" >> "$GITHUB_OUTPUT"
+          # Quoted inside ${..} so the prefix is stripped literally rather than
+          # being treated as a glob pattern (shellcheck SC2295).
+          echo "version=${RAW_TAG#"$PACKAGE"/v}" >> "$GITHUB_OUTPUT"
+          echo "Releasing tag: $RAW_TAG"
+
+      # First, and blocking. A wrong version is the only failure here that
+      # cannot be undone after the fact: PyPI files cannot be replaced, only
+      # yanked, and the version number is permanently consumed.
+      - name: Reconcile tag against every version surface
+        env:
+          # Via env, not `${{ }}` inline: an expression is substituted into the
+          # script text before bash parses it, so a tag containing a quote would
+          # break out of the quoting and execute. The value is attacker-shaped —
+          # `workflow_dispatch` input is free-form text.
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          python3 scripts/release_version.py \
+            --package "$PACKAGE" \
+            --tag "$TAG" \
+            --plugin-dir "$PLUGIN_DIR"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      # No system-library step, unlike the indexkit workflow: this package is
+      # pure standard library, which is the property that makes it separable at
+      # all (ADR-0002). The suite below asserts that, so a dependency added by
+      # accident fails here instead of at a user's `pip install`.
+      - name: Run the test suite
+        working-directory: plugins/memory
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Build sdist and wheel
+        working-directory: plugins/memory
+        run: uv build --out-dir dist
+
+      - name: Check distribution metadata
+        working-directory: plugins/memory
+        # --strict: a rendering warning on the PyPI long description becomes a
+        # failure here rather than a broken project page after an upload that
+        # cannot be replaced.
+        run: uvx twine check --strict dist/*
+
+      - name: Confirm built filenames carry the tagged version
+        working-directory: plugins/memory
+        # The metadata check above validates the artifacts; this checks they are
+        # the ones the tag asked for, catching a stale dist/ or a build backend
+        # that ignored the declared version.
+        #
+        # `ls -la`, not `ls -l`: `uv build` writes a `dist/.gitignore`, and an
+        # ls that hides dotfiles next to a check that sees them is how the first
+        # version of this step came to print two correct artifacts and then call
+        # them unexpected.
+        env:
+          VERSION: ${{ steps.resolve.outputs.version }}
+        run: |
+          ls -la dist
+          python3 ../../scripts/check_dist_artifacts.py \
+            --dist-dir dist \
+            --package "$PACKAGE" \
+            --version "$VERSION"
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: memorykit-dist
+          # Explicit distribution globs, not the whole directory: `uv build`
+          # leaves a `dist/.gitignore` behind, and whether a stray file breaks
+          # the upload depends on whether `pypa/gh-action-pypi-publish` globs or
+          # enumerates — an implementation detail of a moving `release/v1` ref
+          # that would be exercised for the first time after a tag was spent.
+          # Sending only what is publishable means that question cannot decide
+          # whether a release succeeds.
+          path: |
+            plugins/memory/dist/*.whl
+            plugins/memory/dist/*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish to PyPI
+    # Verification is a hard gate: this job does not exist if `verify` failed,
+    # so there is no path that publishes unverified artifacts.
+    needs: verify
+    # Tag pushes only. A `workflow_dispatch` rehearsal stops at `verify`.
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/memorykit
+    permissions:
+      # Mint the short-lived OIDC token Trusted Publishing exchanges for an
+      # upload credential. No PyPI API token is stored in this repository.
+      id-token: write
+    steps:
+      - name: Download verified distributions
+        # Publishes exactly what `verify` built and checked, never a rebuild.
+        uses: actions/download-artifact@v8
+        with:
+          name: memorykit-dist
+          path: dist
+
+      - name: Publish
+        # PyPA publishes this action from a moving `release/v1` branch and
+        # documents that reference; it is the upstream-supported entry point.
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # Default (false). A version already on PyPI means the tag is a
+          # mistake, and silently skipping would report success for a release
+          # that never happened.
+          skip-existing: false
+          # Also the upstream default today — stated anyway to guard against a
+          # silent attestation-default regression, since `release/v1` is a moving
+          # reference. PyPI's JSON API reports `provenance: null` for every file,
+          # attested or not, so a flipped upstream default would not show up
+          # where anyone would look for it. This pin addresses that one failure
+          # mode; it does not otherwise bound what a moving ref can change (see
+          # ADR-0008 for that trade-off). Requires Trusted Publishing, which the
+          # action verifies by the absence of a password, and the
+          # `id-token: write` above; both hold here.
+          attestations: true

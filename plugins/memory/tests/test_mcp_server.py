@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-SERVER = PLUGIN_ROOT / "mcp" / "server.py"
+SERVER = PLUGIN_ROOT / "src" / "memorykit" / "mcp.py"
 SPEC = importlib.util.spec_from_file_location("memory_mcp_server", SERVER)
 assert SPEC is not None and SPEC.loader is not None
 server = importlib.util.module_from_spec(SPEC)

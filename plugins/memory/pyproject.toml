@@ -1,0 +1,79 @@
+[project]
+name = "memorykit"
+version = "0.6.0"
+description = "Provenance-bound durable memory: an immutable record contract, a validator, append-only review state, and a standard-library stdio MCP server. No runtime dependencies."
+requires-python = ">=3.10"
+keywords = [
+  "memory",
+  "durable-memory",
+  "provenance",
+  "mcp",
+  "model-context-protocol",
+  "agent-memory",
+  "context-engineering",
+  "validator",
+  "continuity",
+]
+# Intentionally empty, and load-bearing. This package is separable from its
+# plugin precisely because it is pure standard library (ADR-0002, ADR-0009):
+# it installs and runs with no plugin host, no bootstrap step, and no
+# resolution beyond the interpreter that invoked it. Adding a runtime
+# dependency here is a design change, not a maintenance detail.
+dependencies = []
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Mark Beacom" }]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Text Processing :: Indexing",
+]
+
+[project.urls]
+Homepage = "https://github.com/mbeacom/context-kit"
+Repository = "https://github.com/mbeacom/context-kit"
+Changelog = "https://github.com/mbeacom/context-kit/blob/main/plugins/memory/CHANGELOG.md"
+Issues = "https://github.com/mbeacom/context-kit/issues"
+
+[project.scripts]
+memorykit = "memorykit.provider:main"
+memorykit-mcp = "memorykit.mcp:main"
+
+[dependency-groups]
+dev = ["ruff>=0.6"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/memorykit"]
+
+[tool.hatch.build.targets.sdist]
+# Explicit, because this pyproject sits inside a plugin directory that also
+# holds skills, commands, hooks, and tests. Those are the *plugin*, not the
+# published unit. The tests were included here at first, on the theory that an
+# unpacked sdist should be self-testing; they were then removed, because five
+# of them legitimately assert on plugin-deployment facts — `hooks/hooks.json`
+# and the sibling `indexkit` bootstrap — and shipping a suite that fails out of
+# the box is worse than shipping none. The package's own invariants are covered
+# by `tests/test_packaging.py` in the repository.
+include = [
+  "src/memorykit",
+  "README.md",
+  "LICENSE",
+  "CHANGELOG.md",
+  "pyproject.toml",
+]
+
+# Deliberately no [tool.ruff] section. Ruff resolves configuration from the
+# nearest pyproject.toml that declares one, so adding this file would silently
+# become the config for every .py under plugins/memory. This tree has always
+# been formatted at ruff's default width; declaring indexkit's line-length = 100
+# here would reformat ~370 lines as a side effect of packaging. Formatting width
+# is not a packaging decision, so it is left to the repository default.

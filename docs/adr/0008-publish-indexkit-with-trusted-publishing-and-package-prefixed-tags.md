@@ -9,7 +9,7 @@ tags: [packaging, release, ci, pypi, supply-chain, indexkit]
 scope: org
 reversibility: one-way-door
 blastRadius: team
-relatesTo: ["0005", "0006", "0007"]
+relatesTo: ["0005", "0006", "0007", "0009"]
 affects:
   - type: path
     pattern: .github/workflows/release-indexkit.yml
@@ -286,6 +286,13 @@ front of the irreversible step.
    that `uv build` writes, which the artifact assertion counted but `ls -l` did
    not display. On a tag push that failure would have arrived after the version
    was permanently spent, with the publish job next in line (fixed in #42).
-4. [ ] When `memory` is packaged (ADR-0006 action item 3), either copy this
+4. [x] When `memory` is packaged (ADR-0006 action item 3), either copy this
    workflow or factor both onto a reusable one; do not add `memory` to the
-   `indexkit` trigger.
+   `indexkit` trigger. **Resolved: copied**, as
+   `.github/workflows/release-memorykit.yml`, and the `indexkit` trigger is
+   untouched. The choice was forced rather than preferred — PyPI cannot register
+   a reusable workflow as a Trusted Publisher, because the OIDC claim names the
+   calling workflow (`pypi/warehouse#11096`). Factoring would also have required
+   re-registering the already-live `indexkit` publisher. The cost is real:
+   release hardening now has to be fixed in two files, which ADR-0009 records as
+   a standing trade-off with a revisit trigger.

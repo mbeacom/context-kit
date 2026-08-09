@@ -29,6 +29,33 @@ apm install memory@context-kit
 Installing `memory` also installs `context-handoff`, `verify`, and
 `retrieval-core`.
 
+### Without a plugin host: `pip install memorykit`
+
+The contract, validator, and MCP server are also published as **`memorykit`**, a
+Python package with **no runtime dependencies** — pure standard library, which is
+why this part is separable from the plugin at all (ADR-0002, ADR-0009):
+
+```bash
+pip install memorykit          # or: uv tool install memorykit
+export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
+
+memorykit validate record.md
+memorykit capture record.md
+memorykit search "why did we change retry policy"
+memorykit-mcp                  # stdio MCP server, for an MCP client to spawn
+```
+
+That is the whole install: no bootstrap step, no plugin runtime, no
+Claude-specific paths. What it does **not** include is the plugin — the
+`memory-workflows` skill, the `/capture-memory`, `/recall-memory`,
+`/review-memory`, and `/archive-handoff` commands, and the lifecycle hooks are
+agent-host content, not a Python package, and remain plugin-only. The package is
+the engine; the plugin is the engine plus the workflow that drives it.
+
+The plugin bundles this same code and prefers its **bundled** copy over any
+installed `memorykit`, so plugin version X always runs provider version X. That
+is the reverse of the `indexkit` launcher's preference, and deliberate.
+
 ## Local-only reviewed records
 
 Python 3 is the only requirement. Configure an explicit project and plugin root:
@@ -129,11 +156,15 @@ See [`references/session-mining.md`](skills/memory-workflows/references/session-
 An optional stdio MCP server exposes `memory_recall`, `memory_capture`, and
 `memory_review` so hosts that consume skills plus MCP can use durable memory
 without a plugin runtime. It is standard library only and shells out to the
-same `memory-provider.py`, so the CLI and MCP paths cannot drift.
+same provider, so the CLI and MCP paths cannot drift.
 
 ```bash
+# From the plugin:
 CONTEXT_KIT_MEMORY_PROJECT=owner/repository \
   python3 "$CONTEXT_KIT_MEMORY_ROOT/mcp/server.py"
+
+# From the package, with no plugin at all:
+CONTEXT_KIT_MEMORY_PROJECT=owner/repository memorykit-mcp
 ```
 
 The surface can propose memory but **cannot activate it**: a record whose
@@ -166,7 +197,8 @@ explicit command there.
 | `/recall-memory` | Search memory, then pin current evidence. |
 | `/review-memory` | Review freshness, conflicts, and consolidation proposals. |
 | `/archive-handoff` | Explicitly preserve a validated handoff as historical memory. |
-| `memory-provider.py` | Stdlib validator, local store, MemPalace adapter, and hook dispatcher. |
+| `memory-provider.py` | Launcher for the `memorykit` provider: stdlib validator, local store, MemPalace adapter, and hook dispatcher. |
+| `src/memorykit/` | The published package (`pip install memorykit`): contract, validator, provider, MCP server. |
 
 ## Safety boundaries
 

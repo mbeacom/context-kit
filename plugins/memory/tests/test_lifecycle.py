@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = PLUGIN_ROOT / "scripts" / "memory-provider.py"
+SCRIPT = PLUGIN_ROOT / "src" / "memorykit" / "provider.py"
 HOOKS = PLUGIN_ROOT / "hooks" / "hooks.json"
 SPEC = importlib.util.spec_from_file_location("memory_provider_lifecycle", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
