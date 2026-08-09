@@ -192,10 +192,13 @@ front of the irreversible step.
   workflow filename would normally not be worth a decision record; under OIDC it
   becomes a configuration key, and that is why this is listed rather than
   assumed.
-- **The `pypi` environment is a gate we have not configured.** The workflow
-  declares it; whether it carries a required reviewer is a repository setting,
-  not something this record can enforce. Declaring the environment without
-  approvers gives provenance scoping but not human review.
+- **The `pypi` environment's protection is a repository setting, not something
+  this record can enforce.** The workflow declares the environment; whether it
+  carries a required reviewer lives in repository settings, and declaring it
+  without approvers would give provenance scoping but not human review. It was
+  configured with a required reviewer before the first release (see action item
+  2), so the gate exists — but nothing in this repository prevents it from being
+  removed later, and no CI check would notice.
 - **One tag now means two things.** `indexkit/v0.6.0` triggers the PyPI upload
   *and* is the plugin release tag `docs/releasing.md` describes. That is the
   point — one release, one identifier — but it means a plugin-only release of
@@ -249,7 +252,10 @@ front of the irreversible step.
    2026-08-08 (verified: `GET /pypi/indexkit/json` returned 404). Configured,
    and exercised by the 0.6.1 release on 2026-08-09.
 2. [x] Decide whether the `pypi` GitHub environment requires a reviewer, and
-   configure it. The workflow cannot enforce this.
+   configure it. The workflow cannot enforce this. **Decided: yes.** The `pypi`
+   environment exists with a `required_reviewers` protection rule, so a human
+   approves between `verify` and the irreversible upload. Verified against the
+   repository environments API on 2026-08-09.
 3. [x] Rehearse with `workflow_dispatch` (verification only) before tagging.
    The rehearsal earned its cost on first use: it failed on a `dist/.gitignore`
    that `uv build` writes, which the artifact assertion counted but `ls -l` did
