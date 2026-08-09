@@ -82,6 +82,15 @@ class Operation:
     # "the runner refused", and an absent corpus would never produce the
     # `unavailable` result its contract requires.
     requires_dir: str | None = None
+    # Environment variable naming the executable to run instead of resolving
+    # `argv[0]` on PATH. This exists for tools whose usual install does not put a
+    # bare command on PATH; see `_resolve_executable` for why it does not widen
+    # the trust boundary.
+    bin_env: str | None = None
+    # Actionable remedy quoted verbatim in the `unavailable` payload. Reporting a
+    # modality as unreached is correct but inert: without a remedy the caller
+    # cannot tell a deliberate omission from an install that was never done.
+    install_hint: str | None = None
 
 
 def _utc_now() -> str:
@@ -275,11 +284,34 @@ def _op_yaml_field(v: dict[str, str]) -> list[str]:
 
 
 # adrkit is optional and contributor-side (ADR-0003). It is invoked as an exact
-# argv like every other tool here, so it must be on PATH as `adr`; when it is
-# not, the runner reports `unavailable` and the governance modality is recorded
-# as unreached rather than silently skipped. Both operations are read-only:
-# `explain` and `check` never mutate the corpus, make no model calls, and open
-# no sockets.
+# argv like every other tool here. Both operations are read-only: `explain` and
+# `check` never mutate the corpus, make no model calls, and open no sockets.
+#
+# Reaching it is the subtle part. This repository documents adrkit through
+# `npx @adrkit/cli@<version>`, which leaves no `adr` on PATH, so a contributor
+# who followed the documentation got `unavailable` forever -- a correct but inert
+# result that nothing surfaces. Two things fix that without an npx fallback:
+# `ADR_INSTALL_HINT` names the remedy in the payload, and `CONTEXT_KIT_ADR_BIN`
+# lets an operator point at an install that is not a bare `adr` (an nvm shim, a
+# wrapper, a project-local `node_modules/.bin/adr`).
+#
+# An npx fallback was considered and rejected. `npx --yes` contacts the npm
+# registry on every invocation even with a pinned version and a warm cache
+# (verified: pointing `npm_config_registry` at a closed port fails the run), so
+# it would (1) falsify the "read-only, offline" contract these two operations
+# advertise, (2) turn a runner whose whole property is executing operator-installed
+# binaries from a fixed catalog into one that downloads and executes registry code
+# at analysis time, and (3) surface a network failure as npm's exit code and
+# stderr rather than as `unavailable`, breaking the unreached contract precisely
+# when the network is degraded. Naming an executable the operator already
+# installed keeps every one of those properties; fetching one does not.
+ADR_INSTALL_HINT = (
+    "install adrkit (`npm i -g @adrkit/cli@0.4.0`, which provides `adr`) or set "
+    "CONTEXT_KIT_ADR_BIN to an existing adrkit executable; `npx` is not used "
+    "because these operations are contracted read-only and offline"
+)
+
+
 def _op_adr_explain(v: dict[str, str]) -> list[str]:
     return ["adr", "explain", v["path"], "--dir", v["dir"], "--json"]
 
@@ -414,6 +446,8 @@ OPERATIONS: tuple[Operation, ...] = (
         (_PATH, _ADR_DIR),
         _op_adr_explain,
         requires_dir="dir",
+        bin_env="CONTEXT_KIT_ADR_BIN",
+        install_hint=ADR_INSTALL_HINT,
     ),
     Operation(
         "adr-check-path",
@@ -424,6 +458,8 @@ OPERATIONS: tuple[Operation, ...] = (
         (_PATH, _ADR_DIR),
         _op_adr_check,
         requires_dir="dir",
+        bin_env="CONTEXT_KIT_ADR_BIN",
+        install_hint=ADR_INSTALL_HINT,
     ),
 )
 
@@ -718,6 +754,58 @@ def _emit_refusal(message: str, *, status: str, code: int) -> int:
     return code
 
 
+# --- Executable resolution --------------------------------------------------
+#
+# `argv[0]` normally resolves on the runner's own PATH. An operation may instead
+# name an environment variable holding the executable, which is what makes a tool
+# reachable when its documented install leaves no bare command on PATH.
+#
+# This does not widen the trust boundary. The runner already forwards the ambient
+# PATH into the child (see `_analysis_env`), so anyone who can set this variable
+# can already prepend a directory to PATH and decide which binary `argv[0]`
+# resolves to. The variable is the same authority, stated explicitly. What it
+# deliberately is *not* is a package specifier: the value must already exist as an
+# executable file, so nothing is fetched, and the argv stays exact with no shell.
+#
+# A set-but-unusable value is a refusal, not a fallback to PATH. Silently falling
+# back would mask the misconfiguration and run a different binary than the
+# operator named -- precisely the silent downgrade this runner exists to avoid.
+
+
+def _resolve_executable(operation: Operation, command: list[str]) -> list[str]:
+    override = os.environ.get(operation.bin_env or "", "").strip()
+    if override:
+        candidate = Path(override).expanduser()
+        located = (
+            str(candidate)
+            if candidate.is_absolute() or len(candidate.parts) > 1
+            else shutil.which(override)
+        )
+        if located is None or not Path(located).is_file():
+            raise Refusal(
+                f"{operation.bin_env} is set to {override!r}, which is not an "
+                "existing executable file; unset it to resolve "
+                f"{operation.tool!r} on PATH instead"
+            )
+        if not os.access(located, os.X_OK):
+            raise Refusal(
+                f"{operation.bin_env} is set to {override!r}, which is not "
+                "executable"
+            )
+        # Report and exec the resolved path, so the audit record names the binary
+        # that actually ran rather than the catalog's nominal command name.
+        return [str(Path(located).resolve()), *command[1:]]
+
+    if shutil.which(command[0]) is None:
+        detail = f" ({operation.install_hint})" if operation.install_hint else ""
+        raise Unavailable(
+            f"operation {operation.id} needs {operation.tool}, which is not "
+            f"installed{detail}; report this modality as unreached rather than "
+            "delegating"
+        )
+    return command
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
@@ -785,11 +873,7 @@ def main(argv: list[str] | None = None) -> int:
                     "rather than treating the absence as a finding"
                 )
         command = operation.build(resolved)
-        if shutil.which(command[0]) is None:
-            raise Unavailable(
-                f"operation {operation.id} needs {operation.tool}, which is not "
-                "installed; report this modality as unreached rather than delegating"
-            )
+        command = _resolve_executable(operation, command)
     except Unavailable as exc:
         return _emit_refusal(str(exc), status="unavailable", code=3)
     except Refusal as exc:

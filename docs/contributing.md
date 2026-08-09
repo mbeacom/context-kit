@@ -108,11 +108,24 @@ The `main` branch deploys to GitHub Pages automatically via
   can declare it inline with a dedicated `# @adr NNNN` comment line, which
   `adr explain` reports as `declared by <file>:<line>`. Markers must be real
   comment lines (not docstrings) within the first 8192 bytes of the file, so in
-  a large module put them in the header.
+  a large module put them in the header. This limit fails **silently**: a marker
+  past the window yields an empty `declared` list, identical to a file with no
+  marker at all. The `markers.truncated` flag does not disambiguate it either —
+  it reports only that the file is larger than the window, and is `true` even
+  when a marker *was* found. Treat markers as a header convention, and never
+  read an empty `declared` on a large file as "no decision is declared here".
   adrkit is contributor-side only — no shipped plugin depends on it, and
   `scripts/check-adr.sh` skips cleanly when Node is absent, so you can work
   without it. An agent-drafted record cannot reach `accepted` without a named
   human ratifier in `provenance.ratifiedBy`; that refusal is intentional.
+  The `npx` invocations above leave no `adr` on `PATH`, which is enough for
+  linting and authoring but *not* for the governance modality in
+  [`/analyze-impact`](plugins/verify.md) — that runner executes an installed
+  binary and never fetches one, so with only `npx` it reports `unavailable`
+  forever. To make it reachable, either install the CLI
+  (`npm i -g @adrkit/cli@0.4.0`, which provides `adr`) or point
+  `CONTEXT_KIT_ADR_BIN` at an existing adrkit executable — a project-local
+  `node_modules/.bin/adr` works.
 - **Licensing** — repo and all plugins are MIT (Mark Beacom). Content is written
   fresh; do not copy text from externally licensed sources. adrkit is Apache-2.0,
   so we invoke it as an external CLI and never vendor its code.

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.2 — 2026-08-08
+
+- Make the governance modality reachable. The runner resolved `adr` only via
+  `PATH`, while every documented way to run adrkit in this repository goes
+  through `npx` — which installs nothing. A contributor following the docs got
+  `unavailable` permanently, and because `unavailable` is the *correct* quiet
+  answer, nothing surfaced it. `CONTEXT_KIT_ADR_BIN` now names an already-installed
+  executable (a project-local `node_modules/.bin/adr` works), and the
+  `unavailable` payload states the remedy instead of only the absence.
+- Reject an `npx` fallback, deliberately. `npx --yes` contacts the registry on
+  every invocation even with a pinned version and a warm cache, so it would
+  falsify these operations' offline contract, turn the runner into a fetcher of
+  registry code mid-analysis, and surface network failure as npm's exit code
+  rather than as `unavailable`. A set-but-unusable `CONTEXT_KIT_ADR_BIN` is a
+  refusal, never a silent fallback to `PATH`.
+- Calibrate governance rather than only enabling it: a governing record is a
+  finding only when it changes the conclusion, an empty `declared` list on a
+  large file is indeterminate (inline markers are scanned only within a bounded
+  window, and `markers.truncated` cannot distinguish "none" from "missed"), and
+  an all-`accepted` corpus has not yet exercised the rejected-options value.
+- Fix a governance test that passed for the wrong reason. Its `assertIn("adr", …)`
+  matched `docs/adr` in the *missing-corpus* message, so it never reached the
+  missing-tool branch it claimed to cover.
+
 ## 0.5.1 — 2026-08-08
 
 - Preflight the ADR corpus directory for governance operations. adrkit exits 2

@@ -110,7 +110,10 @@ or as unreached, and say which.
    decisions that bind them, including rejected and superseded ones, so a
    settled question is not re-opened by accident. Treat a missing corpus or a
    missing `adr` binary as an unreached modality, never as "nothing governs
-   this". Run lexical search and file reading here. For history,
+   this" — and report a governing record as a *finding* only when it changes the
+   conclusion; when the same constraint already sits in always-on instructions or
+   a CI gate, cite it as provenance, not as a discovery. Run lexical search and
+   file reading here. For history,
    structured-data, and `git grep` structural search, prefer the enforced
    inspection runner (`scripts/run-impact-inspection.py`, see the tool boundary
    above); reach code-intelligence — and any modality the runner reports
