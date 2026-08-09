@@ -84,9 +84,17 @@ examples.
 
 ## Local RAG
 
-### `rag` is missing
+### `indexkit` is missing
 
-For GitHub Copilot, APM, or manual use:
+Install the published package — the plugin launcher falls back to an `indexkit`
+found on `PATH`, so this needs no clone:
+
+```bash
+pip install indexkit          # or: uv tool install indexkit
+indexkit list
+```
+
+To use the plugin's own bootstrapped venv instead, from a clone:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"

@@ -18,28 +18,25 @@ index Markdown notes, code, or any text corpus.
 
 ## Install
 
-> **Not on PyPI yet.** The package is publish-ready but the name has not been
-> claimed. Until the release workflow runs, install from source; the `pip
-> install` line below is what will work once it ships.
-
-```bash
-# From a clone of https://github.com/mbeacom/context-kit
-pip install ./plugins/indexkit    # or: uv tool install ./plugins/indexkit
-ollama pull nomic-embed-text      # once
-```
-
-Once published:
-
 ```bash
 pip install indexkit          # or: uv tool install indexkit
+ollama pull nomic-embed-text  # once
 ```
 
-Either way that is the whole setup — no plugin host, no bootstrap step. Indexes
-default to `${XDG_DATA_HOME:-~/.local/share}/indexkit`.
+That is the whole setup — no plugin host, no bootstrap step. Indexes default to
+`${XDG_DATA_HOME:-~/.local/share}/indexkit`.
 
 ```bash
 indexkit index ~/notes --name notes
 indexkit query "how did we handle retry backoff" --name notes --k 8
+```
+
+To work from a clone instead — for contributing, or to run an unreleased
+revision:
+
+```bash
+# From a clone of https://github.com/mbeacom/context-kit
+pip install ./plugins/indexkit    # or: uv tool install ./plugins/indexkit
 ```
 
 ### As a context-kit plugin

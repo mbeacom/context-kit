@@ -78,26 +78,28 @@ Records default to `~/.local/share/context-kit/memory`; override
 Local recall is lexical. The bundled `rag` provider adds **offline semantic
 recall** using `indexkit`, which `memory` hard-depends on, so no external
 *memory provider* is needed. Embeddings still come from a locally running
-Ollama, and `uv` bootstraps the venv once:
+Ollama. Claude Code and GitHub Copilot CLI bootstrap the `indexkit` venv on
+session start; elsewhere, either install the published CLI or bootstrap the
+venv with `uv`:
 
 ```bash
-bash plugins/indexkit/scripts/bootstrap.sh   # Claude runs this on SessionStart
+pip install indexkit                         # or: bash plugins/indexkit/scripts/bootstrap.sh
 ollama pull nomic-embed-text
 
 export CONTEXT_KIT_MEMORY_PROVIDER=rag
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 
-python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor --bootstrap
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" sync-provider --apply
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
   search "why did we change retry policy" --results 8
 ```
 
-`doctor` checks the indexkit runtime before probing the CLI and refuses with
-the exact bootstrap command when the venv is missing or stale; `--bootstrap`
-builds it. Claude Code and GitHub Copilot CLI both run the `indexkit`
-`SessionStart` hook; APM does not deploy hooks, and any host can end up with a
-stale venv, so this is the host-neutral path to a working runtime.
+`doctor` resolves the `indexkit` executable and reports `ready` for either
+runtime. When no usable `indexkit` is found it refuses with the exact bootstrap
+command; `doctor --bootstrap` builds the plugin venv, which needs `uv`. That
+matters most on APM, which does not deploy hooks, and after an upgrade leaves a
+stale venv.
 
 The index is a rebuildable projection of accepted/current records, never the
 system of record: hits are bound back to the local records, so review,

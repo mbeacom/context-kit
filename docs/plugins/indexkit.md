@@ -12,6 +12,15 @@ across sessions for fast repeat queries.
 
 ## Install
 
+The CLI is published on PyPI and works on its own, with no plugin host:
+
+```bash
+pip install indexkit          # or: uv tool install indexkit
+```
+
+Install it as a plugin when you also want the bundled skill, so an agent knows
+when to reach for semantic retrieval:
+
 === "GitHub Copilot"
 
     ```bash
@@ -35,19 +44,30 @@ across sessions for fast repeat queries.
 
 ## Requirements
 
-- [`uv`](https://docs.astral.sh/uv/) — bootstraps the plugin's Python venv.
 - [`ollama`](https://ollama.com) running locally with an embedding model:
-- SQLite compiled with FTS5 for optional `--hybrid` queries. Semantic-only
-  retrieval remains available when FTS5 is absent.
 
     ```bash
     ollama pull nomic-embed-text
     ```
 
+- SQLite compiled with FTS5 for optional `--hybrid` queries. Semantic-only
+  retrieval remains available when FTS5 is absent.
+- [`uv`](https://docs.astral.sh/uv/) — **only** for the plugin venv bootstrap.
+  A `pip install` needs nothing beyond Python 3.10+.
+
 Claude Code and GitHub Copilot CLI both create the venv automatically on session
 start (the plugin's `SessionStart` hook) into `${CLAUDE_PLUGIN_DATA}/venv`.
-**APM does not deploy hooks**, so bootstrap it once yourself from a clone there
-— or on any host where `--check` reports a missing or stale venv:
+**APM does not deploy hooks**, so on APM — or wherever `--check` reports a
+**missing** venv — install the package and the plugin launcher will find it on
+`PATH`:
+
+```bash
+pip install indexkit
+```
+
+When `--check` reports **stale**, bootstrap instead: the launcher prefers an
+existing venv over `PATH`, so a packaged install would be shadowed by the stale
+one. Rebuild it from a clone:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
@@ -132,5 +152,5 @@ The pre-rename `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias
 | **Category** | retrieval |
 | **Provides** | `bin/indexkit` CLI, a skill, a bootstrap hook |
 | **Engine** | ollama embeddings + turbovec vectors + optional SQLite FTS5/BM25 RRF |
-| **Dependencies** | `uv`, `ollama` + an embedding model; SQLite FTS5 for `--hybrid` |
+| **Dependencies** | `ollama` + an embedding model; `uv` for the plugin bootstrap only; SQLite FTS5 for `--hybrid` |
 | **License** | MIT |

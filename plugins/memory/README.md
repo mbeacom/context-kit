@@ -56,24 +56,25 @@ Use `search --include-inactive` for a local audit of inactive history.
 Local recall is lexical. For meaning-based recall, use the first-party `rag`
 provider — this repository's `indexkit` plugin, installed automatically as a
 dependency, so **no external memory provider is required**. It still needs a
-running Ollama for embeddings (and `uv` once, to bootstrap the venv):
+running Ollama for embeddings, plus a usable `indexkit` runtime:
 
 ```bash
-bash plugins/indexkit/scripts/bootstrap.sh   # Claude runs this on SessionStart
+pip install indexkit                         # or: bash plugins/indexkit/scripts/bootstrap.sh
 ollama pull nomic-embed-text
 export CONTEXT_KIT_MEMORY_PROVIDER=rag
 
-python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor --bootstrap
+python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" sync-provider --apply
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
   search "why did we change retry policy"
 ```
 
-`doctor` verifies the indexkit runtime before probing the CLI and refuses with
-the exact bootstrap command when the venv is missing or stale; `--bootstrap`
-builds it in place. Claude Code and GitHub Copilot CLI both run the `indexkit`
-`SessionStart` hook, so this matters most on APM, which does not deploy hooks,
-and after an upgrade leaves a stale venv.
+`doctor` resolves the `indexkit` executable and reports `ready` for either a
+packaged install or the plugin's bootstrapped venv. When neither is usable it
+refuses with the exact bootstrap command; `doctor --bootstrap` builds the venv
+in place, which needs `uv`. Claude Code and GitHub Copilot CLI both run the
+`indexkit` `SessionStart` hook, so this matters most on APM, which does not
+deploy hooks, and after an upgrade leaves a stale venv.
 
 Records stay the system of record: the index is a rebuildable projection of
 accepted/current records, and hits are bound back to those records before being

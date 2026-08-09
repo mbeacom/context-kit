@@ -4,7 +4,8 @@
 accepted memory records** using this repository's own
 [`indexkit`](../../../../indexkit) plugin, so semantic search does not depend
 on any external *memory provider*. It is not dependency-free: embeddings come
-from a locally running Ollama, and `uv` bootstraps the venv once. See
+from a locally running Ollama, and `indexkit` itself must be runnable — either
+from the published package or from a venv the plugin bootstraps with `uv`. See
 Requirements below.
 
 `memory` declares a hard dependency on `indexkit`, so installing `memory`
@@ -26,8 +27,8 @@ MemPalace is genuinely optional rather than the only route.
 | Requirement | Notes |
 | --- | --- |
 | `indexkit` plugin | Installed automatically as a dependency. |
-| Bootstrapped venv | `doctor` verifies it and `doctor --bootstrap` builds it. Claude Code also runs the bootstrap on `SessionStart`; **GitHub Copilot and APM do not**. |
-| `uv` | Used only by the bootstrap. |
+| A runnable `indexkit` | Either `pip install indexkit` (the launcher finds it on `PATH`) or a bootstrapped venv. Claude Code **and GitHub Copilot CLI** build the venv on `SessionStart`; **APM does not**. |
+| `uv` | Used only by the bootstrap, not by a packaged install. |
 | `ollama` + an embedding model | `ollama pull nomic-embed-text`. Embedding is local by default. |
 
 Storage and embedding stay on-device unless `CONTEXT_KIT_OLLAMA_HOST` points at
@@ -35,18 +36,25 @@ a remote server, in which case record text is submitted to that host.
 
 ## Runtime readiness
 
-`indexkit` runs from a bootstrapped venv. Claude Code **and GitHub Copilot
-CLI** both build it from the `indexkit` `SessionStart` hook; APM does not
-deploy hooks, and any host can end up with a stale venv, so `doctor` checks
-readiness itself before probing the CLI:
+`doctor` checks readiness itself before probing the CLI, so an unusable runtime
+is reported up front rather than surfacing later as an opaque launcher error:
 
 ```bash
 python3 "$MEMORY" doctor --provider rag              # report readiness
-python3 "$MEMORY" doctor --provider rag --bootstrap  # build it, then report
+python3 "$MEMORY" doctor --provider rag --bootstrap  # build the venv, then report
 ```
 
-When the runtime is not usable, `doctor` refuses with the exact command to run
-rather than letting the failure surface later as an opaque launcher error:
+`doctor` reports `ready` for **either** runtime — it resolves the executable
+first and only inspects the venv when nothing else can serve the command. A
+`pip install indexkit` with no venv is therefore ready, and `--bootstrap` (which
+needs `uv` and a clone) is the fallback for hosts that want the plugin's own
+venv.
+
+One asymmetry matters when a venv already exists: the launcher prefers it over
+`PATH`, so a packaged install does **not** displace a stale venv. Rebuild a
+stale venv rather than installing the package alongside it.
+
+When no runtime is usable, `doctor` refuses with the exact command to run:
 
 ```json
 {
@@ -109,7 +117,9 @@ identifier.
 Because `CONTEXT_KIT_DATA` normally locates the venv as well, the adapter also
 sets `CONTEXT_KIT_INDEXKIT_HOME` to the real indexkit home. That variable
 (indexkit >= 0.4.0) pins venv resolution while index data is redirected;
-without it, `bin/indexkit` would look for a venv inside the memory store and fail.
+without it, `bin/indexkit` would look for a venv inside the memory store, miss
+the bootstrapped one, and fall through to whatever `indexkit` is on `PATH` — or
+fail outright when there is none.
 
 ## Commands
 

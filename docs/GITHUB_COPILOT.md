@@ -74,7 +74,17 @@ does not deploy hooks, or after an `indexkit` upgrade. Check first:
 bash plugins/indexkit/scripts/bootstrap.sh --check   # exit 0 ready, 3 needs bootstrap
 ```
 
-Then, from a clone of this repo:
+The fix depends on which one it reports. When the venv is **missing**, the
+quickest route needs no clone — the launcher falls back to an `indexkit` on
+`PATH`:
+
+```bash
+pip install indexkit          # or: uv tool install indexkit
+```
+
+When it reports **stale**, that shortcut does not apply: the launcher prefers an
+existing venv over `PATH`, so a packaged install would sit unused behind the
+stale copy. Rebuild the venv from a clone of this repo:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
