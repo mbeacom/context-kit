@@ -123,6 +123,7 @@ Copilot setup notes.
 - Check manifest sync, skill discovery frontmatter, and command frontmatter directly:
   `bash plugins/plugin-forge/scripts/check-manifests.sh` · `bash plugins/plugin-forge/scripts/check-skills.sh` ·
   `bash plugins/plugin-forge/scripts/check-commands.sh`
+- Lint the ADR corpus (skips cleanly without Node): `bash scripts/check-adr.sh`
 - Check and test aggregate catalog quality:
   `bash plugins/plugin-forge/scripts/check-catalog-quality.sh` ·
   `bash plugins/plugin-forge/scripts/test-catalog-quality.sh`
