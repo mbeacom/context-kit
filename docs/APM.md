@@ -86,9 +86,19 @@ apm update                   # refresh to the latest matching refs
 
 `indexkit`'s CLI runs on a uv-managed virtualenv. Claude Code bootstraps
 it automatically via a `SessionStart` hook, and GitHub Copilot CLI runs that
-hook too; **APM does not deploy plugin hooks**, so bootstrap it once yourself
-from a clone of this repo, exactly as in
-[docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md):
+hook too; **APM does not deploy plugin hooks**, so give APM a runnable CLI
+yourself. The simplest way is to install the published package — the plugin's
+`bin/indexkit` launcher falls back to an `indexkit` found on `PATH`:
+
+```bash
+pip install indexkit          # or: uv tool install indexkit
+ollama pull nomic-embed-text
+indexkit index /path/to/vault --name notes
+indexkit query "open questions about billing" --name notes --k 8
+```
+
+Alternatively, bootstrap the plugin's own venv from a clone of this repo,
+exactly as in [docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md):
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"

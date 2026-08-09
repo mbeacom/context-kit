@@ -141,12 +141,13 @@ The skills degrade gracefully and tell you what's missing.
 - **code-search** — needs `rg` (ripgrep); the rest are optional. Run
   `bash plugins/code-search/scripts/check-tools.sh` to see what's installed and
   the `brew install …` line for the rest.
-- **indexkit** — needs [`uv`](https://docs.astral.sh/uv/) and a running
-  [ollama](https://ollama.com) with an embedding model. For APM or manual use,
-  run the bootstrap step in
+- **indexkit** — needs a running [ollama](https://ollama.com) with an embedding
+  model. Claude Code and GitHub Copilot CLI both auto-bootstrap the `indexkit`
+  CLI on session start; APM and manual users can instead `pip install indexkit`,
+  which the plugin launcher finds on `PATH`, or run the bootstrap step in
   [docs/GITHUB_COPILOT.md](docs/GITHUB_COPILOT.md) (`ollama serve` +
-  `ollama pull nomic-embed-text`); Claude Code and GitHub Copilot CLI both
-  auto-bootstrap the `indexkit` CLI on session start.
+  `ollama pull nomic-embed-text`). [`uv`](https://docs.astral.sh/uv/) is needed
+  only for that bootstrap path.
 - **obsidian** — optional: the official `obsidian` CLI (with Obsidian running)
   for graph-accurate queries; otherwise falls back to `rg`/`fd`. Set your vault
   path via `CONTEXT_KIT_OBSIDIAN_VAULT` (GitHub Copilot, APM, or manual usage) or

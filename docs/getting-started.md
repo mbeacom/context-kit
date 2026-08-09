@@ -58,7 +58,7 @@ Choose an entry plugin:
 | Journey | Install | Also needed at runtime |
 | --- | --- | --- |
 | Search code, data, or docs | `code-search` | `rg`; optional search CLIs |
-| Search a corpus semantically | `indexkit` | uv, Ollama, embedding model |
+| Search a corpus semantically | `indexkit` | Ollama, embedding model |
 | Narrow an Obsidian vault, then rerank | `obsidian` + `indexkit` | Obsidian CLI or `rg`/`fd` |
 | Verify repository claims | `verify` | — |
 | Verify, then observe runtime behavior | `runtime-evidence` | Runner path: Python 3, POSIX, reviewed allowlist. Optional-tool path: an approved host tool |
@@ -92,11 +92,11 @@ command has no side effects.
 
     ---
 
-    Needs [`uv`](https://docs.astral.sh/uv/) and a running
-    [ollama](https://ollama.com) with an embedding model
-    (`ollama pull nomic-embed-text`). APM and manual users bootstrap the
-    `indexkit` CLI once (below); Claude Code and GitHub Copilot CLI both
-    auto-bootstrap it.
+    Needs a running [ollama](https://ollama.com) with an embedding model
+    (`ollama pull nomic-embed-text`). Claude Code and GitHub Copilot CLI
+    auto-bootstrap the `indexkit` CLI; APM and manual users can
+    `pip install indexkit` or bootstrap it once (below).
+    [`uv`](https://docs.astral.sh/uv/) is needed only for that bootstrap.
 
 -   :material-notebook-outline:{ .lg .middle } **obsidian**
 
@@ -141,9 +141,18 @@ command has no side effects.
 
 Verify installation with the host-specific checks in
 [Troubleshooting and lifecycle](troubleshooting.md#verify-installation-by-host).
-APM does not deploy plugin hooks, so `indexkit` needs one manual bootstrap
-from a clone there. (Claude Code and GitHub Copilot CLI both run the plugin's
-`SessionStart` hook, but a stale venv can still need a rebuild.)
+Claude Code and GitHub Copilot CLI both run the plugin's `SessionStart` hook, so
+`indexkit` bootstraps itself there. APM does not deploy plugin hooks, and a
+stale venv can still need a rebuild on any host. The simplest fix is to install
+the published CLI — the plugin launcher picks up an `indexkit` on `PATH`:
+
+```bash
+pip install indexkit          # or: uv tool install indexkit
+ollama pull nomic-embed-text
+indexkit list
+```
+
+To build the plugin's own venv from a clone instead:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
