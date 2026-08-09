@@ -115,21 +115,34 @@ jobs:
         # The metadata check above validates the artifacts; this checks they are
         # the ones the tag asked for, catching a stale dist/ or a build backend
         # that ignored the declared version.
+        #
+        # `ls -la`, not `ls -l`: `uv build` writes a `dist/.gitignore`, and an
+        # ls that hides dotfiles next to a check that sees them is how the first
+        # version of this step came to print two correct artifacts and then call
+        # them unexpected.
         env:
           VERSION: ${{ steps.resolve.outputs.version }}
         run: |
-          ls -l dist
-          test -f "dist/${PACKAGE}-${VERSION}.tar.gz"
-          test -f "dist/${PACKAGE}-${VERSION}-py3-none-any.whl"
-          # Exactly two files: an extra artifact would be published silently.
-          count="$(find dist -maxdepth 1 -type f | wc -l | tr -d ' ')"
-          test "$count" = "2" || { echo "unexpected artifacts in dist/"; exit 1; }
+          ls -la dist
+          python3 ../../scripts/check_dist_artifacts.py \
+            --dist-dir dist \
+            --package "$PACKAGE" \
+            --version "$VERSION"
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v7
         with:
           name: indexkit-dist
-          path: plugins/indexkit/dist/
+          # Explicit distribution globs, not the whole directory: `uv build`
+          # leaves a `dist/.gitignore` behind, and whether a stray file breaks
+          # the upload depends on whether `pypa/gh-action-pypi-publish` globs or
+          # enumerates — an implementation detail of a moving `release/v1` ref
+          # that would be exercised for the first time after a tag was spent.
+          # Sending only what is publishable means that question cannot decide
+          # whether a release succeeds.
+          path: |
+            plugins/indexkit/dist/*.whl
+            plugins/indexkit/dist/*.tar.gz
           if-no-files-found: error
           retention-days: 7
 
