@@ -71,6 +71,7 @@ python3 -m unittest discover -s plugins/memory/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/corpus-review/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/deep-review/tests -p 'test_*.py'
 python3 -m unittest discover -s plugins/token-economics/tests -p 'test_*.py'
+python3 -m unittest discover -s tests/release -p 'test_*.py'
 python3 -m unittest discover -s tests/integration -p 'test_*.py'
 cd plugins/indexkit && uv run --group dev pytest -q   # indexkit Python tests
 ```

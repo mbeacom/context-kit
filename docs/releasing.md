@@ -53,6 +53,61 @@ add dependency or migration details only when they affect installation or use.
 When one commit releases several plugins, create separate tags and releases that
 all point to that commit.
 
+## Publishing indexkit to PyPI
+
+`indexkit` also ships as a Python package (ADR-0006). The same
+`indexkit/v<version>` tag that releases the plugin triggers
+[`.github/workflows/release-indexkit.yml`](https://github.com/mbeacom/context-kit/blob/main/.github/workflows/release-indexkit.yml),
+which builds and publishes it. There is no separate package tag: one release,
+one identifier. See ADR-0008 for the reasoning.
+
+A PyPI upload cannot be undone — a file can only be yanked, and the version
+number is consumed permanently — so four version surfaces must agree before the
+tag is pushed:
+
+| Surface | File |
+|---|---|
+| Package version | `plugins/indexkit/pyproject.toml` |
+| Runtime version | `plugins/indexkit/src/indexkit/__init__.py` |
+| Plugin manifest | `plugins/indexkit/.claude-plugin/plugin.json` |
+| APM manifest | `plugins/indexkit/apm.yml` |
+
+plus a matching `## <version>` heading in `plugins/indexkit/CHANGELOG.md`.
+
+Check them locally before tagging — this is the same guard CI runs first, so a
+failure here is a failure there:
+
+```bash
+python3 scripts/release_version.py \
+  --package indexkit \
+  --tag indexkit/v0.6.0 \
+  --plugin-dir plugins/indexkit
+```
+
+Package and plugin versions are held at parity. If a release genuinely needs
+them to diverge, pass `--allow-plugin-drift` and say why in the release notes;
+the flag never relaxes the package's own surfaces.
+
+Then:
+
+1. **Rehearse.** Run the workflow via `workflow_dispatch` with the intended tag.
+   Dispatch runs verification only and never publishes, so this exercises the
+   guard, tests, `uv build`, and `twine check --strict` without spending a tag.
+2. **Tag and push**, as above. The `publish` job runs only on a tag push, and
+   only if `verify` succeeded.
+3. **Confirm** the release on <https://pypi.org/p/indexkit>.
+
+Prerequisites a maintainer must configure once, outside this repository:
+
+- A PyPI **pending publisher** for `indexkit` — owner `mbeacom`, repository
+  `context-kit`, workflow `release-indexkit.yml`, environment `pypi`. Publishing
+  uses Trusted Publishing (OIDC); no PyPI API token is stored in this repository.
+- The `pypi` GitHub environment, and whether it requires a reviewer.
+
+Because Trusted Publishing binds to `(owner, repo, workflow filename,
+environment)`, **renaming `release-indexkit.yml` breaks publishing** until the
+PyPI configuration is updated to match.
+
 ## Recovery
 
 - **Before merge:** correct the release PR in place; do not tag it.

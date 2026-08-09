@@ -145,6 +145,7 @@ Copilot setup notes.
   `python3 -m unittest discover -s plugins/deep-review/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/token-economics/tests -p 'test_*.py'` ·
   `python3 -m unittest discover -s plugins/plugin-forge/tests -p 'test_command_frontmatter.py'` ·
+  `python3 -m unittest discover -s tests/release -p 'test_*.py'` ·
   `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
 - Rebuild the `indexkit` runtime venv manually: `bash plugins/indexkit/scripts/bootstrap.sh`
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
