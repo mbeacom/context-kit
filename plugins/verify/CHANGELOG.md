@@ -18,8 +18,9 @@
 - Calibrate governance rather than only enabling it: a governing record is a
   finding only when it changes the conclusion, an empty `declared` list on a
   large file is indeterminate (inline markers are scanned only within a bounded
-  window, and `markers.truncated` cannot distinguish "none" from "missed"), and
-  an all-`accepted` corpus has not yet exercised the rejected-options value.
+  window, and `markers.truncated` cannot distinguish "none" from "missed"), an
+  all-`accepted` corpus has not yet exercised the rejected-options value, and a
+  corpus no always-on instruction file points at is never queried at any size.
 - Fix a governance test that passed for the wrong reason. Its `assertIn("adr", …)`
   matched `docs/adr` in the *missing-corpus* message, so it never reached the
   missing-tool branch it claimed to cover.

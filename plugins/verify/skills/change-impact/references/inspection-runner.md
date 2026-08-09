@@ -216,10 +216,17 @@ adds nothing. Calibrate it before quoting it.
   `markers.truncated` reports that the file exceeds the window, and is `true`
   even when a marker *was* found. Markers are a header convention; treat their
   absence in a large file as indeterminate.
-- **It scales where instruction files cannot.** Always-on context is a fixed
-  budget; a decision corpus is not. The case for retrieving governance grows with
-  the number of records, and is weakest on a small corpus whose rules already fit
-  in the instruction files.
+- **A corpus nobody points at is never queried.** Retrievability is upstream of
+  value. If nothing in the always-on instruction files names the corpus, no
+  analysis reaches this modality in the first place, and that silence is
+  indistinguishable from a corpus with nothing to say — the same failure shape as
+  an absent binary yielding an inert `unavailable`. A pointer is enough, and is
+  not the same as restating the rules there, which would spend the fixed budget
+  to duplicate what the corpus exists to hold.
+- **Given that pointer, it scales where instruction files cannot.** Always-on
+  context is a fixed budget; a decision corpus is not. The case for retrieving
+  governance grows with the number of records, and is weakest on a small corpus
+  whose rules already fit in the instruction files.
 
 ## Environment hardening
 
