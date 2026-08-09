@@ -24,12 +24,14 @@ skip() {
 
 [ "${ADRKIT_SKIP:-}" = "1" ] && skip "ADRKIT_SKIP=1"
 [ -d "$ADR_DIR" ] || skip "no corpus at $ADR_DIR"
-command -v npx >/dev/null 2>&1 || skip "npx not found (install Node 22+ to lint ADRs)"
 
 # `adr` on PATH wins: it is faster than npx and lets a contributor pin their own
-# install. Otherwise fall back to the pinned package.
+# install. Check it before requiring npx — npx is needed only for the fallback,
+# so demanding it first would skip the lint for someone who has adrkit properly
+# installed.
 if command -v adr >/dev/null 2>&1; then
-  adr lint --dir "$ADR_DIR"
-else
-  npx --yes "@adrkit/cli@${ADRKIT_VERSION}" lint --dir "$ADR_DIR"
+  exec adr lint --dir "$ADR_DIR"
 fi
+
+command -v npx >/dev/null 2>&1 || skip "no adr on PATH and no npx (install Node 22+ to lint ADRs)"
+exec npx --yes "@adrkit/cli@${ADRKIT_VERSION}" lint --dir "$ADR_DIR"

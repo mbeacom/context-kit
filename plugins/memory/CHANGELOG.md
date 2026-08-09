@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 — 2026-08-08
+
+- Fix a real failure in the pre-rename compatibility path. `store_env` and the
+  runtime probe set only `CONTEXT_KIT_INDEXKIT_HOME`, but a legacy `bin/rag`
+  launcher — which `_bundled_executable` can legitimately resolve — reads only
+  `CONTEXT_KIT_LOCAL_RAG_HOME`. With `CONTEXT_KIT_DATA` redirected to the
+  isolated provider store, that launcher looked for its venv inside the store
+  and failed. Both names are now exported to the same resolved path.
+- Restore pre-rename CHANGELOG entries to their original wording, so an old
+  release's notes remain usable for diagnosing that version.
+
 ## 0.5.1 — 2026-08-08
 
 - Move the `rag` provider's tested-version pin to indexkit 0.6.x, the release
@@ -52,7 +63,7 @@
 - Fix venv resolution for the `rag` provider on Copilot. 0.3.0 dropped
   `CLAUDE_PLUGIN_DATA` because it is plugin-scoped, but that also lost the
   ability to locate the dependency. Both hosts lay plugin data out as
-  `<root>/<plugin>`, so indexkit's home is resolved as a **sibling** of
+  `<root>/<plugin>`, so local-rag's home is resolved as a **sibling** of
   memory's, and only when it exists.
 
 ## 0.3.0 — 2026-08-04
@@ -84,12 +95,12 @@
   `--redact` masks the spans and records a count. Repository, branch, and HEAD
   anchors are required and never invented, and candidates are project-isolated
   and write-once.
-- Add a first-party `rag` memory provider backed by the bundled `indexkit`
+- Add a first-party `rag` memory provider backed by the bundled `local-rag`
   plugin, so **offline semantic recall no longer requires an external memory
   provider**. MemPalace becomes genuinely optional rather than the only route
   to meaning-based recall. Ollama remains a required local runtime for
   embeddings, and `uv` is needed once to bootstrap the venv.
-- Declare a hard dependency on `indexkit` in `plugin.json` and `apm.yml`, so
+- Declare a hard dependency on `local-rag` in `plugin.json` and `apm.yml`, so
   installing `memory` deploys the retrieval engine on every host.
 - Generalize the provider layer behind a declarative `ProviderSpec`. The
   projection, staging, atomic swap, projection marker, receipt, and backup
@@ -103,11 +114,11 @@
   `degraded_detail`. Reconciliation is checked first, so a stale index refuses
   rather than being masked by a quiet fallback.
 - `wake` reports `not-applicable` under `rag` without invoking the provider.
-- `doctor` verifies the indexkit runtime before probing the CLI and refuses
+- `doctor` verifies the local-rag runtime before probing the CLI and refuses
   with the exact bootstrap command when the venv is missing or stale, closing
   the gap on hosts that do not run Claude's `SessionStart` hook. `doctor
   --bootstrap` builds it in place. The check applies only when the bundled
-  `bin/rag` launcher is in use; a user-supplied `CONTEXT_KIT_INDEXKIT_BIN` manages
+  `bin/rag` launcher is in use; a user-supplied `CONTEXT_KIT_RAG_BIN` manages
   its own runtime and is not gated.
 - Receipts now carry a provider-neutral `store_path`, and `provider` reflects
   the configured provider. MemPalace receipts keep the `palace_path` key for

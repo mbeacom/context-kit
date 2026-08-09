@@ -26,7 +26,7 @@ obsidian backlinks / rg tag search
 
 ## Prerequisites
 
-- **`indexkit` plugin** (required) — provides the `rag` CLI. Index your vault
+- **`indexkit` plugin** (required) — provides the `indexkit` CLI. Index your vault
   once with:
 
   ```bash

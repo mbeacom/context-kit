@@ -63,12 +63,12 @@ Once installed, ask Copilot naturally, for example:
 
 ## Bootstrapping the indexkit runtime
 
-`indexkit`'s `rag` CLI runs on a uv-managed venv. **Both Claude Code and
+`indexkit`'s CLI runs on a uv-managed venv. **Both Claude Code and
 GitHub Copilot CLI bootstrap it automatically** from the plugin's `SessionStart`
 hook, so no manual step is normally needed.
 
 Bootstrap it yourself only when the venv is missing or stale — on APM, which
-does not deploy hooks, or after a `indexkit` upgrade. Check first:
+does not deploy hooks, or after an `indexkit` upgrade. Check first:
 
 ```bash
 bash plugins/indexkit/scripts/bootstrap.sh --check   # exit 0 ready, 3 needs bootstrap

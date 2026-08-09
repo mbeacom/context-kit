@@ -2,7 +2,7 @@
 # APM does not deploy plugin hooks, so recall and capture stay explicit
 # commands there. Claude Code and GitHub Copilot CLI both load hooks/hooks.json.
 name: memory
-version: 0.5.1
+version: 0.5.2
 description: Provenance-bound durable memory with immutable records, append-only review state, offline semantic recall, session priming, and drift auditing.
 author: Mark Beacom
 license: MIT

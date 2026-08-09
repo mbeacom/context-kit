@@ -84,7 +84,7 @@ apm update                   # refresh to the latest matching refs
 
 ## Running indexkit under APM
 
-`indexkit`'s `rag` CLI runs on a uv-managed virtualenv. Claude Code bootstraps
+`indexkit`'s CLI runs on a uv-managed virtualenv. Claude Code bootstraps
 it automatically via a `SessionStart` hook, and GitHub Copilot CLI runs that
 hook too; **APM does not deploy plugin hooks**, so bootstrap it once yourself
 from a clone of this repo, exactly as in
@@ -101,7 +101,7 @@ indexkit query "open questions about billing" --name notes --k 8
 
 APM plugins have no Claude-style `userConfig`, so configure `indexkit` and
 `obsidian` with the portable environment variables (documented in
-[docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#running-indexkit-outside-claude-code)):
+[docs/GITHUB_COPILOT.md](GITHUB_COPILOT.md#bootstrapping-the-indexkit-runtime)):
 
 | Variable | Purpose | Claude fallback |
 | --- | --- | --- |

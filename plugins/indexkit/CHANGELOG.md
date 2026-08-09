@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.1 — 2026-08-08
+
+- Correct host guidance and stale command names in the skill and README.
+  GitHub Copilot CLI loads `hooks/hooks.json`, so it auto-bootstraps like
+  Claude Code; only APM needs a manual step. The CLI is `indexkit`, not `rag`.
+- Mark the PyPI install as forthcoming and document the working source install,
+  since the package name is not claimed yet.
+- Restore pre-rename CHANGELOG entries to their original wording. Rewriting
+  them made an old release's notes describe variables that release never had.
+
 ## 0.6.0 — 2026-08-08
 
 - **Installable and usable without a plugin host** (ADR-0006). `pip install
@@ -40,7 +50,7 @@
 
 ## 0.4.0 — 2026-08-04
 
-- Separate venv resolution from index-data location. `CONTEXT_KIT_INDEXKIT_HOME`
+- Separate venv resolution from index-data location. `CONTEXT_KIT_LOCAL_RAG_HOME`
   now locates the bootstrapped venv (and its `pyproject.sha` stamp), while
   `CONTEXT_KIT_DATA` continues to locate index data. Previously both were derived
   from `CONTEXT_KIT_DATA`, so a caller redirecting index data to an isolated
@@ -117,12 +127,12 @@
   `CONTEXT_KIT_EMBED_MODEL`, `CONTEXT_KIT_OLLAMA_HOST`); the former
   `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias, so resolution
   order is `CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback. Updated URLs
-  and install commands (`… install indexkit@context-kit`).
+  and install commands (`… install local-rag@context-kit`).
 
 ## 0.1.4 — 2026-07-13
 
 - Add an `apm.yml` manifest so Agent Package Manager (`microsoft/apm`) users can
-  install this plugin (`apm install indexkit@context-kit`) alongside the
+  install this plugin (`apm install local-rag@context-kit`) alongside the
   Claude Code and GitHub Copilot flows. As with Copilot, APM does not run the
   Claude `SessionStart` bootstrap hook — bootstrap `bin/rag` manually and use the
   `PRODUCTIVITY_SKILLS_*` env vars (see docs/APM.md).

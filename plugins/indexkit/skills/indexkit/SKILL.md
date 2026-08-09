@@ -18,8 +18,8 @@ remote `CONTEXT_KIT_OLLAMA_HOST` receives corpus chunks and queries.
 ## Prerequisites
 
 - `ollama serve` running and the model pulled: `ollama pull nomic-embed-text`.
-- Claude Code and GitHub Copilot CLI: the `rag` CLI is bootstrapped
-  automatically on session start (uv venv). If `rag` is missing or stale, run
+- Claude Code and GitHub Copilot CLI: the `indexkit` CLI is bootstrapped
+  automatically on session start (uv venv). If it is missing or stale, run
   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"`.
 - APM/manual: clone this repo, set `CONTEXT_KIT_DATA`, run
   `plugins/indexkit/scripts/bootstrap.sh`, and add `plugins/indexkit/bin` to

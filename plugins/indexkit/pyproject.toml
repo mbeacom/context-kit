@@ -1,6 +1,6 @@
 [project]
 name = "indexkit"
-version = "0.6.0"
+version = "0.6.1"
 description = "Offline hybrid retrieval: build a local semantic + BM25 index over your files and query it. Local RAG with ollama, turbovec, and SQLite FTS5."
 requires-python = ">=3.10"
 keywords = [

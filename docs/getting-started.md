@@ -94,8 +94,9 @@ command has no side effects.
 
     Needs [`uv`](https://docs.astral.sh/uv/) and a running
     [ollama](https://ollama.com) with an embedding model
-    (`ollama pull nomic-embed-text`). GitHub Copilot and APM users bootstrap the
-    `rag` CLI once (below); Claude Code auto-bootstraps it.
+    (`ollama pull nomic-embed-text`). APM and manual users bootstrap the
+    `indexkit` CLI once (below); Claude Code and GitHub Copilot CLI both
+    auto-bootstrap it.
 
 -   :material-notebook-outline:{ .lg .middle } **obsidian**
 
@@ -153,7 +154,7 @@ indexkit list
 ```
 
 Use `CONTEXT_KIT_*` variables in portable profiles. The
-[GitHub Copilot guide](GITHUB_COPILOT.md#running-indexkit-outside-claude-code)
+[GitHub Copilot guide](GITHUB_COPILOT.md#bootstrapping-the-indexkit-runtime)
 contains the canonical cross-host variable table, and each plugin page documents
 its own defaults and Claude fallback.
 

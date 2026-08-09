@@ -109,7 +109,7 @@ MEMPALACE_TESTED_RELEASE_LINE = "3.6.x"
 # `CONTEXT_KIT_INDEXKIT_HOME` (indexkit >= 0.4.0) separates venv resolution
 # from index-data location, which is what lets this adapter redirect index data
 # into a project-isolated store without relocating the shared venv.
-RAG_TESTED_VERSION = (0, 6, 0)
+RAG_TESTED_VERSION = (0, 6, 1)
 RAG_TESTED_RELEASE_LINE = "0.6.x"
 RAG_INDEX_NAME = "memory"
 # One record spans several indexed chunks, so ask for more chunks than the
@@ -238,12 +238,20 @@ class RagSpec(ProviderSpec):
 
     def store_env(self, store: Path) -> dict[str, str]:
         # CONTEXT_KIT_DATA relocates *index data* into the isolated store.
-        # CONTEXT_KIT_INDEXKIT_HOME pins the venv to its normal location so
-        # redirecting data does not make `bin/rag` look for a venv that only
-        # exists in the shared indexkit home.
+        # The home variable pins the venv to its normal location so redirecting
+        # data does not make the launcher look for a venv that only exists in
+        # the shared indexkit home.
+        #
+        # Both names are exported. `_bundled_executable` can legitimately
+        # resolve a pre-rename `bin/rag` launcher, and that launcher reads only
+        # `CONTEXT_KIT_LOCAL_RAG_HOME`. Setting just the new name would leave it
+        # falling back to CONTEXT_KIT_DATA — the isolated store — where no venv
+        # exists, so every provider call through an old sibling would fail.
+        home = str(_indexkit_home())
         return {
             "CONTEXT_KIT_DATA": str(store),
-            "CONTEXT_KIT_INDEXKIT_HOME": str(_indexkit_home()),
+            "CONTEXT_KIT_INDEXKIT_HOME": home,
+            "CONTEXT_KIT_LOCAL_RAG_HOME": home,
         }
 
 
@@ -1234,7 +1242,11 @@ def _rag_runtime_status(*, bootstrap: bool = False) -> dict[str, object]:
         }
     script = root / "scripts" / "bootstrap.sh"
     env = os.environ.copy()
-    env["CONTEXT_KIT_INDEXKIT_HOME"] = str(_indexkit_home())
+    # Both names, for the same reason as `RagSpec.store_env`: a pre-rename
+    # sibling ships a bootstrap that reads only `CONTEXT_KIT_LOCAL_RAG_HOME`.
+    home = str(_indexkit_home())
+    env["CONTEXT_KIT_INDEXKIT_HOME"] = home
+    env["CONTEXT_KIT_LOCAL_RAG_HOME"] = home
     if bootstrap:
         try:
             built = subprocess.run(

@@ -47,7 +47,7 @@ obsidian backlinks / rg tag search
 
 ## Prerequisites
 
-- **[`indexkit`](indexkit.md)** (required) — provides the `rag` CLI. Index your
+- **[`indexkit`](indexkit.md)** (required) — provides the `indexkit` CLI. Index your
   vault once: `indexkit index /path/to/vault --name notes`.
 - **Official `obsidian` CLI** (optional, recommended) — ships with Obsidian
   desktop; enables graph-aware backlink and full-text queries.
