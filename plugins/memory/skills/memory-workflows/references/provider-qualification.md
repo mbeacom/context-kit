@@ -109,6 +109,7 @@ a prerequisite for CLI-driven capture and recall.
 | **Rag (first-party)** | ✅ Supported (default semantic path) | This repository's `indexkit` plugin, declared as a hard dependency. Versioned with the catalog; `indexkit --version` and exact-argv `--help` probes give a checkable contract. Project isolation enforced by redirecting `CONTEXT_KIT_DATA` per child process. Records are the source of truth and the index is a rebuildable projection, so provenance cannot be lost. Offline apart from a user-configured remote `CONTEXT_KIT_OLLAMA_HOST`. MIT. All criteria met. |
 | **MemPalace** | ✅ Supported (optional) | Versioned CLI releases on PyPI. Stable CLI contract documented. Project/palace isolation enforced by adapter. Evidence round-tripped via local copy before archival. Export and delete available. MIT-compatible license. Criteria met at integration date. |
 | **Microsoft Memora** | 🔬 Design-only | Informs context-kit's memory contract; not a runtime provider. See below. |
+| **adrkit** | 🚫 Not a provider — peer corpus | Passes criteria 1, 3, 6–12. Fails criterion 4, not by being lossy but by not being a `memory-v1` store at all. Integrated as a distinct retrieval modality instead. See below. |
 
 ### Why a first-party provider satisfies criterion 4 trivially
 
@@ -119,6 +120,50 @@ returning them, so `source`, `source_hash`, `repository`, `branch`, `head`, and
 review/freshness state are read from the immutable artifacts rather than from
 provider storage. A corrupted or deleted index is rebuilt with
 `sync-provider --apply`; no memory is lost with it.
+
+### adrkit: a peer corpus, not a provider
+
+[adrkit](https://github.com/mbeacom/adrkit) stores durable, provenance-carrying,
+supersession-aware decision records in git, so it reads like an obvious provider
+candidate. It is not one, and recording why here is the point — otherwise the
+question gets re-asked every time someone notices the resemblance.
+
+It passes criteria 1, 3, and 6–12 comfortably: versioned npm releases, git-scoped
+isolation, no credentials and no network, export/delete via plain files, a test
+suite with CI, and an MCP server that is separately installable rather than a
+prerequisite.
+
+It fails **criterion 4 (provenance and immutable evidence round-tripping)**, but
+not for the usual reason. adrkit is not lossy; it simply is not a `memory-v1`
+store. Making it a provider would require coercing ADRs into `memory-v1`
+frontmatter or memory records into the ADR schema, and either direction destroys
+what makes the target useful.
+
+The trust model settles it. A `memory` provider is an **index over** records
+that `memory` owns, and `sync-provider` can rebuild any provider from the local
+artifacts. An ADR corpus is owned by the repository and its humans. `memory`
+must not be able to rebuild, mutate, or garbage-collect it.
+
+The boundary (ADR-0003):
+
+| | `context-kit` memory | adrkit |
+| --- | --- | --- |
+| Records | Agent-observed, evidence-bound | Team-ratified, reviewed in a pull request |
+| Scope | Session-derived, project-scoped | Repository governance |
+| Lifecycle | Capture → review → accept | Propose → ratify → supersede |
+| Enforcement | Recall-time | CI (`adr lint`, `adr check`) |
+| Locatability | Cue anchors, semantic recall | `affects` patterns and inline `@adr` markers |
+
+A `type: decision` memory record is an **observation that a decision was made**.
+An ADR is **the decision, ratified**. So the two do not overlap; they compose as
+a promotion path. `/capture-memory` on a `type: decision` record may suggest
+`adr new`, and must never write one — ratification is a human act, which adrkit
+enforces by refusing `accepted` on an agent-authored record without a named
+`provenance.ratifiedBy`.
+
+adrkit is instead reachable as the **governance** modality of the `verify`
+plugin's inspection runner, where a missing `adr` binary reports `unavailable`
+rather than degrading.
 
 ### Memora: design influence and current status
 

@@ -267,6 +267,23 @@ def _op_yaml_field(v: dict[str, str]) -> list[str]:
     return ["yq", v["field"], v["path"]]
 
 
+# adrkit is optional and contributor-side (ADR-0003). It is invoked as an exact
+# argv like every other tool here, so it must be on PATH as `adr`; when it is
+# not, the runner reports `unavailable` and the governance modality is recorded
+# as unreached rather than silently skipped. Both operations are read-only:
+# `explain` and `check` never mutate the corpus, make no model calls, and open
+# no sockets.
+def _op_adr_explain(v: dict[str, str]) -> list[str]:
+    return ["adr", "explain", v["path"], "--dir", v["dir"], "--json"]
+
+
+def _op_adr_check(v: dict[str, str]) -> list[str]:
+    return ["adr", "check", v["path"], "--dir", v["dir"], "--json"]
+
+
+_ADR_DIR = Param("dir", "path", False, "ADR corpus directory", default="docs/adr")
+
+
 _PATH = Param("path", "path", True, "repo-relative file or directory in the root")
 _OPT_PATH = Param("path", "path", False, "optional repo-relative path filter")
 _COUNT = Param("max_count", "count", False, "commit limit (1-10000)", default="20")
@@ -380,6 +397,24 @@ OPERATIONS: tuple[Operation, ...] = (
         "Value at a dotted field path in a YAML document (mikefarah yq).",
         (_PATH, Param("field", "field", True, "dotted field path, e.g. a.b.c")),
         _op_yaml_field,
+    ),
+    Operation(
+        "adr-explain-path",
+        "adr",
+        "governance",
+        "Architecture decisions governing a path, with rejected and superseded "
+        "ones (adrkit; read-only, offline).",
+        (_PATH, _ADR_DIR),
+        _op_adr_explain,
+    ),
+    Operation(
+        "adr-check-path",
+        "adr",
+        "governance",
+        "Conformance of a path against the decisions that govern it (adrkit; "
+        "read-only, offline).",
+        (_PATH, _ADR_DIR),
+        _op_adr_check,
     ),
 )
 

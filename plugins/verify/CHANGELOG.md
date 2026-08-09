@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.5.0 — 2026-08-08
+
+- Add a `governance` modality to the enforced inspection runner (ADR-0003):
+  `adr-explain-path` and `adr-check-path` reach adrkit's read-only `explain`
+  and `check` verbs as exact argv. Structural and historical evidence cannot
+  say what the team already decided or rejected; this can.
+- adrkit stays optional. A missing `adr` binary exits `unavailable`, so the
+  modality is reported as unreached rather than silently skipped — an absent
+  corpus is not evidence that no decision governs a path.
+- Only read-only verbs are catalogued, and a test asserts the writing verbs
+  (`new`, `migrate`) never enter a catalog whose contract is non-mutating.
+  The caller-supplied corpus directory is path-confined like any other path.
+
 ## 0.4.3 — 2026-08-04
 
 - Shorten the `verifier` agent and `verify-before-trust` skill triggers to free aggregate discovery budget for the new

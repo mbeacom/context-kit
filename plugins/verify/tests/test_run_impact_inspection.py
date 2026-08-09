@@ -88,8 +88,9 @@ class RunnerCliTests(unittest.TestCase):
         self.assertIn("git-log-path", ids)
         self.assertIn("json-field", ids)
         self.assertIn("yaml-keys", ids)
+        self.assertIn("adr-explain-path", ids)
         modalities = {operation["modality"] for operation in catalog["operations"]}
-        self.assertLessEqual({"history", "structured-data"}, modalities)
+        self.assertLessEqual({"history", "structured-data", "governance"}, modalities)
 
     # --- Refusals ------------------------------------------------------------
 
@@ -572,6 +573,85 @@ class RunnerUnitTests(unittest.TestCase):
         self.assertEqual(reason, "timeout")
         self.assertEqual(exit_code, 124)
         self.assertIn(cleanup, {"process-group-killed", "process-killed"})
+
+
+class GovernanceOperationTests(unittest.TestCase):
+    """adrkit-backed governance operations (ADR-0003).
+
+    Deliberately not a subclass of RunnerCliTests: inheriting a TestCase re-runs
+    every inherited test method, so the harness is duplicated instead.
+
+    adrkit is optional and contributor-side, so the behavior that matters most is
+    the one when it is absent -- an unreached modality, never a silent skip and
+    never a hard failure of the whole inspection.
+    """
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp_dir.name).resolve()
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def run_runner(
+        self, *cli_args: str, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(RUNNER), *cli_args],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+    def test_governance_operations_use_only_read_only_verbs(self) -> None:
+        catalog = json.loads(self.run_runner("--list").stdout)
+        governance = [
+            op for op in catalog["operations"] if op["modality"] == "governance"
+        ]
+        self.assertTrue(governance, "expected governance operations in the catalog")
+        for op in governance:
+            self.assertEqual(op["tool"], "adr")
+            # `explain` and `check` are adrkit's read-only verbs. `new`,
+            # `migrate`, and `queue` scaffold or write, so they must never enter
+            # a catalog whose whole contract is that it cannot mutate anything.
+            self.assertNotIn("new", op["id"])
+            self.assertNotIn("migrate", op["id"])
+
+    def test_missing_adr_reports_unavailable(self) -> None:
+        # adrkit is Node-based and optional, so most machines running this suite
+        # will not have it. Point PATH at a directory that cannot exist so the
+        # unavailable path is exercised deterministically either way.
+        env = {**os.environ, "PATH": str(self.root / "no-such-bin-dir")}
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 3)
+        payload = json.loads(result.stderr)
+        self.assertEqual(payload["status"], "unavailable")
+        self.assertIn("adr", payload["error"])
+
+    def test_adr_corpus_dir_is_path_confined(self) -> None:
+        # The corpus directory is caller-supplied, so it goes through the same
+        # containment check as every other path parameter.
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            "--param",
+            "dir=../../etc",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("escapes", json.loads(result.stderr)["error"])
 
 
 if __name__ == "__main__":

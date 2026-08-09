@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.3 — 2026-08-08
+
+- Record adrkit in the provider decision table as a peer corpus rather than a
+  provider, with the trust-model reason it cannot be one and the promotion path
+  from a `type: decision` record to a ratified ADR (ADR-0003).
+
 ## 0.5.2 — 2026-08-08
 
 - Fix a real failure in the pre-rename compatibility path. `store_env` and the

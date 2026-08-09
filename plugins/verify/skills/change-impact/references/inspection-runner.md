@@ -2,7 +2,7 @@
 
 The `change-impact` skill ships an enforced read-only executor at
 `scripts/run-impact-inspection.py`. It exists so a caller can reach the history,
-structured-data, and structural modalities under an actually-enforced
+structured-data, structural, and governance modalities under an actually-enforced
 non-mutating constraint, instead of relying on a delegate's instructions or a
 prefix-matched command grant that still admits write and exec vectors.
 
@@ -107,6 +107,8 @@ prefix.
 | `json-type` | structured-data | jq | `jq type <path>` |
 | `yaml-keys` | structured-data | yq | `yq keys <path>` (mikefarah yq) |
 | `yaml-field` | structured-data | yq | `yq '.["a"]["b"]' <path>` (mikefarah yq, bracket filter) |
+| `adr-explain-path` | governance | adr | `adr explain <path> --dir <dir> --json` |
+| `adr-check-path` | governance | adr | `adr check <path> --dir <dir> --json` |
 
 Every git argv carries `--no-pager` and `--no-color` as fixed literals, closing
 the pager-exec vector before a parameter is even considered. The shared prefix
@@ -122,6 +124,37 @@ honors the repository-local `grep.patternType` config — which
 `extended`, `perl`, or `fixed` would silently change what the `pattern` parameter
 means. The fixed flag overrides that config, the same class of gap already closed
 for `core.fsmonitor` and `diff.external`.
+
+## Governance: what decisions already bind this path
+
+The other modalities answer what the code *is* and how it *got that way*. The
+governance modality answers a question they cannot: what the team already
+**decided** about this path, including the options it rejected.
+
+That matters for impact analysis specifically. A change can be structurally
+sound, historically unremarkable, and still wrong because it re-opens a settled
+decision or violates a constraint recorded when the tradeoff was last examined.
+Nothing in `git log` says "we considered this and ruled it out."
+
+`adr-explain-path` returns the governing records with their status, the matchers
+that fired, and — for records a file declares inline via an `@adr NNNN` comment —
+the declaring line. Superseded and rejected decisions are reported too, which is
+the point: it is how an agent stops re-proposing a path the team already closed.
+
+Two properties make this safe to enforce here rather than merely suggest:
+
+- **Read-only by construction.** Only `explain` and `check` appear in the
+  catalog. adrkit's writing verbs (`new`, `migrate`) are absent, and a test
+  asserts they stay absent. adrkit's own MCP surface makes the same guarantee —
+  no model calls, no sockets, no corpus mutation.
+- **Optional, and honest about it.** adrkit is contributor-side and not a
+  dependency of anything shipped (ADR-0003). When `adr` is not on `PATH` the
+  runner exits `3` / `unavailable`, and the modality must be reported as
+  unreached. A corpus that does not exist is not evidence that no decision
+  governs the path.
+
+The corpus directory defaults to `docs/adr` and is a normal path parameter, so
+it is subject to the same containment check as any other path.
 
 ## Environment hardening
 
