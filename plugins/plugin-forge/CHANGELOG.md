@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.7.3 — 2026-08-08
+
+- Update discovery fixtures and retrieval scenarios for the `local-rag` →
+  `indexkit` rename (ADR-0007).
+
 ## 0.7.2 — 2026-08-04
 
 - Register discovery fixtures for the `token-accounting` and

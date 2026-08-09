@@ -92,7 +92,7 @@
         "Prove every unit of this archive was inspected and report the coverage."
       ]
     },
-    "plugins/local-rag/skills/local-rag/SKILL.md": {
+    "plugins/indexkit/skills/indexkit/SKILL.md": {
       "positive": [
         "Build a local semantic index for this markdown corpus and query by meaning.",
         "I remember the idea but not the words; search my notes vault semantically."

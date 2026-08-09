@@ -24,7 +24,7 @@ Use it when the deliverable requires coverage rather than hits:
 - "Review the whole log archive for occurrences of this failure mode."
 - "Check every service manifest for a missing ownership label."
 
-Use retrieval instead — `retrieval-strategy`, `code-search`, `local-rag` — when
+Use retrieval instead — `retrieval-strategy`, `code-search`, `indexkit` — when
 a representative answer is enough and no one will act on the absence of a hit.
 Use `change-impact` instead when the question is the blast radius of a proposed
 change; that skill deliberately stops at useful coverage.

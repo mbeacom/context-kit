@@ -192,8 +192,8 @@ If your team deploys remote serving anyway:
 
 ## Boundaries
 
-- Do not index a repository in both MemPalace and `local-rag` by default.
-  `local-rag` owns corpus RAG; MemPalace owns opt-in durable session/project
+- Do not index a repository in both MemPalace and `indexkit` by default.
+  `indexkit` owns corpus RAG; MemPalace owns opt-in durable session/project
   recall.
 - Do not enable a writable MCP server automatically. Configure MemPalace MCP
   separately (see above), always read-only for recall-only clients.

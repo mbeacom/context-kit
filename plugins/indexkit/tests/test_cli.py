@@ -1,0 +1,444 @@
+import io
+import json
+
+import pytest
+
+from indexkit import cli
+from indexkit.engine import Engine
+from tests.test_engine import StubEmbedder
+
+
+def test_index_and_query_json(tmp_path, monkeypatch, capsys):
+    (tmp_path / "apple.md").write_text("# Apple\n\nApples. #fruit\n")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(data))
+
+    rc = cli.main(["index", str(tmp_path), "--name", "t"])
+    assert rc == 0
+    capsys.readouterr()
+
+    rc = cli.main(["query", "apple", "--name", "t", "--json"])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out[0]["path"] == "apple.md"
+    assert out[0]["retrieval_mode"] == "semantic"
+    assert "start" in out[0] and "end" in out[0]
+
+
+def test_hybrid_query_json_and_text_output(tmp_path, monkeypatch, capsys):
+    (tmp_path / "apple.md").write_text("# Apple\n\nunique orchard phrase\n")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(tmp_path), "--name", "t"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["status", "--name", "t"]) == 0
+    status = json.loads(capsys.readouterr().out)
+    if not status["fts5"]:
+        pytest.skip("SQLite was compiled without FTS5")
+    assert cli.main(["query", "orchard", "--name", "t", "--hybrid", "--json"]) == 0
+    hits = json.loads(capsys.readouterr().out)
+    assert hits[0]["retrieval_mode"] == "hybrid"
+    assert hits[0]["lexical_rank"] == 1
+    assert cli.main(["query", "orchard", "--name", "t", "--hybrid"]) == 0
+    assert "hybrid" in capsys.readouterr().out
+
+
+def test_allowlist_from_stdin(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.md").write_text("# A\n\napple\n")
+    (tmp_path / "b.md").write_text("# B\n\napple\n")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(data))
+    cli.main(["index", str(tmp_path), "--name", "t"])
+    capsys.readouterr()
+
+    monkeypatch.setattr("sys.stdin", io.StringIO("b.md\n"))
+    cli.main(["query", "apple", "--name", "t", "--allowlist", "-", "--json"])
+    out = json.loads(capsys.readouterr().out)
+    assert out and all(h["path"] == "b.md" for h in out)
+
+
+def test_empty_allowlist_file_returns_no_hits(tmp_path, monkeypatch, capsys):
+    (tmp_path / "a.md").write_text("# A\n\napple\n")
+    allowlist = tmp_path / "allowlist.txt"
+    allowlist.write_text("", encoding="utf-8")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(tmp_path), "--name", "t"]) == 0
+    capsys.readouterr()
+
+    assert (
+        cli.main(
+            [
+                "query",
+                "apple",
+                "--name",
+                "t",
+                "--allowlist",
+                str(allowlist),
+                "--json",
+            ]
+        )
+        == 0
+    )
+    assert json.loads(capsys.readouterr().out) == []
+
+
+def test_context_kit_data_overrides_claude_env(tmp_path, monkeypatch):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nportable env\n")
+    claude_data = tmp_path / "claude-data"
+    portable_data = tmp_path / "portable-data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(claude_data))
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(portable_data))
+
+    rc = cli.main(["index", str(vault), "--name", "t"])
+
+    assert rc == 0
+    assert (portable_data / "indexes" / "t" / "meta.sqlite").exists()
+    assert not (claude_data / "indexes").exists()
+
+
+def test_context_kit_data_overrides_legacy_and_claude(tmp_path, monkeypatch):
+    """CONTEXT_KIT_DATA wins over the deprecated PRODUCTIVITY_SKILLS_DATA alias."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nprecedence\n")
+    claude_data = tmp_path / "claude-data"
+    legacy_data = tmp_path / "legacy-data"
+    portable_data = tmp_path / "portable-data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(claude_data))
+    monkeypatch.setenv("PRODUCTIVITY_SKILLS_DATA", str(legacy_data))
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(portable_data))
+
+    rc = cli.main(["index", str(vault), "--name", "t"])
+
+    assert rc == 0
+    assert (portable_data / "indexes" / "t" / "meta.sqlite").exists()
+    assert not (legacy_data / "indexes").exists()
+    assert not (claude_data / "indexes").exists()
+
+
+def test_legacy_productivity_skills_data_still_supported(tmp_path, monkeypatch):
+    """Back-compat: the pre-rename PRODUCTIVITY_SKILLS_DATA alias still resolves."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nback compat\n")
+    claude_data = tmp_path / "claude-data"
+    legacy_data = tmp_path / "legacy-data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(claude_data))
+    monkeypatch.setenv("PRODUCTIVITY_SKILLS_DATA", str(legacy_data))
+
+    rc = cli.main(["index", str(vault), "--name", "t"])
+
+    assert rc == 0
+    assert (legacy_data / "indexes" / "t" / "meta.sqlite").exists()
+    assert not (claude_data / "indexes").exists()
+
+
+def test_data_dir_expands_tilde(tmp_path, monkeypatch):
+    """A tilde in CONTEXT_KIT_DATA expands to the home dir, not a literal '~'."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("CONTEXT_KIT_DATA", "~/kit-data")
+
+    assert cli._data_dir() == home / "kit-data"
+
+
+def test_context_kit_embed_env_overrides_claude_env(
+    tmp_path,
+    monkeypatch,
+):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nportable embed env\n")
+    data = tmp_path / "data"
+    captured = {}
+
+    class CaptureEmbedder(StubEmbedder):
+        def __init__(self, model, host):
+            self.model = model
+            self.host = host
+            captured["model"] = model
+            captured["host"] = host
+
+    monkeypatch.setenv("CLAUDE_PLUGIN_OPTION_EMBED_MODEL", "claude-model")
+    monkeypatch.setenv(
+        "CLAUDE_PLUGIN_OPTION_OLLAMA_HOST",
+        "http://claude-host:11434",
+    )
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    monkeypatch.setenv("CONTEXT_KIT_EMBED_MODEL", "portable-model")
+    monkeypatch.setenv(
+        "CONTEXT_KIT_OLLAMA_HOST",
+        "http://portable-host:11434",
+    )
+    monkeypatch.setattr(cli, "OllamaEmbedder", CaptureEmbedder)
+
+    rc = cli.main(["index", str(vault), "--name", "t"])
+
+    assert rc == 0
+    assert captured == {
+        "model": "portable-model",
+        "host": "http://portable-host:11434",
+    }
+
+
+def test_legacy_productivity_skills_embed_env_still_supported(
+    tmp_path,
+    monkeypatch,
+):
+    """Back-compat: the pre-rename PRODUCTIVITY_SKILLS_* embed vars still resolve."""
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nlegacy embed env\n")
+    data = tmp_path / "data"
+    captured = {}
+
+    class CaptureEmbedder(StubEmbedder):
+        def __init__(self, model, host):
+            self.model = model
+            self.host = host
+            captured["model"] = model
+            captured["host"] = host
+
+    monkeypatch.setenv("CLAUDE_PLUGIN_OPTION_EMBED_MODEL", "claude-model")
+    monkeypatch.setenv(
+        "CLAUDE_PLUGIN_OPTION_OLLAMA_HOST",
+        "http://claude-host:11434",
+    )
+    monkeypatch.setenv("PRODUCTIVITY_SKILLS_DATA", str(data))
+    monkeypatch.setenv("PRODUCTIVITY_SKILLS_EMBED_MODEL", "legacy-model")
+    monkeypatch.setenv(
+        "PRODUCTIVITY_SKILLS_OLLAMA_HOST",
+        "http://legacy-host:11434",
+    )
+    monkeypatch.setattr(cli, "OllamaEmbedder", CaptureEmbedder)
+
+    rc = cli.main(["index", str(vault), "--name", "t"])
+
+    assert rc == 0
+    assert captured == {
+        "model": "legacy-model",
+        "host": "http://legacy-host:11434",
+    }
+
+
+def test_remove_requires_confirmation_and_preserves_index(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nkeep me\n")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(vault), "--name", "notes"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["remove", "--name", "notes"]) == 2
+    captured = capsys.readouterr()
+    assert "refusing" in captured.err
+    assert "--yes" in captured.err
+    assert (data / "indexes" / "notes" / "meta.sqlite").exists()
+    assert cli.main(["status", "--name", "notes"]) == 0
+
+
+def test_remove_deletes_named_index_and_updates_list_and_status(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nremove me\n")
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    assert cli.main(["index", str(vault), "--name", "notes"]) == 0
+    assert cli.main(["index", str(vault), "--name", "keep"]) == 0
+    capsys.readouterr()
+
+    assert cli.main(["remove", "--name", "notes", "--yes"]) == 0
+    captured = capsys.readouterr()
+    assert captured.out.startswith("removed=notes artifacts=")
+    assert not (data / "indexes" / "notes").exists()
+    assert (data / "indexes" / "keep" / "meta.sqlite").exists()
+
+    assert cli.main(["list"]) == 0
+    assert capsys.readouterr().out.splitlines() == ["keep"]
+    assert cli.main(["status", "--name", "notes"]) == 1
+    assert "no index named 'notes'" in capsys.readouterr().err
+    assert not (data / "indexes" / "notes").exists()
+    assert cli.main(["status", "--name", "keep"]) == 0
+
+
+def test_remove_missing_index_fails_clearly(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(tmp_path / "data"))
+
+    assert cli.main(["remove", "--name", "missing", "--yes"]) == 1
+    assert "no index named 'missing'" in capsys.readouterr().err
+
+
+def test_remove_supports_corrupt_index_directory(tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    corrupt = data / "indexes" / "corrupt"
+    corrupt.mkdir(parents=True)
+    (corrupt / "index.tvim").write_text("broken")
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+
+    assert cli.main(["remove", "--name", "corrupt", "--yes"]) == 0
+    assert not corrupt.exists()
+    assert "removed=corrupt artifacts=1" in capsys.readouterr().out
+
+
+def test_remove_and_status_refuse_while_index_is_busy(tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+    active = Engine(name="notes", data_dir=data, embedder=StubEmbedder())
+    try:
+        assert cli.main(["remove", "--name", "notes", "--yes"]) == 1
+        assert "index 'notes' is in use" in capsys.readouterr().err
+        assert cli.main(["status", "--name", "notes"]) == 1
+        assert "index 'notes' is in use" in capsys.readouterr().err
+    finally:
+        active.close()
+
+    assert cli.main(["remove", "--name", "notes", "--yes"]) == 0
+
+
+def test_legacy_containment_safe_name_remains_manageable(tmp_path, monkeypatch, capsys):
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    (vault / "note.md").write_text("# Note\n\nlegacy name\n")
+    data = tmp_path / "data"
+    name = "team notes from the previous release"
+    monkeypatch.setattr(cli, "_make_embedder", lambda args: StubEmbedder())
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+
+    assert cli.main(["index", str(vault), "--name", name]) == 0
+    capsys.readouterr()
+    assert cli.main(["list"]) == 0
+    assert capsys.readouterr().out.splitlines() == [name]
+    assert cli.main(["status", "--name", name]) == 0
+    capsys.readouterr()
+    assert cli.main(["remove", "--name", name, "--yes"]) == 0
+    assert not (data / "indexes" / name).exists()
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["remove", "--name", "../victim", "--yes"],
+        ["query", "text", "--name", "../victim"],
+        ["status", "--name", "../victim"],
+    ],
+)
+def test_commands_reject_path_traversal_names(argv, tmp_path, monkeypatch, capsys):
+    data = tmp_path / "data"
+    victim = data / "victim"
+    victim.mkdir(parents=True)
+    sentinel = victim / "sentinel"
+    sentinel.write_text("preserve")
+    monkeypatch.setenv("CONTEXT_KIT_DATA", str(data))
+
+    with pytest.raises(SystemExit) as raised:
+        cli.main(argv)
+
+    assert raised.value.code == 2
+    assert "index name must" in capsys.readouterr().err
+    assert sentinel.read_text() == "preserve"
+
+
+def test_index_rejects_path_traversal_name(tmp_path, capsys):
+    with pytest.raises(SystemExit) as raised:
+        cli.main(["index", str(tmp_path), "--name", "../victim"])
+
+    assert raised.value.code == 2
+    assert "index name must" in capsys.readouterr().err
+
+
+# --- Standalone (non-plugin) installs: ADR-0006 ------------------------------
+# A `pip install indexkit` user has no plugin host, so the default must not be a
+# host-specific directory. These pin the resolution order and the migration
+# path, which is the part that can silently orphan an existing index.
+
+
+def _clear_data_env(monkeypatch):
+    for name in (
+        "CONTEXT_KIT_DATA",
+        "PRODUCTIVITY_SKILLS_DATA",
+        "CLAUDE_PLUGIN_DATA",
+        "XDG_DATA_HOME",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_default_data_dir_is_host_neutral(tmp_path, monkeypatch):
+    """With no plugin env at all, indexes land under XDG, not ~/.claude."""
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+
+    resolved = cli._data_dir()
+
+    assert resolved == home / ".local/share/indexkit"
+    assert ".claude" not in str(resolved)
+
+
+def test_default_data_dir_honors_xdg_data_home(tmp_path, monkeypatch):
+    """XDG_DATA_HOME relocates the default, per the base-directory spec."""
+    home = tmp_path / "home"
+    home.mkdir()
+    xdg = tmp_path / "xdg"
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+    monkeypatch.setenv("XDG_DATA_HOME", str(xdg))
+
+    assert cli._data_dir() == xdg / "indexkit"
+
+
+def test_existing_plugin_data_dir_still_wins(tmp_path, monkeypatch):
+    """Upgrading in place must not orphan indexes written by a plugin install."""
+    home = tmp_path / "home"
+    legacy = home / ".claude/plugins/data/indexkit"
+    legacy.mkdir(parents=True)
+    (legacy / "indexes").mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+
+    assert cli._data_dir() == legacy
+
+
+def test_new_default_wins_once_it_exists(tmp_path, monkeypatch):
+    """Once the host-neutral dir exists it is authoritative, even beside a legacy one."""
+    home = tmp_path / "home"
+    legacy = home / ".claude/plugins/data/indexkit"
+    legacy.mkdir(parents=True)
+    new = home / ".local/share/indexkit"
+    new.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+
+    assert cli._data_dir() == new
+
+
+def test_plugin_data_env_still_beats_default(tmp_path, monkeypatch):
+    """A plugin host setting CLAUDE_PLUGIN_DATA keeps control of storage."""
+    home = tmp_path / "home"
+    home.mkdir()
+    plugin_data = tmp_path / "plugin-data"
+    monkeypatch.setenv("HOME", str(home))
+    _clear_data_env(monkeypatch)
+    monkeypatch.setenv("CLAUDE_PLUGIN_DATA", str(plugin_data))
+
+    assert cli._data_dir() == plugin_data

@@ -7,7 +7,7 @@ and bounded episodes.
 It is deliberately separate from:
 
 - **`context-handoff`**, which owns authoritative current task state;
-- **`local-rag`**, which owns semantic/hybrid search across document corpora;
+- **`indexkit`**, which owns semantic/hybrid search across document corpora;
 - **repository and runtime evidence**, which determine what is true now.
 
 Memory results are leads. The workflow always recalls, opens the original source,
@@ -76,12 +76,12 @@ Records default to `~/.local/share/context-kit/memory`; override
 ## Semantic recall with the first-party `rag` provider
 
 Local recall is lexical. The bundled `rag` provider adds **offline semantic
-recall** using `local-rag`, which `memory` hard-depends on, so no external
+recall** using `indexkit`, which `memory` hard-depends on, so no external
 *memory provider* is needed. Embeddings still come from a locally running
 Ollama, and `uv` bootstraps the venv once:
 
 ```bash
-bash plugins/local-rag/scripts/bootstrap.sh   # Claude runs this on SessionStart
+bash plugins/indexkit/scripts/bootstrap.sh   # Claude runs this on SessionStart
 ollama pull nomic-embed-text
 
 export CONTEXT_KIT_MEMORY_PROVIDER=rag
@@ -93,9 +93,9 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" \
   search "why did we change retry policy" --results 8
 ```
 
-`doctor` checks the local-rag runtime before probing the CLI and refuses with
+`doctor` checks the indexkit runtime before probing the CLI and refuses with
 the exact bootstrap command when the venv is missing or stale; `--bootstrap`
-builds it. Claude Code and GitHub Copilot CLI both run the `local-rag`
+builds it. Claude Code and GitHub Copilot CLI both run the `indexkit`
 `SessionStart` hook; APM does not deploy hooks, and any host can end up with a
 stale venv, so this is the host-neutral path to a working runtime.
 
@@ -220,7 +220,7 @@ capture unless the user separately configures a native MemPalace integration.
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | Enables Claude lifecycle forwarding when truthy. |
 | `CONTEXT_KIT_MEMORY_ROOT` | Installed plugin root for portable command use. |
 | `CONTEXT_KIT_MEMPALACE_BIN` | Optional absolute MemPalace executable override. |
-| `CONTEXT_KIT_RAG_BIN` | Optional absolute `rag` executable override. |
+| `CONTEXT_KIT_INDEXKIT_BIN` | Optional absolute `rag` executable override. |
 
 ## Safety defaults
 

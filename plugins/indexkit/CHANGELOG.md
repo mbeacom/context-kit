@@ -1,0 +1,157 @@
+# Changelog
+
+## 0.6.1 — 2026-08-08
+
+- Correct host guidance and stale command names in the skill and README.
+  GitHub Copilot CLI loads `hooks/hooks.json`, so it auto-bootstraps like
+  Claude Code; only APM needs a manual step. The CLI is `indexkit`, not `rag`.
+- Mark the PyPI install as forthcoming and document the working source install,
+  since the package name is not claimed yet.
+- Restore pre-rename CHANGELOG entries to their original wording. Rewriting
+  them made an old release's notes describe variables that release never had.
+
+## 0.6.0 — 2026-08-08
+
+- **Installable and usable without a plugin host** (ADR-0006). `pip install
+  indexkit` now works standalone: the default index location is
+  `${XDG_DATA_HOME:-~/.local/share}/indexkit` instead of
+  `~/.claude/plugins/data/indexkit`, so a user with no Claude install no longer
+  gets a `.claude` directory created for an unrelated tool.
+- An existing `~/.claude/plugins/data/indexkit` still wins while the new default
+  has not been created, so upgrading a plugin install does not orphan indexes.
+- `bin/indexkit` degrades instead of refusing: bootstrapped venv, then an
+  `indexkit` on `PATH`, then any importable `indexkit` module. A guard prevents
+  the launcher re-executing itself when the plugin `bin/` is on `PATH`.
+- Add publish metadata (readme, license, authors, classifiers, project URLs);
+  `twine check` passes on both sdist and wheel.
+- Rewrite the README to lead with standalone install, since it is now the
+  package's PyPI landing page.
+
+## 0.5.0 — 2026-08-08
+
+- **Renamed from `local-rag` to `indexkit`** (ADR-0007). The name encoded a
+  deployment property that a supported setting falsifies: pointing
+  `CONTEXT_KIT_OLLAMA_HOST` at a remote ollama made "local" untrue. "RAG" also
+  understated an engine that does lexical BM25 alongside semantic search.
+- Unify all four naming surfaces on `indexkit`: the package, the console script,
+  the CLI `prog`, and the launcher (`bin/rag` is now `bin/indexkit`).
+- Honor `CONTEXT_KIT_LOCAL_RAG_HOME` as a fallback for
+  `CONTEXT_KIT_INDEXKIT_HOME`, so existing environments keep resolving.
+- Add package keywords (`rag`, `local-rag`, `offline`, `hybrid-retrieval`) so the
+  pre-rename search terms still find the project.
+
+## 0.4.1 — 2026-08-05
+
+- Correct the host guidance in the skill and README. GitHub Copilot CLI loads a
+  plugin's `hooks/hooks.json` (verified on 1.0.79), so it auto-bootstraps the
+  `rag` venv exactly as Claude Code does; only APM needs a manual bootstrap.
+  The docs previously grouped Copilot with APM and sent Copilot users through
+  an unnecessary manual step.
+
+## 0.4.0 — 2026-08-04
+
+- Separate venv resolution from index-data location. `CONTEXT_KIT_LOCAL_RAG_HOME`
+  now locates the bootstrapped venv (and its `pyproject.sha` stamp), while
+  `CONTEXT_KIT_DATA` continues to locate index data. Previously both were derived
+  from `CONTEXT_KIT_DATA`, so a caller redirecting index data to an isolated
+  store also relocated the venv and `bin/rag` failed with "venv missing". The new
+  variable is optional and falls back to the existing `CONTEXT_KIT_DATA` chain,
+  so default single-user behavior is unchanged.
+- Add `rag --version`, so an integrating adapter can report and pin a provider
+  version the same way it does for other retrieval backends.
+- Add `scripts/bootstrap.sh --check`, a side-effect-free readiness probe that
+  prints `KEY=VALUE` status lines and exits 0 when ready or 3 when a bootstrap
+  is required. This gives hosts that do not run the Claude `SessionStart` hook
+  — GitHub Copilot and APM — a deterministic way to detect an unusable runtime.
+- `--check` reports a **stale** venv (one built from different `pyproject.toml`
+  metadata) as loudly as a missing one. Previously a stale venv ran outdated
+  code silently, because the launcher never consulted the stamp.
+- `--check` decides venv state before considering `uv`, and reports
+  `venv_status` and `uv` as separate fields. `uv` is only needed to *build* the
+  venv, so an already-usable runtime now reports `ready` on a machine without
+  `uv` instead of sending the user after an irrelevant install; `uv-missing` is
+  returned only when the venv genuinely needs rebuilding.
+
+## 0.3.3 — 2026-08-03
+
+- Shorten the discovery description(s) to free aggregate budget for the new
+  `deep-review` components. Triggers and scope are unchanged; the catalog
+  budget stays at 4096 characters rather than being raised.
+
+## 0.3.2 — 2026-07-27
+
+- Shorten the discovery description(s) to free aggregate budget for the new
+  `corpus-review` components. Triggers and scope are unchanged; the catalog
+  budget is fixed, so every addition competes for the same remainder.
+
+## 0.3.1 — 2026-07-19
+
+- Clarify the configurable Ollama trust boundary: storage and embedding are
+  local by default, while a remote `CONTEXT_KIT_OLLAMA_HOST` receives submitted
+  corpus chunks and queries.
+
+## 0.3.0 — 2026-07-19
+
+- Add automation-safe `rag remove --name NAME --yes` for permanent deletion of
+  obsolete or corrupt named indexes. Removal atomically leaves the active
+  namespace, unlinks only flat per-index artifacts without recursive deletion,
+  preserves sibling indexes, and reports partial cleanup locations.
+- Apply one containment-safe, backward-compatible index-name contract across
+  `index`, `query`, `status`, and `remove`; reject traversal while preserving
+  legacy names with spaces or more than 80 characters.
+- Serialize operations with a per-index process lock, reject owned-artifact
+  symlinks before opening or writing, close partially initialized resources,
+  and keep removal quarantine entries out of `rag list`.
+
+## 0.2.0 — 2026-07-19
+
+- Add opt-in `rag query --hybrid`, which fuses turbovec semantic and SQLite
+  FTS5/BM25 lexical candidates with deterministic, equal-weight reciprocal-rank
+  fusion (RRF constant 60 and `3 × k` candidate depth).
+- Keep FTS5 synchronized for incremental indexing, changed files, and deletions;
+  automatically migrate/backfill existing indexes. Status now reports FTS5
+  capability, and hybrid requests clearly fail when it is unavailable.
+- Add source offsets and semantic, lexical, and fused retrieval metadata to JSON
+  results while preserving semantic-only as the default.
+
+## 0.1.6 — 2026-07-18
+
+- Lead host guidance with GitHub Copilot, APM, then Claude Code in the plugin
+  README (the manual `rag` bootstrap now comes first; the Claude auto-bootstrap
+  note follows).
+
+## 0.1.5 — 2026-07-18
+
+- Rebrand: the marketplace was renamed `productivity-skills` → `context-kit`.
+  Environment variables are now `CONTEXT_KIT_*` (`CONTEXT_KIT_DATA`,
+  `CONTEXT_KIT_EMBED_MODEL`, `CONTEXT_KIT_OLLAMA_HOST`); the former
+  `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias, so resolution
+  order is `CONTEXT_KIT_*` → `PRODUCTIVITY_SKILLS_*` → Claude fallback. Updated URLs
+  and install commands (`… install local-rag@context-kit`).
+
+## 0.1.4 — 2026-07-13
+
+- Add an `apm.yml` manifest so Agent Package Manager (`microsoft/apm`) users can
+  install this plugin (`apm install local-rag@context-kit`) alongside the
+  Claude Code and GitHub Copilot flows. As with Copilot, APM does not run the
+  Claude `SessionStart` bootstrap hook — bootstrap `bin/rag` manually and use the
+  `PRODUCTIVITY_SKILLS_*` env vars (see docs/APM.md).
+
+## 0.1.3 — 2026-05-29
+
+- Add GitHub Copilot/manual setup docs and portable `PRODUCTIVITY_SKILLS_*`
+  environment variables while preserving `CLAUDE_PLUGIN_*` fallbacks.
+
+## 0.1.2 — 2026-05-28
+
+- Docs: clarify that `rag` is not rtk-wrapped (prefixing is a no-op); prefer
+  `rtk` on the surrounding `rg` step, where `rtk rg -l` keeps paths raw. Permit
+  `Bash(rg:*)`/`Bash(rtk rg:*)` so the hybrid `rg -l | rag query` example runs.
+
+## 0.1.1 — 2026-05-24
+
+Docs: correct the `rag status` skill example (reports counts/model/dim, not staleness).
+
+## 0.1.0 — 2026-05-24
+
+Initial engine: bin/rag CLI, uv venv bootstrap, plugin manifest (loader/store/embed/index/engine/cli land in subsequent commits).

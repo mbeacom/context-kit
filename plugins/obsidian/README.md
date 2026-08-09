@@ -13,24 +13,24 @@ skill.
 obsidian backlinks / rg tag search
           │
           ▼  candidate note paths
-    rag query --allowlist -
+    indexkit query --allowlist -
           │
           ▼  ranked results (path > heading + snippet)
 ```
 
 1. **Produce candidates** — use the official `obsidian` CLI (requires Obsidian
    running) or fall back to `rg`/`fd` directly over vault files.
-2. **Rerank semantically** — pipe candidate paths to `rag query --allowlist -`,
+2. **Rerank semantically** — pipe candidate paths to `indexkit query --allowlist -`,
    which runs hybrid search only over that file set.
 3. **Pin exact lines** — use `rg` on the returned `path > heading` hits.
 
 ## Prerequisites
 
-- **`local-rag` plugin** (required) — provides the `rag` CLI. Index your vault
+- **`indexkit` plugin** (required) — provides the `indexkit` CLI. Index your vault
   once with:
 
   ```bash
-  rag index /path/to/vault --name notes
+  indexkit index /path/to/vault --name notes
   ```
 
 - **Official `obsidian` CLI** (optional, recommended) — ships with Obsidian
@@ -45,11 +45,11 @@ obsidian backlinks / rg tag search
 
 ```bash
 # Graph-aware (official CLI)
-obsidian backlinks file="Project X" | rag query "open risks" --name notes --allowlist -
+obsidian backlinks file="Project X" | indexkit query "open risks" --name notes --allowlist -
 
 # Tag-based fallback (rg)
 VAULT="${CONTEXT_KIT_OBSIDIAN_VAULT:-${CLAUDE_PLUGIN_OPTION_VAULT_PATH:-.}}"
-rg -l '(^|\s)#decision' "$VAULT" | rag query "why did we choose X" --name notes --allowlist -
+rg -l '(^|\s)#decision' "$VAULT" | indexkit query "why did we choose X" --name notes --allowlist -
 ```
 
 ## Scope and out-of-scope
@@ -64,7 +64,7 @@ Obsidian founder's MIT-licensed skills) and use the official `obsidian` CLI.
 
 | Skill | Purpose |
 |---|---|
-| `obsidian-rag-bridge` | Graph/tag → `rag --allowlist` retrieval |
+| `obsidian-rag-bridge` | Graph/tag → `indexkit query --allowlist` retrieval |
 
 ---
 

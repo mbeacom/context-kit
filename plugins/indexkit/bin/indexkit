@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+# Launcher for the plugin deployment of indexkit.
+#
+# Preference order, most specific first:
+#   1. the venv bootstrapped by scripts/bootstrap.sh (the plugin's own runtime)
+#   2. an `indexkit` already on PATH, e.g. from `pip install indexkit`
+#   3. an importable `indexkit` module on a Python interpreter
+#
+# Steps 2 and 3 exist because the package is independently installable
+# (ADR-0006): a user may have indexkit from PyPI and no bootstrapped venv, and
+# in that case refusing to run would be wrong. Only when nothing can serve the
+# command do we explain how to bootstrap.
+# @adr 0006
+# @adr 0007
+#
+# CONTEXT_KIT_DATA locates *index data*. A caller (for example the context-kit
+# `memory` plugin) may redirect it per invocation to isolate indexes into its
+# own store, so the venv is resolved from CONTEXT_KIT_INDEXKIT_HOME first and
+# only falls back to the data dir when that is unset.
+# CONTEXT_KIT_LOCAL_RAG_HOME is the pre-rename name (ADR-0007), still honored so
+# existing environments keep working.
+DATA="${CONTEXT_KIT_DATA:-${PRODUCTIVITY_SKILLS_DATA:-${CLAUDE_PLUGIN_DATA:-}}}"
+HOME_DIR="${CONTEXT_KIT_INDEXKIT_HOME:-${CONTEXT_KIT_LOCAL_RAG_HOME:-$DATA}}"
+
+if [[ -n "$HOME_DIR" && -x "$HOME_DIR/venv/bin/python" ]]; then
+  exec "$HOME_DIR/venv/bin/python" -m indexkit "$@"
+fi
+
+# Default plugin venv location, used when no data dir was configured.
+if [[ -z "$HOME_DIR" && -x "$HOME/.claude/plugins/data/indexkit/venv/bin/python" ]]; then
+  exec "$HOME/.claude/plugins/data/indexkit/venv/bin/python" -m indexkit "$@"
+fi
+
+# `command -v` would also match this shim if the plugin bin/ is on PATH, which
+# would re-exec us forever. Resolve the candidate and skip our own path.
+SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+if ON_PATH="$(command -v indexkit 2>/dev/null)" \
+  && [[ "$(cd "$(dirname "$ON_PATH")" && pwd)/$(basename "$ON_PATH")" != "$SELF" ]]; then
+  exec "$ON_PATH" "$@"
+fi
+
+for py in python3 python; do
+  if command -v "$py" >/dev/null 2>&1 && "$py" -c "import indexkit" >/dev/null 2>&1; then
+    exec "$py" -m indexkit "$@"
+  fi
+done
+
+echo "indexkit is not runnable: no bootstrapped venv, and no installed indexkit." >&2
+echo "Bootstrap the plugin runtime:" >&2
+echo "  bash \"$(dirname "$0")/../scripts/bootstrap.sh\"" >&2
+echo "or install the package directly:" >&2
+echo "  pip install indexkit" >&2
+exit 1

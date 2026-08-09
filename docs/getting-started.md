@@ -58,8 +58,8 @@ Choose an entry plugin:
 | Journey | Install | Also needed at runtime |
 | --- | --- | --- |
 | Search code, data, or docs | `code-search` | `rg`; optional search CLIs |
-| Search a corpus semantically | `local-rag` | uv, Ollama, embedding model |
-| Narrow an Obsidian vault, then rerank | `obsidian` + `local-rag` | Obsidian CLI or `rg`/`fd` |
+| Search a corpus semantically | `indexkit` | uv, Ollama, embedding model |
+| Narrow an Obsidian vault, then rerank | `obsidian` + `indexkit` | Obsidian CLI or `rg`/`fd` |
 | Verify repository claims | `verify` | — |
 | Verify, then observe runtime behavior | `runtime-evidence` | Runner path: Python 3, POSIX, reviewed allowlist. Optional-tool path: an approved host tool |
 | Verify, then hand off | `context-handoff` | Python 3 |
@@ -88,14 +88,15 @@ command has no side effects.
     `bash plugins/code-search/scripts/check-tools.sh` from a clone to see what's
     installed and the `brew install …` line for the rest.
 
--   :material-database-search:{ .lg .middle } **local-rag**
+-   :material-database-search:{ .lg .middle } **indexkit**
 
     ---
 
     Needs [`uv`](https://docs.astral.sh/uv/) and a running
     [ollama](https://ollama.com) with an embedding model
-    (`ollama pull nomic-embed-text`). GitHub Copilot and APM users bootstrap the
-    `rag` CLI once (below); Claude Code auto-bootstraps it.
+    (`ollama pull nomic-embed-text`). APM and manual users bootstrap the
+    `indexkit` CLI once (below); Claude Code and GitHub Copilot CLI both
+    auto-bootstrap it.
 
 -   :material-notebook-outline:{ .lg .middle } **obsidian**
 
@@ -140,20 +141,20 @@ command has no side effects.
 
 Verify installation with the host-specific checks in
 [Troubleshooting and lifecycle](troubleshooting.md#verify-installation-by-host).
-APM does not deploy plugin hooks, so `local-rag` needs one manual bootstrap
+APM does not deploy plugin hooks, so `indexkit` needs one manual bootstrap
 from a clone there. (Claude Code and GitHub Copilot CLI both run the plugin's
 `SessionStart` hook, but a stale venv can still need a rebuild.)
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
-bash plugins/local-rag/scripts/bootstrap.sh
-export PATH="$PWD/plugins/local-rag/bin:$PATH"
+bash plugins/indexkit/scripts/bootstrap.sh
+export PATH="$PWD/plugins/indexkit/bin:$PATH"
 ollama pull nomic-embed-text
-rag list
+indexkit list
 ```
 
 Use `CONTEXT_KIT_*` variables in portable profiles. The
-[GitHub Copilot guide](GITHUB_COPILOT.md#running-local-rag-outside-claude-code)
+[GitHub Copilot guide](GITHUB_COPILOT.md#bootstrapping-the-indexkit-runtime)
 contains the canonical cross-host variable table, and each plugin page documents
 its own defaults and Claude fallback.
 
@@ -167,7 +168,7 @@ right skill for the task:
 
 - "Use the retrieval strategy to find where retry backoff is handled."
 - "Use code-search to find structural React `useEffect` cleanup issues."
-- "Use local-rag to query my notes for billing open questions."
+- "Use indexkit to query my notes for billing open questions."
 - "Use the Obsidian RAG bridge to search notes linked to Project X."
 - "Analyze the change impact of renaming this event field."
 - "Collect runtime evidence for this unable-to-check health endpoint claim."

@@ -55,7 +55,7 @@ described by `code-search`'s `data-and-docs-search` skill.
 | Returns ranked candidates | Returns a disposition per unit |
 | Absence is not measured | Absence is a first-class, two-valued output |
 
-Reach for retrieval first — `retrieval-strategy`, `code-search`, `local-rag`.
+Reach for retrieval first — `retrieval-strategy`, `code-search`, `indexkit`.
 Escalate here only when someone will act on what *was not* found.
 
 ## Quick start

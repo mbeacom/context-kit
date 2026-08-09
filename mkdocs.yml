@@ -126,7 +126,7 @@ nav:
       - plugins/index.md
       - retrieval-core: plugins/retrieval-core.md
       - code-search: plugins/code-search.md
-      - local-rag: plugins/local-rag.md
+      - indexkit: plugins/indexkit.md
       - obsidian: plugins/obsidian.md
       - plan-execute: plugins/plan-execute.md
       - context-steering: plugins/context-steering.md

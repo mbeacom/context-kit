@@ -49,6 +49,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      # The `check-adr` hook skips when Node is absent so contributors are never
+      # blocked (ADR-0001). CI pins a Node version so the ADR corpus is actually
+      # gated here rather than silently skipped.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.1
 
@@ -77,8 +83,8 @@ jobs:
         # are not bundled; provide a system OpenBLAS and preload it so the
         # dynamic loader resolves them at import time.
         run: sudo apt-get update && sudo apt-get install -y libopenblas-dev
-      - name: Run local-rag tests
-        working-directory: plugins/local-rag
+      - name: Run indexkit tests
+        working-directory: plugins/indexkit
         run: |
           LIB="$(ldconfig -p | awk '/libopenblas\.so/ {print $NF; exit}')"
           echo "Preloading OpenBLAS: ${LIB:-<none found>}"

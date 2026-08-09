@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.5 — 2026-08-08
+
+- Update the rtk reference for the `local-rag` → `indexkit` rename (ADR-0007).
+
 ## 0.3.4 — 2026-08-04
 
 - Restore the `size/complexity metrics` cue to the `code-search` discovery

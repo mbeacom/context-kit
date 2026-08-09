@@ -69,12 +69,12 @@ bash plugins/code-search/scripts/check-tools.sh
 Plugin installation does not install third-party CLIs.
 
 **GitHub Copilot CLI loads a plugin's `hooks/hooks.json`** (verified on 1.0.79),
-so `local-rag` auto-bootstraps and `memory`'s opt-in lifecycle hooks work there
+so `indexkit` auto-bootstraps and `memory`'s opt-in lifecycle hooks work there
 exactly as they do in Claude Code. Both stay off until explicitly enabled.
 
 **APM does not deploy hooks**, so on APM:
 
-- bootstrap `local-rag` manually;
+- bootstrap `indexkit` manually;
 - use explicit memory commands; and
 - do not expect lifecycle capture or `SessionStart` behavior.
 
@@ -90,9 +90,9 @@ For GitHub Copilot, APM, or manual use:
 
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
-bash plugins/local-rag/scripts/bootstrap.sh
-export PATH="$PWD/plugins/local-rag/bin:$PATH"
-rag list
+bash plugins/indexkit/scripts/bootstrap.sh
+export PATH="$PWD/plugins/indexkit/bin:$PATH"
+indexkit list
 ```
 
 If bootstrap reports that `uv` is missing, install uv and rerun it. The script
@@ -116,8 +116,8 @@ Claude's fallback variables are `CLAUDE_PLUGIN_OPTION_OLLAMA_HOST` and
 ### The index is missing or uses another model
 
 ```bash
-rag list
-rag status --name notes
+indexkit list
+indexkit status --name notes
 ```
 
 Use the same `--name` used at index time. A changed model with a different
@@ -126,8 +126,8 @@ index and reindex the corpus.
 
 ### `--hybrid` reports that FTS5 is unavailable
 
-`--hybrid` requires Python's SQLite build to include FTS5. `rag status` reports
-the capability. Use semantic mode without `--hybrid`, or run local-rag with a
+`--hybrid` requires Python's SQLite build to include FTS5. `indexkit status` reports
+the capability. Use semantic mode without `--hybrid`, or run indexkit with a
 Python/SQLite build that includes FTS5. The command fails visibly rather than
 silently changing retrieval modes.
 

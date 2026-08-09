@@ -71,10 +71,10 @@
     },
     "semantic-rag": {
       "kind": "modality",
-      "plugin": "local-rag",
+      "plugin": "indexkit",
       "tools": [
-        "rag index",
-        "rag query"
+        "indexkit index",
+        "indexkit query"
       ]
     },
     "graph": {
@@ -433,11 +433,11 @@
       "expected": {
         "route": "semantic-rag",
         "plugins": [
-          "local-rag"
+          "indexkit"
         ],
         "tools": [
-          "rag index",
-          "rag query"
+          "indexkit index",
+          "indexkit query"
         ]
       },
       "rationale": "Meaning-only retrieval over unfamiliar prose requires semantic search.",
@@ -611,11 +611,11 @@
         "route": "lexical",
         "plugins": [
           "code-search",
-          "local-rag"
+          "indexkit"
         ],
         "tools": [
           "rg",
-          "rag query"
+          "indexkit query"
         ],
         "composition": {
           "name": "hybrid-rerank",
@@ -645,11 +645,11 @@
         "route": "structured-data",
         "plugins": [
           "code-search",
-          "local-rag"
+          "indexkit"
         ],
         "tools": [
           "jq",
-          "rag query"
+          "indexkit query"
         ],
         "composition": {
           "name": "hybrid-rerank",
@@ -679,11 +679,11 @@
         "route": "graph",
         "plugins": [
           "obsidian",
-          "local-rag"
+          "indexkit"
         ],
         "tools": [
           "obsidian",
-          "rag query"
+          "indexkit query"
         ],
         "composition": {
           "name": "hybrid-rerank",
@@ -713,11 +713,11 @@
         "route": "graph",
         "plugins": [
           "obsidian",
-          "local-rag"
+          "indexkit"
         ],
         "tools": [
           "obsidian",
-          "rag query"
+          "indexkit query"
         ],
         "composition": {
           "name": "scope-then-search",
@@ -746,11 +746,11 @@
       "expected": {
         "route": "semantic-rag",
         "plugins": [
-          "local-rag",
+          "indexkit",
           "code-search"
         ],
         "tools": [
-          "rag query",
+          "indexkit query",
           "rg"
         ],
         "composition": {
@@ -881,10 +881,10 @@
       "expected": {
         "route": "semantic-rag",
         "plugins": [
-          "local-rag"
+          "indexkit"
         ],
         "tools": [
-          "rag query"
+          "indexkit query"
         ],
         "composition": {
           "name": "retrieve-then-expand",

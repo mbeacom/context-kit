@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.2 — 2026-08-08
+
+- Fix a real failure in the pre-rename compatibility path. `store_env` and the
+  runtime probe set only `CONTEXT_KIT_INDEXKIT_HOME`, but a legacy `bin/rag`
+  launcher — which `_bundled_executable` can legitimately resolve — reads only
+  `CONTEXT_KIT_LOCAL_RAG_HOME`. With `CONTEXT_KIT_DATA` redirected to the
+  isolated provider store, that launcher looked for its venv inside the store
+  and failed. Both names are now exported to the same resolved path.
+- Restore pre-rename CHANGELOG entries to their original wording, so an old
+  release's notes remain usable for diagnosing that version.
+
+## 0.5.1 — 2026-08-08
+
+- Move the `rag` provider's tested-version pin to indexkit 0.6.x, the release
+  this adapter is exercised against.
+
+## 0.5.0 — 2026-08-08
+
+- Track the `local-rag` → `indexkit` rename (ADR-0007) without breaking existing
+  installs. Provider resolution now accepts both names: `CONTEXT_KIT_INDEXKIT_BIN`
+  with `CONTEXT_KIT_RAG_BIN` as fallback, both `indexkit` and `rag` on PATH, and
+  either sibling plugin directory.
+- Add declarative `legacy_bin_env` / `legacy_executables` to `ProviderSpec`, so the
+  migration is provider data rather than branching in the resolver.
+- The `rag` provider identifier is unchanged; existing configuration keeps working.
+
 ## 0.4.0 — 2026-08-05
 
 - **Correct a documented falsehood.** Several docs claimed GitHub Copilot does

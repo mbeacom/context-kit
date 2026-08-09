@@ -55,7 +55,7 @@ to a whole corpus. `verify` already pulls the
 | Absence | not measured | first-class and two-valued |
 
 Reach for [`retrieval-strategy`](retrieval-core.md),
-[`code-search`](code-search.md), or [`local-rag`](local-rag.md) first. Escalate
+[`code-search`](code-search.md), or [`indexkit`](indexkit.md) first. Escalate
 here only when someone will act on what was **not** found — ranked hits cannot
 establish that nothing was skipped.
 

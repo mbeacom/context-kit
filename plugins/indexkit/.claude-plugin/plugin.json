@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "indexkit",
+  "displayName": "Local RAG",
+  "version": "0.6.1",
+  "description": "Local-first semantic and opt-in hybrid search: a bin/indexkit CLI that embeds through a configurable Ollama endpoint (default localhost), indexes with turbovec, and can fuse FTS5/BM25 candidates. Notes-first, corpus-agnostic via pluggable loaders.",
+  "author": {
+    "name": "Mark Beacom"
+  },
+  "homepage": "https://github.com/mbeacom/context-kit",
+  "repository": "https://github.com/mbeacom/context-kit",
+  "license": "MIT",
+  "keywords": [
+    "rag",
+    "vector-search",
+    "turbovec",
+    "ollama",
+    "embeddings",
+    "semantic",
+    "bm25",
+    "hybrid"
+  ],
+  "userConfig": {
+    "embed_model": {
+      "type": "string",
+      "title": "Embedding model",
+      "description": "ollama model used to embed chunks and queries",
+      "default": "nomic-embed-text"
+    },
+    "ollama_host": {
+      "type": "string",
+      "title": "Ollama host",
+      "description": "Base URL of the ollama server",
+      "default": "http://localhost:11434"
+    }
+  }
+}

@@ -2,12 +2,12 @@
 
 `rag` is the built-in memory provider. It gives **offline semantic recall over
 accepted memory records** using this repository's own
-[`local-rag`](../../../../local-rag) plugin, so semantic search does not depend
+[`indexkit`](../../../../indexkit) plugin, so semantic search does not depend
 on any external *memory provider*. It is not dependency-free: embeddings come
 from a locally running Ollama, and `uv` bootstraps the venv once. See
 Requirements below.
 
-`memory` declares a hard dependency on `local-rag`, so installing `memory`
+`memory` declares a hard dependency on `indexkit`, so installing `memory`
 through Claude Code, GitHub Copilot, or APM also deploys the retrieval engine.
 
 ## Why it exists
@@ -25,7 +25,7 @@ MemPalace is genuinely optional rather than the only route.
 
 | Requirement | Notes |
 | --- | --- |
-| `local-rag` plugin | Installed automatically as a dependency. |
+| `indexkit` plugin | Installed automatically as a dependency. |
 | Bootstrapped venv | `doctor` verifies it and `doctor --bootstrap` builds it. Claude Code also runs the bootstrap on `SessionStart`; **GitHub Copilot and APM do not**. |
 | `uv` | Used only by the bootstrap. |
 | `ollama` + an embedding model | `ollama pull nomic-embed-text`. Embedding is local by default. |
@@ -35,8 +35,8 @@ a remote server, in which case record text is submitted to that host.
 
 ## Runtime readiness
 
-`local-rag` runs from a bootstrapped venv. Claude Code **and GitHub Copilot
-CLI** both build it from the `local-rag` `SessionStart` hook; APM does not
+`indexkit` runs from a bootstrapped venv. Claude Code **and GitHub Copilot
+CLI** both build it from the `indexkit` `SessionStart` hook; APM does not
 deploy hooks, and any host can end up with a stale venv, so `doctor` checks
 readiness itself before probing the CLI:
 
@@ -52,8 +52,8 @@ rather than letting the failure surface later as an opaque launcher error:
 {
   "runtime": {
     "status": "missing",
-    "venv": "~/.claude/plugins/data/local-rag/venv",
-    "bootstrap_command": "bash …/plugins/local-rag/scripts/bootstrap.sh"
+    "venv": "~/.claude/plugins/data/indexkit/venv",
+    "bootstrap_command": "bash …/plugins/indexkit/scripts/bootstrap.sh"
   }
 }
 ```
@@ -61,7 +61,7 @@ rather than letting the failure surface later as an opaque launcher error:
 `status` is `ready`, `missing`, `stale`, `uv-missing`, or `unknown`. **`stale`**
 means the venv was built from different `pyproject.toml` metadata — it would
 otherwise run outdated code silently, so it is treated as loudly as a missing
-one. `unknown` (local-rag not found as a sibling) does not block, since the
+one. `unknown` (indexkit not found as a sibling) does not block, since the
 configured CLI may still work.
 
 The probe also reports `venv_status` (`ready`/`missing`/`stale`) and `uv`
@@ -70,8 +70,8 @@ already usable reports `ready` even when `uv` is absent; `uv-missing` is
 returned only when the venv actually needs rebuilding and `uv` is unavailable
 to do it.
 
-The check applies only to the bundled `bin/rag` launcher. If you point
-`CONTEXT_KIT_RAG_BIN` at your own executable, it manages its own runtime and is
+The check applies only to the bundled `bin/indexkit` launcher. If you point
+`CONTEXT_KIT_INDEXKIT_BIN` at your own executable, it manages its own runtime and is
 not gated.
 
 ## Configure
@@ -85,13 +85,13 @@ export CONTEXT_KIT_MEMORY_ROOT="/path/to/context-kit/plugins/memory"
 python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
 ```
 
-`doctor` resolves the executable, parses `rag --version`, and probes the exact
+`doctor` resolves the executable, parses `indexkit --version`, and probes the exact
 `--help` surfaces the adapter depends on (`index --help`, `query --help`),
-refusing when a required option is absent. It never imports `local_rag`.
+refusing when a required option is absent. It never imports `indexkit`.
 
-`CONTEXT_KIT_RAG_BIN` may point to an absolute `rag` executable. Otherwise the
+`CONTEXT_KIT_INDEXKIT_BIN` may point to an absolute `rag` executable. Otherwise the
 adapter uses `rag` from `PATH`, then falls back to the sibling plugin launcher
-at `plugins/local-rag/bin/rag` — so no `PATH` entry is required.
+at `plugins/indexkit/bin/indexkit` — so no `PATH` entry is required.
 
 ## Isolation
 
@@ -107,9 +107,9 @@ combines a readable prefix with the SHA-256 of the exact configured project
 identifier.
 
 Because `CONTEXT_KIT_DATA` normally locates the venv as well, the adapter also
-sets `CONTEXT_KIT_LOCAL_RAG_HOME` to the real local-rag home. That variable
-(local-rag >= 0.4.0) pins venv resolution while index data is redirected;
-without it, `bin/rag` would look for a venv inside the memory store and fail.
+sets `CONTEXT_KIT_INDEXKIT_HOME` to the real indexkit home. That variable
+(indexkit >= 0.4.0) pins venv resolution while index data is redirected;
+without it, `bin/indexkit` would look for a venv inside the memory store and fail.
 
 ## Commands
 

@@ -2,7 +2,7 @@
 # APM does not deploy plugin hooks, so recall and capture stay explicit
 # commands there. Claude Code and GitHub Copilot CLI both load hooks/hooks.json.
 name: memory
-version: 0.4.0
+version: 0.5.2
 description: Provenance-bound durable memory with immutable records, append-only review state, offline semantic recall, session priming, and drift auditing.
 author: Mark Beacom
 license: MIT
@@ -13,7 +13,7 @@ keywords: [memory, mempalace, rag, retrieval, provenance, continuity]
 dependencies:
   apm:
     - path: ../context-handoff
-    # The `rag` provider is this repository's own local-rag plugin, so offline
+    # The `rag` provider is this repository's own indexkit plugin, so offline
     # semantic recall never depends on an external tool. This mirrors the
     # plugin.json "dependencies" entry, which APM does not read.
-    - path: ../local-rag
+    - path: ../indexkit

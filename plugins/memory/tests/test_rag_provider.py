@@ -121,7 +121,7 @@ class RagProviderTests(unittest.TestCase):
         self,
         *,
         query_result: object = None,
-        version_output: str = "rag 0.4.0\n",
+        version_output: str = "indexkit 0.6.1\n",
         help_overrides: dict[str, str] | None = None,
         exit_overrides: dict[str, int] | None = None,
     ) -> Path:
@@ -149,7 +149,7 @@ class RagProviderTests(unittest.TestCase):
                     "    handle.write(json.dumps({",
                     "        'argv': argv,",
                     "        'data': os.environ.get('CONTEXT_KIT_DATA'),",
-                    "        'home': os.environ.get('CONTEXT_KIT_LOCAL_RAG_HOME'),",
+                    "        'home': os.environ.get('CONTEXT_KIT_INDEXKIT_HOME'),",
                     "    }) + '\\n')",
                     f"helps = {helps!r}",
                     f"exit_overrides = {(exit_overrides or {})!r}",
@@ -176,8 +176,8 @@ class RagProviderTests(unittest.TestCase):
 
     def env(self, executable: Path) -> dict[str, str]:
         return {
-            "CONTEXT_KIT_RAG_BIN": str(executable),
-            "CONTEXT_KIT_LOCAL_RAG_HOME": str(self.rag_home),
+            "CONTEXT_KIT_INDEXKIT_BIN": str(executable),
+            "CONTEXT_KIT_INDEXKIT_HOME": str(self.rag_home),
         }
 
     def recorded_calls(self) -> list[dict[str, object]]:
@@ -393,8 +393,8 @@ class RagProviderTests(unittest.TestCase):
         with patch.dict(
             os.environ,
             {
-                "CONTEXT_KIT_RAG_BIN": str(missing),
-                "CONTEXT_KIT_LOCAL_RAG_HOME": str(self.rag_home),
+                "CONTEXT_KIT_INDEXKIT_BIN": str(missing),
+                "CONTEXT_KIT_INDEXKIT_HOME": str(self.rag_home),
             },
             clear=True,
         ):
@@ -432,7 +432,7 @@ class RagProviderTests(unittest.TestCase):
         missing = self.root / "absent-rag"
         with patch.dict(
             os.environ,
-            {"CONTEXT_KIT_RAG_BIN": str(missing)},
+            {"CONTEXT_KIT_INDEXKIT_BIN": str(missing)},
             clear=True,
         ):
             result, stdout, stderr = self.invoke(
@@ -502,32 +502,32 @@ class RagProviderTests(unittest.TestCase):
 
     def test_venv_home_ignores_the_plugin_scoped_claude_variable(self) -> None:
         # Inside the memory plugin CLAUDE_PLUGIN_DATA points at *memory's*
-        # data dir, not the sibling local-rag dir where its hook built the
+        # data dir, not the sibling indexkit dir where its hook built the
         # venv, so inheriting it would resolve the wrong runtime.
         with patch.dict(
             os.environ, {"CLAUDE_PLUGIN_DATA": "/tmp/memory-plugin-data"}, clear=True
         ):
-            resolved = memory_provider._local_rag_home()
+            resolved = memory_provider._indexkit_home()
         self.assertNotIn("memory-plugin-data", str(resolved))
         with patch.dict(
-            os.environ, {"CONTEXT_KIT_LOCAL_RAG_HOME": "/tmp/explicit"}, clear=True
+            os.environ, {"CONTEXT_KIT_INDEXKIT_HOME": "/tmp/explicit"}, clear=True
         ):
-            self.assertEqual("/tmp/explicit", str(memory_provider._local_rag_home()))
+            self.assertEqual("/tmp/explicit", str(memory_provider._indexkit_home()))
 
     def test_venv_home_resolves_the_sibling_plugin_not_our_own_data(self) -> None:
         # CLAUDE_PLUGIN_DATA is plugin-scoped, so reading it naively yields
         # *memory's* data dir. Both hosts lay plugin data out as
-        # `<root>/<plugin>`, so local-rag's home is a sibling of ours —
+        # `<root>/<plugin>`, so indexkit's home is a sibling of ours —
         # verified against a real Copilot install at
-        # ~/.copilot/plugin-data/context-kit/{memory,local-rag}.
+        # ~/.copilot/plugin-data/context-kit/{memory,indexkit}.
         root = self.root / "plugin-data" / "context-kit"
-        (root / "local-rag" / "venv").mkdir(parents=True)
+        (root / "indexkit" / "venv").mkdir(parents=True)
         (root / "memory").mkdir(parents=True)
         with patch.dict(
             os.environ, {"CLAUDE_PLUGIN_DATA": str(root / "memory")}, clear=True
         ):
-            resolved = memory_provider._local_rag_home()
-        self.assertEqual(root / "local-rag", resolved)
+            resolved = memory_provider._indexkit_home()
+        self.assertEqual(root / "indexkit", resolved)
 
     def test_venv_home_falls_back_when_no_sibling_exists(self) -> None:
         # A guess that does not exist must degrade to the documented default
@@ -537,12 +537,12 @@ class RagProviderTests(unittest.TestCase):
             {"CLAUDE_PLUGIN_DATA": str(self.root / "absent" / "memory")},
             clear=True,
         ):
-            resolved = memory_provider._local_rag_home()
+            resolved = memory_provider._indexkit_home()
         self.assertNotIn("absent", str(resolved))
         with patch.dict(
-            os.environ, {"CONTEXT_KIT_LOCAL_RAG_HOME": "/tmp/explicit"}, clear=True
+            os.environ, {"CONTEXT_KIT_INDEXKIT_HOME": "/tmp/explicit"}, clear=True
         ):
-            self.assertEqual("/tmp/explicit", str(memory_provider._local_rag_home()))
+            self.assertEqual("/tmp/explicit", str(memory_provider._indexkit_home()))
 
     def test_wake_builds_a_digest_without_invoking_rag(self) -> None:
         # The digest reads local records, which are the system of record, so
@@ -567,7 +567,7 @@ class RagProviderTests(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_runtime_gate_is_skipped_for_a_user_supplied_executable(self) -> None:
-        # CONTEXT_KIT_RAG_BIN points at an executable that manages its own
+        # CONTEXT_KIT_INDEXKIT_BIN points at an executable that manages its own
         # runtime, so the bundled venv is irrelevant and must not be gated on.
         executable = self.fake_rag()
         with patch.dict(os.environ, self.env(executable), clear=True):
@@ -584,7 +584,9 @@ class RagProviderTests(unittest.TestCase):
         bundled.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         bundled.chmod(0o700)
         with (
-            patch.dict(os.environ, {"CONTEXT_KIT_RAG_BIN": str(bundled)}, clear=True),
+            patch.dict(
+                os.environ, {"CONTEXT_KIT_INDEXKIT_BIN": str(bundled)}, clear=True
+            ),
             patch.object(memory_provider, "_bundled_executable", return_value=bundled),
             patch.object(
                 memory_provider,
@@ -592,7 +594,7 @@ class RagProviderTests(unittest.TestCase):
                 return_value={
                     "status": "missing",
                     "detail": "no interpreter at /tmp/venv/bin/python",
-                    "bootstrap_command": "bash /plugins/local-rag/scripts/bootstrap.sh",
+                    "bootstrap_command": "bash /plugins/indexkit/scripts/bootstrap.sh",
                 },
             ),
         ):
@@ -602,7 +604,7 @@ class RagProviderTests(unittest.TestCase):
         self.assertEqual(2, result)
         # The refusal must carry the exact command, and say why the host
         # did not do it automatically.
-        self.assertIn("bash /plugins/local-rag/scripts/bootstrap.sh", stderr)
+        self.assertIn("bash /plugins/indexkit/scripts/bootstrap.sh", stderr)
         self.assertIn("APM does not deploy", stderr)
 
     def test_doctor_refuses_on_a_stale_runtime(self) -> None:
@@ -612,7 +614,9 @@ class RagProviderTests(unittest.TestCase):
         bundled.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
         bundled.chmod(0o700)
         with (
-            patch.dict(os.environ, {"CONTEXT_KIT_RAG_BIN": str(bundled)}, clear=True),
+            patch.dict(
+                os.environ, {"CONTEXT_KIT_INDEXKIT_BIN": str(bundled)}, clear=True
+            ),
             patch.object(memory_provider, "_bundled_executable", return_value=bundled),
             patch.object(
                 memory_provider,
@@ -653,7 +657,7 @@ class RagProviderTests(unittest.TestCase):
         self.assertEqual("ready", json.loads(stdout)["runtime"]["status"])
 
     def test_unknown_runtime_does_not_block(self) -> None:
-        # If local-rag is not installed as a sibling the check cannot answer;
+        # If indexkit is not installed as a sibling the check cannot answer;
         # that must not become a hard refusal for an otherwise working CLI.
         executable = self.fake_rag()
         with (
@@ -677,7 +681,7 @@ class RagProviderTests(unittest.TestCase):
 class RagBootstrapCheckTests(unittest.TestCase):
     """`bootstrap.sh --check` is the host-neutral readiness contract."""
 
-    SCRIPT = PLUGIN_ROOT.parent / "local-rag" / "scripts" / "bootstrap.sh"
+    SCRIPT = PLUGIN_ROOT.parent / "indexkit" / "scripts" / "bootstrap.sh"
 
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
@@ -689,7 +693,7 @@ class RagBootstrapCheckTests(unittest.TestCase):
     def check(self, *, path: str | None = None) -> tuple[int, dict[str, str]]:
         import subprocess
 
-        env = dict(os.environ, CONTEXT_KIT_LOCAL_RAG_HOME=str(self.home))
+        env = dict(os.environ, CONTEXT_KIT_INDEXKIT_HOME=str(self.home))
         if path is not None:
             env["PATH"] = path
         result = subprocess.run(

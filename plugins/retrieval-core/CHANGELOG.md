@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3 — 2026-08-08
+
+- Update modality routing for the `local-rag` → `indexkit` rename (ADR-0007).
+
 ## 0.5.2 — 2026-08-04
 
 - Shorten the `retrieval-strategist` agent trigger to free aggregate discovery budget for the new
@@ -90,7 +94,7 @@
 
 ## 0.2.0 — 2026-05-24
 
-- Route into the semantic (local-rag) and graph (obsidian) modalities now that
+- Route into the semantic (indexkit) and graph (obsidian) modalities now that
   they ship; document hybrid rerank via `rag query --allowlist`.
 
 ## 0.1.0 — 2026-05-24

@@ -34,7 +34,7 @@ hosts.
 | Durable memory  | reviewed records + optional MemPalace | prior decisions, constraints, procedures, episodes |
 
 Modalities **compose**: lexical/structured narrows → vectors rerank
-(turbovec `allowlist`); `local-rag --hybrid` fuses vector and FTS5/BM25 ranks;
+(turbovec `allowlist`); `indexkit --hybrid` fuses vector and FTS5/BM25 ranks;
 graph backlinks scope a subgraph → RAG within it; memory recalls prior context →
 the source and current repository evidence pin the claim.
 
@@ -44,8 +44,8 @@ the source and current repository evidence pin the claim.
 | ---------------- | -------- | ---------------------------------------------------------- |
 | `retrieval-core` | shipped  | Routing agent + decision-flow skill (the spine)            |
 | `code-search`    | shipped  | Lexical/structural/code-intel/data/history/rewrite/metrics/doc search |
-| `local-rag`      | shipped  | Local semantic/hybrid RAG: turbovec + ollama + optional FTS5/BM25 RRF |
-| `obsidian`       | shipped  | Skill-only RAG bridge: vault graph/tags → `rag query --allowlist` |
+| `indexkit`      | shipped  | Local semantic/hybrid RAG: turbovec + ollama + optional FTS5/BM25 RRF |
+| `obsidian`       | shipped  | Skill-only RAG bridge: vault graph/tags → `indexkit query --allowlist` |
 | `plan-execute`   | shipped  | Plan-big/execute-small orchestration: planner + cheap `execution-worker` |
 | `context-steering` | shipped | Skill-only: place guidance at the cheapest layer (memory/rules/skills/subagents/mcp/hooks) |
 | `verify`         | shipped  | Read-only claim verdicts + prospective change-impact analysis |
@@ -80,8 +80,8 @@ resolve a disagreement between two lenses, reporting it as a tradeoff for the
 human who owns the decision. Its lenses are charters passed to one worker
 rather than an agent per persona, so a domain lens costs a brief, not a
 component.
-`local-rag` and `obsidian` pair: the obsidian bridge produces candidate note paths
-that feed `local-rag`'s hybrid `--allowlist` search. Obsidian *authoring*
+`indexkit` and `obsidian` pair: the obsidian bridge produces candidate note paths
+that feed `indexkit`'s hybrid `--allowlist` search. Obsidian *authoring*
 (Markdown, Bases, Canvas) is intentionally out of scope — use
 [`kepano/obsidian-skills`](https://github.com/kepano/obsidian-skills) and the
 official `obsidian` CLI for that.
@@ -116,7 +116,7 @@ handoff compilation, and archival remain explicit workflow steps.
 The modalities are layers, not rivals — `retrieval-core` sequences them:
 
 - **Hybrid rerank** — lexical/structured-data or the obsidian graph narrows to a
-  candidate file set → `rag query --allowlist -` reranks only those by meaning
+  candidate file set → `indexkit query --allowlist -` reranks only those by meaning
   (turbovec's native allowlist).
 - **Scope then search** — graph backlinks/tags bound a subgraph → RAG within it.
 - **Find then pin** — RAG surfaces `path > heading` regions → `rg` pins exact lines.
@@ -155,7 +155,7 @@ contract and coverage validation only: no model runs in CI, and passing does not
 measure routing accuracy. Future scheduled live-model evaluation can consume the
 same stable corpus and store probabilistic trend results separately.
 
-`local-rag` keeps storage and embedding local by default: Ollama for embeddings,
+`indexkit` keeps storage and embedding local by default: Ollama for embeddings,
 turbovec for the index, and SQLite FTS5/BM25 for opt-in hybrid rank fusion
 (persisted under `${CONTEXT_KIT_DATA}` or, in Claude Code,
 `${CLAUDE_PLUGIN_DATA}`). A configured remote `CONTEXT_KIT_OLLAMA_HOST` receives
@@ -169,7 +169,7 @@ can be added without a redesign.
 | ---- | ------------ | ----- |
 | GitHub Copilot | the marketplace, via `copilot plugin marketplace add` + `copilot plugin install` | Installs plugins (skills, agents, commands) directly; run the local CLIs yourself. |
 | APM | the same marketplace + each plugin's `apm.yml`, via `apm marketplace add` + `apm install` | Cross-harness deploy with a lockfile and audit/policy checks; run the local CLIs yourself. |
-| Claude Code | `.claude-plugin/marketplace.json`, per-plugin manifests, hooks, `CLAUDE_PLUGIN_*` env vars | Install/update via `/plugin` commands; auto-bootstraps the `local-rag` CLI. |
+| Claude Code | `.claude-plugin/marketplace.json`, per-plugin manifests, hooks, `CLAUDE_PLUGIN_*` env vars | Install/update via `/plugin` commands; auto-bootstraps the `indexkit` CLI. |
 
 Portable examples should prefer `CONTEXT_KIT_*` environment variables,
 with `CLAUDE_PLUGIN_*` documented as the Claude plugin fallback. See
@@ -182,7 +182,7 @@ with `CLAUDE_PLUGIN_*` documented as the Claude plugin fallback. See
 - `plugins/<name>/.claude-plugin/plugin.json` — per-plugin manifest.
 - `plugins/<name>/skills/<name>/SKILL.md` — skills (with `references/` for detail).
 - `plugins/<name>/agents/<name>.md` — subagents.
-- `plugins/local-rag/` also ships `bin/rag` (CLI), `src/local_rag/` (Python
+- `plugins/indexkit/` also ships `bin/indexkit` (CLI), `src/indexkit/` (Python
   package), `scripts/bootstrap.sh` + `hooks/hooks.json` (uv venv bootstrap), and
   `tests/`.
 - `plugins/memory/` ships a provider-neutral skill/commands, a standard-library
