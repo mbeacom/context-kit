@@ -178,7 +178,21 @@ class ReleaseVersionGuardTests(unittest.TestCase):
 
         allowed = run_guard(plugin, "widget/v1.2.3", "--allow-plugin-drift")
         self.assertEqual(allowed.returncode, 0, allowed.stdout + allowed.stderr)
-        self.assertIn("drift allowed", allowed.stdout)
+        self.assertIn("drift from the package allowed", allowed.stdout)
+
+    def test_drift_flag_never_excuses_manifest_lockstep(self) -> None:
+        # --allow-plugin-drift relaxes exactly one relationship: the shared
+        # plugin version versus the package. ADR-0005 requires plugin.json and
+        # apm.yml to agree with *each other* unconditionally, so a tree where
+        # they disagree is not "drift" — it is the lockstep violation the flag
+        # was never meant to cover, and it must block with or without the flag.
+        plugin = build_plugin(self.root, plugin_json="2.0.0", apm="3.0.0")
+
+        for extra in ((), ("--allow-plugin-drift",)):
+            with self.subTest(flag=extra):
+                result = run_guard(plugin, "widget/v1.2.3", *extra)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("lockstep", result.stdout)
 
     def test_drift_flag_never_excuses_the_package_surfaces(self) -> None:
         # The escape hatch is scoped to the plugin manifests. It must not become
@@ -205,6 +219,55 @@ class ReleaseVersionGuardTests(unittest.TestCase):
         result = run_guard(plugin, "widget/v1.2.3")
         self.assertEqual(result.returncode, 1, result.stdout)
         self.assertIn("CHANGELOG.md", result.stdout)
+
+    def test_changelog_heading_that_merely_mentions_the_version_is_rejected(
+        self,
+    ) -> None:
+        # A heading that talks *about* a release is not a release entry. If a
+        # mention were enough, a changelog could satisfy the publish gate while
+        # shipping the version completely undocumented.
+        impostors = {
+            "prose-h3": "### Migration from 1.2.3",
+            "title-h1": "# Changelog for 1.2.3",
+            "trailing-prose": "## Notes on 1.2.3",
+            "deeper-heading": "###### 1.2.3 — 2026-08-08",
+            "not-a-heading": "Released 1.2.3 on 2026-08-08",
+        }
+        for name, heading in impostors.items():
+            with self.subTest(heading=name):
+                root = self.root / name
+                root.mkdir()
+                plugin = build_plugin(root)
+                (plugin / "CHANGELOG.md").write_text(
+                    f"# Changelog\n\n{heading}\n\n- Something changed.\n",
+                    encoding="utf-8",
+                )
+                result = run_guard(plugin, "widget/v1.2.3")
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("no heading naming 1.2.3", result.stdout)
+
+    def test_changelog_accepts_the_conventional_release_heading_shapes(self) -> None:
+        # Matches `RELEASE_HEADING_RE` in plugin-forge/release_readiness.py, plus
+        # the Keep a Changelog bracket form, so the two gates cannot disagree
+        # about whether a real release entry exists.
+        accepted = {
+            "em-dash-date": "## 1.2.3 — 2026-08-08",
+            "hyphen-date": "## 1.2.3 - 2026-08-08",
+            "bare": "## 1.2.3",
+            "bracketed": "## [1.2.3] - 2026-08-08",
+            "v-prefixed": "## v1.2.3 — 2026-08-08",
+        }
+        for name, heading in accepted.items():
+            with self.subTest(heading=name):
+                root = self.root / name
+                root.mkdir()
+                plugin = build_plugin(root)
+                (plugin / "CHANGELOG.md").write_text(
+                    f"# Changelog\n\n{heading}\n\n- Something changed.\n",
+                    encoding="utf-8",
+                )
+                result = run_guard(plugin, "widget/v1.2.3")
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_missing_file_fails_rather_than_passing_silently(self) -> None:
         plugin = build_plugin(self.root)

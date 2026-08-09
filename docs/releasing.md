@@ -85,8 +85,10 @@ python3 scripts/release_version.py \
 ```
 
 Package and plugin versions are held at parity. If a release genuinely needs
-them to diverge, pass `--allow-plugin-drift` and say why in the release notes;
-the flag never relaxes the package's own surfaces.
+them to diverge, pass `--allow-plugin-drift` and say why in the release notes.
+The flag is narrow: it never relaxes the package's own surfaces, and never lets
+`plugin.json` and `apm.yml` disagree with *each other* — that lockstep is
+ADR-0005's and holds unconditionally.
 
 Then:
 

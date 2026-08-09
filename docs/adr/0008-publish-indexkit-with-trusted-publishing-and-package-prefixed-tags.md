@@ -93,7 +93,11 @@ and the `publish` job only exists downstream of it. Publishing uploads the
 heading. Package and plugin versions are held at **parity by default**, closing
 the drift hazard ADR-0006 named, with an explicit `--allow-plugin-drift` flag as
 the auditable escape hatch — the same shape as ADR-0005's `Skip-Version-Bump`
-trailer. The flag never relaxes the package surfaces themselves.
+trailer. The flag is deliberately narrow: it relaxes only how the shared plugin
+version relates to the *package*. It never relaxes the package surfaces
+themselves, and never the `plugin.json` ⇆ `apm.yml` lockstep, which ADR-0005
+requires unconditionally — two manifests that disagree with each other is a
+different failure from drift, and the escape hatch does not cover it.
 
 `workflow_dispatch` runs verification only and never publishes, so the pipeline
 can be rehearsed without spending a tag.

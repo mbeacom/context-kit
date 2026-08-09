@@ -21,9 +21,14 @@ ADR-0006 notes that the plugin version and the package version are two artifacts
 that *can* drift. We choose parity by default anyway: one number for one thing,
 whichever channel delivered it. Drift stays possible but must be requested out
 loud with ``--allow-plugin-drift``, mirroring the auditable escape hatch
-ADR-0005 uses for version bumps.
+ADR-0005 uses for version bumps. That flag relaxes exactly one relationship —
+plugin-versus-package — and never the ``plugin.json`` ⇆ ``apm.yml`` lockstep,
+which ADR-0005 requires unconditionally.
 
-Exit codes: 0 = every surface agrees; 1 = mismatch; 2 = usage or read error.
+Exit codes: 0 = every surface agrees; 1 = the check ran and something is wrong,
+whether a surface disagrees or could not be read (both block a release, so they
+share a code); 2 = the check could not run at all — bad arguments, or a Python
+too old for ``tomllib``.
 """
 
 from __future__ import annotations
@@ -153,9 +158,21 @@ def apm_version(path: Path) -> str:
 
 
 def changelog_has_version(path: Path, version: str) -> bool:
-    """True when a heading names this version, e.g. ``## 0.6.0 — 2026-08-08``."""
+    """True when a level-two *release* heading names this version.
+
+    Shaped after ``RELEASE_HEADING_RE`` in ``plugin-forge/release_readiness.py``
+    so the two checks agree on what a release entry looks like: ``## <version>``
+    with the version immediately after the marker, optionally bracketed
+    (Keep a Changelog) or ``v``-prefixed, optionally followed by a date tail.
+
+    Deliberately *not* a substring search. A heading that merely mentions the
+    number — ``### Migration from 1.2.3``, ``# Changelog for 1.2.3`` — documents
+    a release rather than being one, and must not satisfy a publish gate. The
+    trailing boundary also keeps ``1.2.30`` from matching ``1.2.3``.
+    """
     pattern = re.compile(
-        rf"^#{{1,6}}\s.*(?<![\w.]){re.escape(version)}(?![\w.])", re.MULTILINE
+        rf"^##[ \t]+\[?v?{re.escape(version)}\]?[ \t]*(?:$|[^\w.].*$)",
+        re.MULTILINE,
     )
     return bool(pattern.search(_read(path)))
 
@@ -189,8 +206,10 @@ def main(argv: list[str] | None = None) -> int:
         "--allow-plugin-drift",
         action="store_true",
         help=(
-            "Permit plugin.json/apm.yml to carry a different version from the "
-            "package. Off by default; ADR-0008 explains why parity is the default."
+            "Permit the shared plugin version (plugin.json and apm.yml) to "
+            "differ from the package version. The two manifests must still "
+            "agree with each other — ADR-0005's lockstep is never relaxed. "
+            "Off by default; ADR-0008 explains why parity is the default."
         ),
     )
     args = parser.parse_args(argv)
@@ -204,31 +223,37 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
 
-    # (label, path, reader, blocking-on-mismatch)
-    surfaces: list[tuple[str, Path, object, bool]] = [
+    # Surfaces that define the package itself. These can never drift from the
+    # tag: they are what lands on PyPI and what the CLI reports at runtime.
+    package_surfaces: list[tuple[str, Path, object]] = [
         (
             "pyproject.toml [project].version",
             plugin_dir / "pyproject.toml",
             lambda p: pyproject_version(p, args.package),
-            True,
         ),
         (
             f"src/{module}/__init__.py __version__",
             plugin_dir / "src" / module / "__init__.py",
             dunder_version,
-            True,
         ),
+    ]
+
+    # The two manifests are one decision expressed twice, not two independent
+    # surfaces. ADR-0005 requires them to agree with each other unconditionally,
+    # so they are read as a pair: --allow-plugin-drift relaxes only how the
+    # shared plugin version relates to the *package*, never whether the two
+    # manifests agree. Checking them independently would let plugin.json=2.0.0
+    # and apm.yml=3.0.0 both pass as "drift", which is a different failure.
+    manifest_surfaces: list[tuple[str, Path, object]] = [
         (
             ".claude-plugin/plugin.json version",
             plugin_dir / ".claude-plugin" / "plugin.json",
             json_version,
-            not args.allow_plugin_drift,
         ),
         (
             "apm.yml version",
             plugin_dir / "apm.yml",
             apm_version,
-            not args.allow_plugin_drift,
         ),
     ]
 
@@ -237,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
     print()
 
     failures: list[str] = []
-    for label, path, reader, blocking in surfaces:
+    for label, path, reader in package_surfaces:
         try:
             found = reader(path)  # type: ignore[operator]
         except CheckError as exc:
@@ -246,11 +271,37 @@ def main(argv: list[str] | None = None) -> int:
             continue
         if found == expected:
             print(f"ok    {label}: {found}")
-        elif blocking:
+        else:
             print(f"FAIL  {label}: {found} (expected {expected})")
             failures.append(label)
+
+    manifest_found: dict[str, str] = {}
+    for label, path, reader in manifest_surfaces:
+        try:
+            manifest_found[label] = reader(path)  # type: ignore[operator]
+        except CheckError as exc:
+            print(f"FAIL  {label}: {exc}")
+            failures.append(label)
+
+    if len(manifest_found) == len(manifest_surfaces):
+        distinct = set(manifest_found.values())
+        if len(distinct) > 1:
+            detail = ", ".join(f"{lbl} = {val}" for lbl, val in manifest_found.items())
+            print(f"FAIL  plugin.json <-> apm.yml lockstep: {detail}")
+            failures.append("plugin.json/apm.yml lockstep")
         else:
-            print(f"warn  {label}: {found} (drift allowed by --allow-plugin-drift)")
+            shared = distinct.pop()
+            for label in manifest_found:
+                if shared == expected:
+                    print(f"ok    {label}: {shared}")
+                elif args.allow_plugin_drift:
+                    print(
+                        f"warn  {label}: {shared} "
+                        "(drift from the package allowed by --allow-plugin-drift)"
+                    )
+                else:
+                    print(f"FAIL  {label}: {shared} (expected {expected})")
+                    failures.append(label)
 
     changelog = plugin_dir / "CHANGELOG.md"
     try:
