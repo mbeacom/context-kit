@@ -589,6 +589,18 @@ class GovernanceOperationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.root = Path(self.temp_dir.name).resolve()
+        # Give the root a corpus by default. The `requires_dir` preflight runs
+        # before the tool is resolved, so a corpus-less root short-circuits every
+        # test here into the missing-corpus branch -- which is how the original
+        # missing-tool test passed without ever reaching the code it named
+        # ("adr" is a substring of "docs/adr"). Tests wanting the corpus-less
+        # behavior build their own root.
+        (self.root / "docs" / "adr").mkdir(parents=True)
+
+    def corpusless_root(self) -> Path:
+        extra = tempfile.TemporaryDirectory()
+        self.addCleanup(extra.cleanup)
+        return Path(extra.name).resolve()
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -638,6 +650,7 @@ class GovernanceOperationTests(unittest.TestCase):
         # will not have it. Point PATH at a directory that cannot exist so the
         # unavailable path is exercised deterministically either way.
         env = {**os.environ, "PATH": str(self.root / "no-such-bin-dir")}
+        env.pop("CONTEXT_KIT_ADR_BIN", None)
         result = self.run_runner(
             "--operation",
             "adr-explain-path",
@@ -650,7 +663,166 @@ class GovernanceOperationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 3)
         payload = json.loads(result.stderr)
         self.assertEqual(payload["status"], "unavailable")
-        self.assertIn("adr", payload["error"])
+        # Assert the missing-*tool* wording specifically. Checking for "adr"
+        # alone also matches the missing-corpus message via "docs/adr", so a
+        # substring check cannot tell the two unavailable branches apart.
+        self.assertIn("is not installed", payload["error"])
+
+    def test_unavailable_names_a_remedy(self) -> None:
+        # An unreached modality is the correct result, but an inert one: this
+        # repository documents adrkit through `npx`, which leaves no `adr` on
+        # PATH, so every contributor following the documentation got `unavailable`
+        # forever with nothing telling them how to fix it. The payload must name
+        # both remedies, or the failure stays invisible.
+        env = {**os.environ, "PATH": str(self.root / "no-such-bin-dir")}
+        env.pop("CONTEXT_KIT_ADR_BIN", None)
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 3)
+        error = json.loads(result.stderr)["error"]
+        self.assertIn("@adrkit/cli", error)
+        self.assertIn("CONTEXT_KIT_ADR_BIN", error)
+
+    def test_bin_override_runs_the_named_executable(self) -> None:
+        # The reachability fix: an operator whose install is not a bare `adr` on
+        # PATH names it explicitly. A stub stands in for adrkit so the test does
+        # not require Node -- what is under test is the runner's resolution, not
+        # adrkit's behavior.
+        stub = self.root / "adr-stub"
+        stub.write_text("#!/bin/sh\necho stub-ran\n")
+        stub.chmod(0o755)
+        env = {
+            **os.environ,
+            "PATH": str(self.root / "no-such-bin-dir"),
+            "CONTEXT_KIT_ADR_BIN": str(stub),
+        }
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["status"], "executed")
+        # The audit record must name the binary that actually ran, and the rest
+        # of the argv must be untouched by the override.
+        self.assertEqual(str(stub.resolve()), report["argv"][0])
+        self.assertEqual(
+            ["explain", "apm.yml", "--dir", "docs/adr", "--json"], report["argv"][1:]
+        )
+        self.assertIn("stub-ran", report["observations"]["stdout_excerpt"])
+
+    def test_unusable_bin_override_refuses_instead_of_falling_back(self) -> None:
+        # Silently falling back to PATH would run a different binary than the
+        # operator named and hide the misconfiguration -- the exact silent
+        # downgrade this runner exists to prevent.
+        env = {**os.environ, "CONTEXT_KIT_ADR_BIN": str(self.root / "not-here")}
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 2)
+        payload = json.loads(result.stderr)
+        self.assertEqual(payload["status"], "refused")
+        self.assertIn("CONTEXT_KIT_ADR_BIN", payload["error"])
+
+    def test_blank_bin_override_refuses_rather_than_falling_through(self) -> None:
+        # An absent variable and one set to nothing are different states. Reading
+        # a blank value as "unset" would resolve a *different* binary than the
+        # operator configured, which is the looks-honored-but-isn't failure this
+        # override exists to prevent. Whitespace-only is the same state as empty.
+        for label, value in (("empty", ""), ("whitespace-only", "   ")):
+            with self.subTest(value=label):
+                env = {**os.environ, "CONTEXT_KIT_ADR_BIN": value}
+                result = self.run_runner(
+                    "--operation",
+                    "adr-explain-path",
+                    "--root",
+                    str(self.root),
+                    "--param",
+                    "path=apm.yml",
+                    env=env,
+                )
+                self.assertEqual(result.returncode, 2)
+                payload = json.loads(result.stderr)
+                self.assertEqual(payload["status"], "refused")
+                self.assertIn("CONTEXT_KIT_ADR_BIN", payload["error"])
+                # The remedy must distinguish this from a bad path, so an
+                # operator is told to unset rather than to fix the value.
+                self.assertIn("empty value", payload["error"])
+
+    def test_non_executable_bin_override_refuses(self) -> None:
+        target = self.root / "adr-not-executable"
+        target.write_text("#!/bin/sh\n")
+        target.chmod(0o644)
+        env = {**os.environ, "CONTEXT_KIT_ADR_BIN": str(target)}
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("executable", json.loads(result.stderr)["error"])
+
+    def test_bin_override_does_not_become_a_package_fetch(self) -> None:
+        # The rejected design was an `npx` fallback. Guard the property that
+        # replaced it: the override names something that must already exist, so a
+        # bare package specifier is refused rather than fetched.
+        env = {**os.environ, "CONTEXT_KIT_ADR_BIN": "@adrkit/cli@0.4.0"}
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(json.loads(result.stderr)["status"], "refused")
+
+    def test_no_operation_shells_out_to_a_package_runner(self) -> None:
+        # `npx`/`pnpm dlx`/`uvx` would each make a "read-only, offline" operation
+        # perform network I/O and execute registry code. No builder may name one.
+        fetchers = {"npx", "pnpm", "dlx", "uvx", "pipx", "bunx", "yarn"}
+        for op in run_impact_inspection.OPERATIONS:
+            with self.subTest(operation=op.id):
+                argv = op.build(
+                    {
+                        "path": "some/file.py",
+                        "dir": "docs/adr",
+                        "field": "a",
+                        "pattern": "x",
+                        "max_count": "5",
+                        "base": "HEAD~1",
+                        "head": "HEAD",
+                        "rev": "HEAD",
+                    }
+                )
+                self.assertFalse(
+                    fetchers & set(argv),
+                    f"{op.id} argv invokes a package runner: {argv}",
+                )
 
     def test_missing_corpus_reports_unavailable_not_refusal(self) -> None:
         # adrkit exits 2 when --dir is absent, and this runner reserves 2 for
@@ -662,7 +834,7 @@ class GovernanceOperationTests(unittest.TestCase):
             "--operation",
             "adr-explain-path",
             "--root",
-            str(self.root),  # a temp dir with no docs/adr
+            str(self.corpusless_root()),  # a temp dir with no docs/adr
             "--param",
             "path=apm.yml",
         )

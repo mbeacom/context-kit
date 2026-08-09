@@ -148,13 +148,88 @@ Two properties make this safe to enforce here rather than merely suggest:
   asserts they stay absent. adrkit's own MCP surface makes the same guarantee —
   no model calls, no sockets, no corpus mutation.
 - **Optional, and honest about it.** adrkit is contributor-side and not a
-  dependency of anything shipped (ADR-0003). When `adr` is not on `PATH` the
+  dependency of anything shipped (ADR-0003). When `adr` cannot be resolved the
   runner exits `3` / `unavailable`, and the modality must be reported as
   unreached. A corpus that does not exist is not evidence that no decision
   governs the path.
 
+### Reaching adrkit
+
+`unavailable` is the correct result when the tool is absent, but on its own it is
+inert — it is indistinguishable from a modality nobody wanted, so an install that
+was never done is never noticed. Two things close that gap.
+
+The `unavailable` payload names the remedy verbatim, and `CONTEXT_KIT_ADR_BIN`
+lets an operator point at an install that is not a bare `adr` on `PATH`:
+
+```bash
+npm i -g @adrkit/cli@0.4.0                      # provides `adr`
+# or, without a global install:
+export CONTEXT_KIT_ADR_BIN=./node_modules/.bin/adr
+```
+
+The variable must name an executable that **already exists**; a package
+specifier is refused, not fetched. A value that is set but unusable is a refusal
+(exit `2`), never a quiet fallback to `PATH` — falling back would run a different
+binary than the operator named and hide the misconfiguration. That includes a
+variable set to nothing: absent and blank are different states, and reading a
+blank value as "unset" would silently resolve a different binary than the one
+configured. Unset it to resolve on `PATH`.
+
+This does not widen the trust boundary. The runner already forwards the ambient
+`PATH` to the child, so anyone who can set this variable can already decide what
+`adr` resolves to; the variable is that same authority stated explicitly.
+
+**An `npx` fallback was considered and rejected.** It is the obvious fix — the
+repository documents adrkit through `npx` — but `npx --yes` contacts the npm
+registry on *every* invocation, even with a pinned version and a warm cache.
+Adding it would falsify the "read-only, offline" contract these two operations
+advertise, turn a runner whose entire property is executing operator-installed
+binaries from a fixed catalog into one that downloads and executes registry code
+mid-analysis, and surface a network failure as npm's exit code rather than as
+`unavailable` — breaking the unreached contract exactly when the network is
+degraded. Naming a binary the operator already installed keeps every one of those
+properties; fetching one does not.
+
 The corpus directory defaults to `docs/adr` and is a normal path parameter, so
 it is subject to the same containment check as any other path.
+
+### When this modality earns its keep — and when it does not
+
+Governance is the modality most likely to return a confident-looking result that
+adds nothing. Calibrate it before quoting it.
+
+- **A citation is not a finding.** Ask whether the record *changes* the
+  conclusion. If the constraint is already restated in always-on context
+  (`AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`) or enforced by a
+  CI gate, the record adds provenance, not information — the analysis would have
+  reached the same answer without it. Governance pays when the corpus holds what
+  those files cannot: the *rejected* options, the tradeoff as examined at the
+  time, and the revisit condition.
+- **Check the status distribution.** The headline claim — that this stops an
+  agent re-proposing a closed path — depends on the corpus actually holding
+  `rejected` and `superseded` records. A corpus where every record is `accepted`
+  has not yet exercised that value; it is doing pattern-matched attribution.
+- **`governedBy` is only as good as `affects`.** The matchers decide everything.
+  Measure them: if nearly every path matches nearly every record, the modality
+  returns noise; if a path matches nothing, that is silence, not absolution.
+- **Empty `declared` is not "no decision declared".** Inline `@adr` markers are
+  scanned only within a bounded window from the start of the file (8192 bytes in
+  adrkit 0.4.0), and a marker past it is dropped with no distinguishing signal —
+  `markers.truncated` reports that the file exceeds the window, and is `true`
+  even when a marker *was* found. Markers are a header convention; treat their
+  absence in a large file as indeterminate.
+- **A corpus nobody points at is never queried.** Retrievability is upstream of
+  value. If nothing in the always-on instruction files names the corpus, no
+  analysis reaches this modality in the first place, and that silence is
+  indistinguishable from a corpus with nothing to say — the same failure shape as
+  an absent binary yielding an inert `unavailable`. A pointer is enough, and is
+  not the same as restating the rules there, which would spend the fixed budget
+  to duplicate what the corpus exists to hold.
+- **Given that pointer, it scales where instruction files cannot.** Always-on
+  context is a fixed budget; a decision corpus is not. The case for retrieving
+  governance grows with the number of records, and is weakest on a small corpus
+  whose rules already fit in the instruction files.
 
 ## Environment hardening
 
