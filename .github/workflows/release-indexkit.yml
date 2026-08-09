@@ -71,10 +71,16 @@ jobs:
       # cannot be undone after the fact: PyPI files cannot be replaced, only
       # yanked, and the version number is permanently consumed.
       - name: Reconcile tag against every version surface
+        env:
+          # Via env, not `${{ }}` inline: an expression is substituted into the
+          # script text before bash parses it, so a tag containing a quote would
+          # break out of the quoting and execute. The value is attacker-shaped —
+          # `workflow_dispatch` input is free-form text.
+          TAG: ${{ steps.resolve.outputs.tag }}
         run: |
           python3 scripts/release_version.py \
             --package "$PACKAGE" \
-            --tag "${{ steps.resolve.outputs.tag }}" \
+            --tag "$TAG" \
             --plugin-dir "$PLUGIN_DIR"
 
       - name: Install uv

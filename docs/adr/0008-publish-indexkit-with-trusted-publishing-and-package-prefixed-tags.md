@@ -59,14 +59,21 @@ would mean bumping `indexkit` to release `memory`. `docs/releasing.md` already
 resolved this for plugin releases with `<plugin-name>/v<version>`, though no tag
 has been pushed under it yet: the repository has zero tags today.
 
-**Two version numbers now describe one thing.** ADR-0006 observed that the
-package version and the plugin version are separate artifacts that *can* drift,
-and stopped there. In practice they name the same code delivered through
-different channels, and a user comparing `indexkit --version` against the
-plugin's `plugin.json` has no way to tell intentional drift from a mistake.
+**Two version numbers now describe one thing — a gap ADR-0006 flagged and left
+open.** Under its **Trade-offs**, ADR-0006 records that publishing "adds
+versioning duties beyond the plugin cache-key rules in ADR-0005 — the package
+version and the plugin version are now two artifacts that can drift." That
+sentence sits among the costs of the decision, not among its permissions: it
+names a hazard the decision was introducing, and leaves the remedy unspecified
+because the release mechanism did not exist yet. This record supplies the
+remedy.
+
+In practice the two numbers name the same code delivered through different
+channels, and a user comparing `indexkit --version` against the plugin's
+`plugin.json` has no way to tell intentional divergence from a missed bump.
 ADR-0005 already treats the plugin `version` as a cache key with strict
 `plugin.json` ⇆ `apm.yml` lockstep; leaving the *package* version outside that
-discipline puts the least-recoverable artifact under the weakest rule.
+discipline would put the least-recoverable artifact under the weakest rule.
 
 ## Decision
 
@@ -83,10 +90,10 @@ and the `publish` job only exists downstream of it. Publishing uploads the
 
 `scripts/release_version.py` reconciles the tag against `pyproject.toml`,
 `src/indexkit/__init__.py`, `plugin.json`, `apm.yml`, and a `CHANGELOG.md`
-heading. Package and plugin versions are held at **parity by default**, with an
-explicit `--allow-plugin-drift` flag as the auditable escape hatch — the same
-shape as ADR-0005's `Skip-Version-Bump` trailer. The flag never relaxes the
-package surfaces themselves.
+heading. Package and plugin versions are held at **parity by default**, closing
+the drift hazard ADR-0006 named, with an explicit `--allow-plugin-drift` flag as
+the auditable escape hatch — the same shape as ADR-0005's `Skip-Version-Bump`
+trailer. The flag never relaxes the package surfaces themselves.
 
 `workflow_dispatch` runs verification only and never publishes, so the pipeline
 can be rehearsed without spending a tag.
@@ -156,12 +163,14 @@ deliberate drift possible and recorded in the command that allowed it.
 **Cons:** Forces a package release for a plugin-only change and vice versa,
 which will occasionally publish a version whose package content is unchanged.
 
-### Version parity — Option H: let the two versions drift freely, per ADR-0006
+### Version parity — Option H: accept the drift hazard and leave it unmanaged
 
 **Pros:** Honest about them being different artifacts; no coupling; no spurious
-releases.
+releases. It is also the status quo: ADR-0006 named this hazard without
+resolving it, so doing nothing here is a live option rather than a straw man.
 **Cons:** Nothing distinguishes intentional divergence from a missed bump, and
-the failure is silent in exactly the way ADR-0005 was written to prevent.
+the failure is silent in exactly the way ADR-0005 was written to prevent. The
+hazard was recorded as a cost to be paid down, not a property to preserve.
 
 ### Option I: Do nothing — keep publishing manual
 
@@ -212,6 +221,11 @@ front of the irreversible step.
   copying one file and changing two identifiers.
 - **Harder:** the release path now has a PyPI-side configuration that lives
   outside this repository, and the workflow filename cannot be changed casually.
+- **Relationship to ADR-0006:** complementary, not corrective. ADR-0006 decided
+  *that* `indexkit` ships to PyPI and recorded version drift as a cost of doing
+  so; this record decides *how* it ships and pays that cost down. Nothing in
+  ADR-0006 is reversed, so this needs ordinary ratification rather than a
+  supersession.
 - **How we would know this was wrong:** within the first three releases, either
   (a) the parity rule forces a package publish whose sdist is byte-identical to
   its predecessor more than once, or (b) a release is blocked by the guard for a

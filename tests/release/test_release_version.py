@@ -128,6 +128,25 @@ class ReleaseVersionGuardTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("does not match the required form", result.stderr)
 
+    def test_shell_metacharacters_in_tag_are_rejected_not_executed(self) -> None:
+        # The workflow passes this value through `env:` rather than inlining it
+        # into the script, so a hostile tag reaches the guard as literal text.
+        # The guard must reject it as a malformed tag, never interpret it.
+        canary = self.root / "canary.txt"
+        hostile = [
+            f'widget/v1.2.3"; touch {canary}; #',
+            "widget/v1.2.3$(id)",
+            "widget/v1.2.3`id`",
+            "widget/v1.2.3; rm -rf /",
+            "widget/v1.2.3\nwidget/v9.9.9",
+        ]
+        for tag in hostile:
+            with self.subTest(tag=tag):
+                plugin = build_plugin(self.root / f"h{abs(hash(tag))}")
+                result = run_guard(plugin, tag)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertFalse(canary.exists(), "tag was evaluated, not compared")
+
     def test_local_version_is_rejected(self) -> None:
         # PyPI refuses local versions outright; catching it here beats
         # discovering it at the upload step.
