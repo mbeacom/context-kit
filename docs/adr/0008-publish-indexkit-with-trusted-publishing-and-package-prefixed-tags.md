@@ -234,6 +234,26 @@ front of the irreversible step.
   so; this record decides *how* it ships and pays that cost down. Nothing in
   ADR-0006 is reversed, so this needs ordinary ratification rather than a
   supersession.
+- **Attestations hold, and the obvious way to check reports the wrong answer.**
+  Option A lists PEP 740 provenance as a property of Trusted Publishing. That
+  property was assumed when this record was written and is now verified: the
+  0.6.1 publish generated Sigstore-backed attestations for both distributions,
+  and PyPI stored them. *How* that was confirmed is worth recording, because the
+  first check tried said the opposite. PyPI's JSON API exposes `provenance: null`
+  on every file — including packages that demonstrably attest, such as `sigstore`
+  and `twine` — so it cannot distinguish an attested release from an unattested
+  one, and reads as a false negative. The authoritative surface is the integrity
+  endpoint, `GET /integrity/<name>/<version>/<filename>/provenance`, which
+  returns the attestation bundle. `docs/releasing.md` now points at that endpoint
+  so the same wrong conclusion is not reached twice.
+- **`attestations: true` is set explicitly despite being the upstream default.**
+  This follows from the moving-reference trade-off above rather than adding a new
+  one: a default this pipeline depends on is a default upstream can change, and
+  because the JSON API cannot report the loss, a regression here would be silent
+  in a way the other publish settings are not. Stating it costs one line and
+  removes that failure mode. Attestation generation also globs only `*.tar.gz`,
+  `*.zip`, and `*.whl`, so it shares the artifact discipline the build stage
+  already enforces and cannot be widened by a stray file in `dist/`.
 - **How we would know this was wrong:** within the first three releases, either
   (a) the parity rule forces a package publish whose sdist is byte-identical to
   its predecessor more than once, or (b) a release is blocked by the guard for a

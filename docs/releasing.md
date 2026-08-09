@@ -101,6 +101,21 @@ Then:
 2. **Tag and push**, as above. The `publish` job runs only on a tag push, and
    only if `verify` succeeded.
 3. **Confirm** the release on <https://pypi.org/p/indexkit>.
+4. **Confirm provenance.** Publishing emits PEP 740 attestations; check that
+   they landed, using the endpoint below rather than the obvious one.
+
+Attestations are verified through PyPI's integrity endpoint:
+
+```bash
+curl -fsS -H 'Accept: application/vnd.pypi.integrity.v1+json' \
+  "https://pypi.org/integrity/indexkit/<version>/indexkit-<version>-py3-none-any.whl/provenance" \
+  | head -c 200
+```
+
+A `200` carrying an `attestation_bundles` object means the attestation is
+stored. Do **not** judge this from the JSON API's `provenance` field: it reads
+`null` for every file on PyPI, attested or not, so it reports a false negative on
+a perfectly good release.
 
 The build stage asserts that `dist/` holds exactly the two distributions the tag
 asked for, catching a stale wheel or a backend that ignored the declared
