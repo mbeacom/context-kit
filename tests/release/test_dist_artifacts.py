@@ -167,14 +167,21 @@ class WorkflowWiring(unittest.TestCase):
         gains the one capability it exists to withhold — and the failure would
         only ever be observed as an irreversible upload.
         """
-        self.assertIn("github.event_name == 'push'", self.workflow,
-                      "publish must require a push event, not merely a tag ref")
-        # The prefix is pinned so this workflow cannot publish `indexkit` off
-        # another component's tag. `on.push.tags` filters the same way, but the
-        # two are independently editable and the failure they jointly permit is
-        # an irreversible upload.
-        self.assertIn("startsWith(github.ref, 'refs/tags/indexkit/v')", self.workflow,
-                      "publish must be pinned to the indexkit tag prefix")
+        # Assert the *conjoined* expression, not two independent substrings.
+        # Separate checks would still pass if `&&` were swapped for `||`, which
+        # restores exactly the bug this test names: either predicate alone would
+        # admit a tag-targeted dispatch to the publish job.
+        #
+        # The literal spans lines because the condition is a YAML folded block;
+        # matching it verbatim is what makes the conjunction part of the
+        # assertion rather than an assumption about it.
+        self.assertIn(
+            "github.event_name == 'push' &&\n"
+            "      startsWith(github.ref, 'refs/tags/indexkit/v')",
+            self.workflow,
+            "publish must require a push event AND the indexkit tag prefix, "
+            "conjoined in one expression",
+        )
 
     def test_workflow_pins_attestations(self) -> None:
         """PEP 740 provenance is the upstream default, so losing it is silent.
