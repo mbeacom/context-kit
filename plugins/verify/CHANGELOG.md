@@ -14,7 +14,9 @@
   falsify these operations' offline contract, turn the runner into a fetcher of
   registry code mid-analysis, and surface network failure as npm's exit code
   rather than as `unavailable`. A set-but-unusable `CONTEXT_KIT_ADR_BIN` is a
-  refusal, never a silent fallback to `PATH`.
+  refusal, never a silent fallback to `PATH` — including a variable set to
+  nothing, since absent and blank are different states and reading blank as
+  "unset" would resolve a different binary than the one configured.
 - Calibrate governance rather than only enabling it: a governing record is a
   finding only when it changes the conclusion, an empty `declared` list on a
   large file is indeterminate (inline markers are scanned only within a bounded

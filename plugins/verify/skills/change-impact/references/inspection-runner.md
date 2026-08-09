@@ -171,7 +171,10 @@ export CONTEXT_KIT_ADR_BIN=./node_modules/.bin/adr
 The variable must name an executable that **already exists**; a package
 specifier is refused, not fetched. A value that is set but unusable is a refusal
 (exit `2`), never a quiet fallback to `PATH` — falling back would run a different
-binary than the operator named and hide the misconfiguration.
+binary than the operator named and hide the misconfiguration. That includes a
+variable set to nothing: absent and blank are different states, and reading a
+blank value as "unset" would silently resolve a different binary than the one
+configured. Unset it to resolve on `PATH`.
 
 This does not widen the trust boundary. The runner already forwards the ambient
 `PATH` to the child, so anyone who can set this variable can already decide what

@@ -773,7 +773,17 @@ def _emit_refusal(message: str, *, status: str, code: int) -> int:
 
 
 def _resolve_executable(operation: Operation, command: list[str]) -> list[str]:
-    override = os.environ.get(operation.bin_env or "", "").strip()
+    raw = os.environ.get(operation.bin_env) if operation.bin_env else None
+    # An absent variable and one set to nothing are different states. Treating a
+    # blank value as "unset" would silently resolve a *different* binary than the
+    # operator configured — the same looks-honored-but-isn't failure this override
+    # exists to prevent. Absent falls through to PATH; blank is a refusal.
+    if raw is not None and not raw.strip():
+        raise Refusal(
+            f"{operation.bin_env} is set to an empty value; unset it to resolve "
+            f"{operation.tool!r} on PATH, or set it to an existing executable"
+        )
+    override = raw.strip() if raw is not None else ""
     if override:
         candidate = Path(override).expanduser()
         located = (

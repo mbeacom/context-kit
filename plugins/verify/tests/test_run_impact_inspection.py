@@ -742,6 +742,31 @@ class GovernanceOperationTests(unittest.TestCase):
         self.assertEqual(payload["status"], "refused")
         self.assertIn("CONTEXT_KIT_ADR_BIN", payload["error"])
 
+    def test_blank_bin_override_refuses_rather_than_falling_through(self) -> None:
+        # An absent variable and one set to nothing are different states. Reading
+        # a blank value as "unset" would resolve a *different* binary than the
+        # operator configured, which is the looks-honored-but-isn't failure this
+        # override exists to prevent. Whitespace-only is the same state as empty.
+        for label, value in (("empty", ""), ("whitespace-only", "   ")):
+            with self.subTest(value=label):
+                env = {**os.environ, "CONTEXT_KIT_ADR_BIN": value}
+                result = self.run_runner(
+                    "--operation",
+                    "adr-explain-path",
+                    "--root",
+                    str(self.root),
+                    "--param",
+                    "path=apm.yml",
+                    env=env,
+                )
+                self.assertEqual(result.returncode, 2)
+                payload = json.loads(result.stderr)
+                self.assertEqual(payload["status"], "refused")
+                self.assertIn("CONTEXT_KIT_ADR_BIN", payload["error"])
+                # The remedy must distinguish this from a bad path, so an
+                # operator is told to unset rather than to fix the value.
+                self.assertIn("empty value", payload["error"])
+
     def test_non_executable_bin_override_refuses(self) -> None:
         target = self.root / "adr-not-executable"
         target.write_text("#!/bin/sh\n")
