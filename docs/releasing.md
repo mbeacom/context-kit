@@ -80,7 +80,7 @@ failure here is a failure there:
 ```bash
 python3 scripts/release_version.py \
   --package indexkit \
-  --tag indexkit/v0.6.0 \
+  --tag indexkit/v<version> \
   --plugin-dir plugins/indexkit
 ```
 
