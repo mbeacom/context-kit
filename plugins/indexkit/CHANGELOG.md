@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.2 — 2026-08-09
+
+- **Fix the skill's tool grant.** `allowed-tools` still declared `Bash(rag:*)`,
+  a binary the plugin stopped shipping at the rename, so the skill's own
+  commands fell outside its declared pre-approval. Now grants `indexkit` and
+  keeps `rag`, which the pre-rename launcher still resolves (ADR-0007).
+- Retitle the skill and correct its description of itself: it is hybrid
+  retrieval, not semantic-only, and the CLI is `indexkit`.
+- Document `pip install indexkit` for APM and manual users. A clone is no longer
+  the only way to obtain the CLI now that the package is published, and the
+  bundled launcher already falls back to an `indexkit` on `PATH`.
+
 ## 0.6.1 — 2026-08-08
 
 - Correct host guidance and stale command names in the skill and README.
