@@ -10,6 +10,9 @@ Shared, host-neutral rules (layout, manifest sync, discovery frontmatter, portab
 - Keep skill bodies portable across Claude Code and GitHub Copilot; pair any `CLAUDE_PLUGIN_*` example with a neutral `CONTEXT_KIT_*` equivalent when possible.
 - GitHub Copilot CLI installs these plugins directly (`copilot plugin marketplace add mbeacom/context-kit`, then `copilot plugin install <name>@context-kit`); document that flow rather than manual skill-folder copying.
 - APM (Agent Package Manager, `microsoft/apm`) installs the same plugins: `apm marketplace add mbeacom/context-kit`, then `apm install <name>@context-kit`. Each plugin ships a sibling `apm.yml` mirroring `plugin.json` (keep `name`/`version` strictly in sync; `description` is intentionally a more concise variant tuned for APM/CLI listings); do not regenerate `marketplace.json` with `apm pack` (it drops the `category` field). See `docs/APM.md`.
+- Architecture decisions live in `docs/adr/` (adrkit, ADR-0001). Check what
+  governs a path before changing it: `npx @adrkit/cli@0.4.0 explain <path>`
+  reports governing *and rejected* records. See `AGENTS.md` for the rule.
 - Prefer `CONTEXT_KIT_DATA`, `CONTEXT_KIT_EMBED_MODEL`, `CONTEXT_KIT_OLLAMA_HOST`, and `CONTEXT_KIT_OBSIDIAN_VAULT` in portable examples.
 - For durable memory, prefer `CONTEXT_KIT_MEMORY_*`; keep MemPalace optional,
   project-scoped, and separately installed. Copilot CLI *does* load a plugin's
@@ -25,6 +28,7 @@ for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin 
 bash plugins/plugin-forge/scripts/check-manifests.sh
 bash plugins/plugin-forge/scripts/check-skills.sh
 bash plugins/plugin-forge/scripts/check-commands.sh
+bash scripts/check-adr.sh   # ADR corpus lint; skips cleanly without Node
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 bash plugins/plugin-forge/scripts/check-version-bump.sh --base main

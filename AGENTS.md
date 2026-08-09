@@ -48,6 +48,14 @@ an application. See
   clarification to an existing one compete for the same remainder. Check headroom
   before writing with `python3 plugins/plugin-forge/scripts/catalog_quality.py`;
   it warns at 95% of the budget and fails above it.
+- **Decisions are recorded, and locatable:** `docs/adr/` holds the repository's
+  architecture decision records (adrkit, ADR-0001). Before proposing a change to
+  a governed path, check what already binds it — `npx @adrkit/cli@0.4.0 explain
+  <path>` reports governing records *and the options that were rejected*, which
+  is how a settled question stops being re-opened. These files keep the rules;
+  the corpus keeps the reasoning, the rejected options, and the revisit
+  conditions. A record's absence is not permission — an unreadable or missing
+  corpus means unknown, not unconstrained.
 - **Catalog discipline:** add a `marketplace.json` entry only when a plugin is
   ready to ship; keep it hand-authored (never `apm pack`, which drops `category`).
 - **Fresh content, MIT (Mark Beacom):** don't copy externally licensed text.
@@ -60,6 +68,7 @@ for p in plugins/*/; do [ -f "$p/.claude-plugin/plugin.json" ] && claude plugin 
 bash plugins/plugin-forge/scripts/check-manifests.sh   # plugin.json ⇆ apm.yml drift
 bash plugins/plugin-forge/scripts/check-skills.sh      # skill/agent discovery frontmatter
 bash plugins/plugin-forge/scripts/check-commands.sh    # slash command frontmatter types
+bash scripts/check-adr.sh                              # ADR corpus lint (skips without Node)
 bash plugins/plugin-forge/scripts/check-catalog-quality.sh
 bash plugins/plugin-forge/scripts/test-catalog-quality.sh
 bash plugins/plugin-forge/scripts/check-version-bump.sh --base main  # CI-only gate, previewable
