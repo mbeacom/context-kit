@@ -94,10 +94,28 @@ Then:
 
 1. **Rehearse.** Run the workflow via `workflow_dispatch` with the intended tag.
    Dispatch runs verification only and never publishes, so this exercises the
-   guard, tests, `uv build`, and `twine check --strict` without spending a tag.
+   guard, tests, `uv build`, `twine check --strict`, and the built-artifact
+   assertion without spending a tag. Rehearse before every release: the
+   dispatch path is the only place a build-stage bug can surface while the tag
+   is still free to move.
 2. **Tag and push**, as above. The `publish` job runs only on a tag push, and
    only if `verify` succeeded.
 3. **Confirm** the release on <https://pypi.org/p/indexkit>.
+
+The build stage asserts that `dist/` holds exactly the two distributions the tag
+asked for, catching a stale wheel or a backend that ignored the declared
+version:
+
+```bash
+cd plugins/indexkit && uv build --out-dir dist
+python3 ../../scripts/check_dist_artifacts.py \
+  --dist-dir dist --package indexkit --version <version>
+```
+
+Only `*.whl` and `*.tar.gz` count as artifacts. `uv build` also writes a
+`dist/.gitignore`, which is build-tool bookkeeping rather than something
+publishable; the workflow uploads the two distributions by explicit path so
+nothing else can reach the publish job.
 
 Prerequisites a maintainer must configure once, outside this repository:
 
