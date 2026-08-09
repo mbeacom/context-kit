@@ -150,13 +150,18 @@ this is how it will ship, since `local-rag` is ready first.
 
 ## Action items
 
-1. [ ] **Settle the name before first publish** — `local-rag` describes a
-   deployment property, not a capability, and the tool also does lexical
-   FTS5/BM25 retrieval, so "RAG" understates it. The package name, the console
-   script (`local-rag`), and the CLI `prog` (`rag`) currently disagree with each
-   other. This is a one-way door; resolve it in its own record.
-2. [ ] Make the CLI work with no plugin host: host-neutral default data dir,
-   and a `bin/rag` shim that degrades to an installed console script.
+1. [x] **Settle the name before first publish** — resolved by ADR-0007:
+   renamed to `indexkit`, unifying the package, console script, CLI `prog`, and
+   launcher on one name before the PyPI name was claimed.
+2. [x] Make the CLI work with no plugin host: host-neutral default data dir
+   (`${XDG_DATA_HOME:-~/.local/share}/indexkit`), and a launcher that degrades
+   to an installed console script or an importable module.
 3. [ ] Add a `pyproject.toml` for the memory contract/validator/MCP server.
-4. [ ] Add a release workflow; keep package and plugin versions reconciled with
-   ADR-0005.
+4. [x] Add a release workflow; keep package and plugin versions reconciled with
+   ADR-0005. See ADR-0008.
+
+`indexkit` 0.6.1 was published to PyPI on 2026-08-09, so this record's central
+claim is now testable rather than asserted: `pip install indexkit` works with no
+plugin host. The revisit trigger — negligible installs outside our own CI at
+twelve months, *and* packaging discipline measurably slowing catalog work —
+becomes observable from that date.
