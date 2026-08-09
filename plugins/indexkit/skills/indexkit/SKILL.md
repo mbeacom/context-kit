@@ -6,7 +6,7 @@ compatibility: "Requires the indexkit CLI (pip install indexkit, or auto-bootstr
 metadata:
   author: Mark Beacom
   version: "0.3.1"
-allowed-tools: Bash(indexkit:*) Bash(rag:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
+allowed-tools: Bash(indexkit:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
 ---
 
 # indexkit
