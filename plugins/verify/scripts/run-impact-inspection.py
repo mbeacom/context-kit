@@ -75,6 +75,13 @@ class Operation:
     summary: str
     params: tuple[Param, ...]
     build: Callable[[dict[str, str]], list[str]]
+    # Name of a path parameter that must resolve to an existing directory before
+    # the tool runs. Without this the tool's own "missing corpus" exit code is
+    # propagated verbatim, and for adrkit that code is `2` — which this runner
+    # reserves for policy refusal. A caller would read "the corpus is absent" as
+    # "the runner refused", and an absent corpus would never produce the
+    # `unavailable` result its contract requires.
+    requires_dir: str | None = None
 
 
 def _utc_now() -> str:
@@ -406,6 +413,7 @@ OPERATIONS: tuple[Operation, ...] = (
         "ones (adrkit; read-only, offline).",
         (_PATH, _ADR_DIR),
         _op_adr_explain,
+        requires_dir="dir",
     ),
     Operation(
         "adr-check-path",
@@ -415,6 +423,7 @@ OPERATIONS: tuple[Operation, ...] = (
         "read-only, offline).",
         (_PATH, _ADR_DIR),
         _op_adr_check,
+        requires_dir="dir",
     ),
 )
 
@@ -766,6 +775,15 @@ def main(argv: list[str] | None = None) -> int:
                 "max-output-bytes",
             )
         )
+        if operation.requires_dir is not None:
+            corpus = root / resolved[operation.requires_dir]
+            if not corpus.is_dir():
+                raise Unavailable(
+                    f"operation {operation.id} needs the directory "
+                    f"{resolved[operation.requires_dir]!r}, which does not exist "
+                    "in the analysis root; report this modality as unreached "
+                    "rather than treating the absence as a finding"
+                )
         command = operation.build(resolved)
         if shutil.which(command[0]) is None:
             raise Unavailable(

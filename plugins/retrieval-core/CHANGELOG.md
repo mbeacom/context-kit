@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 — 2026-08-08
+
+- Add decision/governance triggers to the skill and agent discovery descriptions.
+  Hosts select components from those descriptions, so routing added only to the
+  body left a "what governs this path?" request unable to activate either.
+
 ## 0.6.0 — 2026-08-08
 
 - Route a **decision memory** modality (ADR-0003): whether something was already

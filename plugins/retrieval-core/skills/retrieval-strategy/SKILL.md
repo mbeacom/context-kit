@@ -1,6 +1,6 @@
 ---
 name: retrieval-strategy
-description: "Use when deciding HOW to find information — choosing or composing search modalities (lexical, structural, history, semantic/RAG, graph, durable memory) for a query and corpus."
+description: "Use when deciding HOW to find information — choosing or composing search modalities (lexical, structural, history, semantic/RAG, graph, durable/decision memory) for a query and corpus."
 license: MIT
 metadata:
   author: Mark Beacom

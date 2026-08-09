@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "verify",
   "displayName": "Verify",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Read-only repository verification and prospective change-impact analysis. Check claims with per-claim verdicts and map blast radius across dependents, runtime, config, data, schemas, tests, compatibility, docs, and operations with file:line evidence.",
   "author": {
     "name": "Mark Beacom"

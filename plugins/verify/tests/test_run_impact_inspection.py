@@ -604,19 +604,34 @@ class GovernanceOperationTests(unittest.TestCase):
             env=env,
         )
 
-    def test_governance_operations_use_only_read_only_verbs(self) -> None:
-        catalog = json.loads(self.run_runner("--list").stdout)
-        governance = [
-            op for op in catalog["operations"] if op["modality"] == "governance"
-        ]
-        self.assertTrue(governance, "expected governance operations in the catalog")
-        for op in governance:
-            self.assertEqual(op["tool"], "adr")
-            # `explain` and `check` are adrkit's read-only verbs. `new`,
-            # `migrate`, and `queue` scaffold or write, so they must never enter
-            # a catalog whose whole contract is that it cannot mutate anything.
-            self.assertNotIn("new", op["id"])
-            self.assertNotIn("migrate", op["id"])
+    def test_governance_catalog_is_exactly_the_read_only_verbs(self) -> None:
+        # Substring checks on the operation *id* prove nothing: renaming an id
+        # while pointing its builder at `adr new` would still pass. Assert the
+        # exact id set, and inspect what each registered builder actually
+        # produces, so the read-only guarantee is regression-tested at the argv
+        # level where it is enforced.
+        ops = {
+            op.id: op
+            for op in run_impact_inspection.OPERATIONS
+            if op.modality == "governance"
+        }
+        self.assertEqual({"adr-explain-path", "adr-check-path"}, set(ops))
+
+        readonly_verbs = {"explain", "check"}
+        for op_id, op in ops.items():
+            with self.subTest(operation=op_id):
+                argv = op.build({"path": "some/file.py", "dir": "docs/adr"})
+                self.assertEqual("adr", argv[0], "must invoke adrkit itself")
+                self.assertIn(
+                    argv[1],
+                    readonly_verbs,
+                    f"{op_id} invokes `adr {argv[1]}`, which is not a read-only verb",
+                )
+                # Nothing in the argv may name a writing verb in any position.
+                self.assertFalse(
+                    {"new", "migrate", "queue"} & set(argv),
+                    f"{op_id} argv contains a writing verb: {argv}",
+                )
 
     def test_missing_adr_reports_unavailable(self) -> None:
         # adrkit is Node-based and optional, so most machines running this suite
@@ -636,6 +651,25 @@ class GovernanceOperationTests(unittest.TestCase):
         payload = json.loads(result.stderr)
         self.assertEqual(payload["status"], "unavailable")
         self.assertIn("adr", payload["error"])
+
+    def test_missing_corpus_reports_unavailable_not_refusal(self) -> None:
+        # adrkit exits 2 when --dir is absent, and this runner reserves 2 for
+        # policy refusal. Without a preflight the caller would read "no corpus
+        # here" as "the runner refused", and an absent corpus would never yield
+        # the unreached result the contract requires. Absence of a corpus is not
+        # evidence that no decision governs the path.
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),  # a temp dir with no docs/adr
+            "--param",
+            "path=apm.yml",
+        )
+        self.assertEqual(result.returncode, 3, result.stderr)
+        payload = json.loads(result.stderr)
+        self.assertEqual(payload["status"], "unavailable")
+        self.assertIn("docs/adr", payload["error"])
 
     def test_adr_corpus_dir_is_path_confined(self) -> None:
         # The corpus directory is caller-supplied, so it goes through the same

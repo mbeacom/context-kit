@@ -109,7 +109,7 @@ a prerequisite for CLI-driven capture and recall.
 | **Rag (first-party)** | ✅ Supported (default semantic path) | This repository's `indexkit` plugin, declared as a hard dependency. Versioned with the catalog; `indexkit --version` and exact-argv `--help` probes give a checkable contract. Project isolation enforced by redirecting `CONTEXT_KIT_DATA` per child process. Records are the source of truth and the index is a rebuildable projection, so provenance cannot be lost. Offline apart from a user-configured remote `CONTEXT_KIT_OLLAMA_HOST`. MIT. All criteria met. |
 | **MemPalace** | ✅ Supported (optional) | Versioned CLI releases on PyPI. Stable CLI contract documented. Project/palace isolation enforced by adapter. Evidence round-tripped via local copy before archival. Export and delete available. MIT-compatible license. Criteria met at integration date. |
 | **Microsoft Memora** | 🔬 Design-only | Informs context-kit's memory contract; not a runtime provider. See below. |
-| **adrkit** | 🚫 Not a provider — peer corpus | Passes criteria 1, 3, 6–12. Fails criterion 4, not by being lossy but by not being a `memory-v1` store at all. Integrated as a distinct retrieval modality instead. See below. |
+| **adrkit** | 🚫 Not a provider — peer corpus | Passes 11 of 12 criteria (all but 4). Fails criterion 4 not by being lossy but by not being a `memory-v1` store at all. Integrated as a distinct retrieval modality instead. See below. |
 
 ### Why a first-party provider satisfies criterion 4 trivially
 
@@ -128,10 +128,18 @@ supersession-aware decision records in git, so it reads like an obvious provider
 candidate. It is not one, and recording why here is the point — otherwise the
 question gets re-asked every time someone notices the resemblance.
 
-It passes criteria 1, 3, and 6–12 comfortably: versioned npm releases, git-scoped
-isolation, no credentials and no network, export/delete via plain files, a test
-suite with CI, and an MCP server that is separately installable rather than a
-prerequisite.
+It passes **11 of the 12 criteria** — every one except 4. Versioned npm releases
+(1); a documented CLI with a versioned command surface and stated exit codes,
+plus a registry-listed MCP server, so calls are exact argv with no shell
+interpolation (2); git-scoped isolation (3); native `status`
+(`draft`/`proposed`/`accepted`/`rejected`/`superseded`/`deprecated`) with
+`supersedes`/`supersededBy`, which satisfies the review/supersession semantics
+of criterion 5 more strongly than pass-through would — it *enforces* them,
+refusing `accepted` on an agent-authored record without a named ratifier; no
+credentials and no network (6); export and delete via plain files (7);
+deterministic exit codes (8); fully offline (9); a test suite with CI (10);
+Apache-2.0, compatible with MIT consumers (11); and an MCP server that is
+separately installable rather than a prerequisite (12).
 
 It fails **criterion 4 (provenance and immutable evidence round-tripping)**, but
 not for the usual reason. adrkit is not lossy; it simply is not a `memory-v1`
