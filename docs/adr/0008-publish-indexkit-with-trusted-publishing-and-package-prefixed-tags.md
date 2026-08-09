@@ -245,7 +245,12 @@ front of the irreversible step.
   one, and reads as a false negative. The authoritative surface is the integrity
   endpoint, `GET /integrity/<name>/<version>/<filename>/provenance`, which
   returns the attestation bundle. `docs/releasing.md` now points at that endpoint
-  so the same wrong conclusion is not reached twice.
+  so the same wrong conclusion is not reached twice. The endpoint is *per file*,
+  and a stored bundle on its own only proves that some attestation exists — so
+  the runbook check is two artifacts wide (wheel and sdist, which are attested
+  separately) and asserts the bundle's `publisher.repository` and
+  `publisher.workflow`. That pair is what binds the artifact to this repository's
+  release workflow; presence alone does not.
 - **`attestations: true` is set explicitly despite being the upstream default.**
   This follows from the moving-reference trade-off above rather than adding a new
   one: a default this pipeline depends on is a default upstream can change, and
