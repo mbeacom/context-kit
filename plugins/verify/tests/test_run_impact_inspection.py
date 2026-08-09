@@ -88,8 +88,9 @@ class RunnerCliTests(unittest.TestCase):
         self.assertIn("git-log-path", ids)
         self.assertIn("json-field", ids)
         self.assertIn("yaml-keys", ids)
+        self.assertIn("adr-explain-path", ids)
         modalities = {operation["modality"] for operation in catalog["operations"]}
-        self.assertLessEqual({"history", "structured-data"}, modalities)
+        self.assertLessEqual({"history", "structured-data", "governance"}, modalities)
 
     # --- Refusals ------------------------------------------------------------
 
@@ -572,6 +573,119 @@ class RunnerUnitTests(unittest.TestCase):
         self.assertEqual(reason, "timeout")
         self.assertEqual(exit_code, 124)
         self.assertIn(cleanup, {"process-group-killed", "process-killed"})
+
+
+class GovernanceOperationTests(unittest.TestCase):
+    """adrkit-backed governance operations (ADR-0003).
+
+    Deliberately not a subclass of RunnerCliTests: inheriting a TestCase re-runs
+    every inherited test method, so the harness is duplicated instead.
+
+    adrkit is optional and contributor-side, so the behavior that matters most is
+    the one when it is absent -- an unreached modality, never a silent skip and
+    never a hard failure of the whole inspection.
+    """
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp_dir.name).resolve()
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def run_runner(
+        self, *cli_args: str, env: dict[str, str] | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [sys.executable, str(RUNNER), *cli_args],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+    def test_governance_catalog_is_exactly_the_read_only_verbs(self) -> None:
+        # Substring checks on the operation *id* prove nothing: renaming an id
+        # while pointing its builder at `adr new` would still pass. Assert the
+        # exact id set, and inspect what each registered builder actually
+        # produces, so the read-only guarantee is regression-tested at the argv
+        # level where it is enforced.
+        ops = {
+            op.id: op
+            for op in run_impact_inspection.OPERATIONS
+            if op.modality == "governance"
+        }
+        self.assertEqual({"adr-explain-path", "adr-check-path"}, set(ops))
+
+        readonly_verbs = {"explain", "check"}
+        for op_id, op in ops.items():
+            with self.subTest(operation=op_id):
+                argv = op.build({"path": "some/file.py", "dir": "docs/adr"})
+                self.assertEqual("adr", argv[0], "must invoke adrkit itself")
+                self.assertIn(
+                    argv[1],
+                    readonly_verbs,
+                    f"{op_id} invokes `adr {argv[1]}`, which is not a read-only verb",
+                )
+                # Nothing in the argv may name a writing verb in any position.
+                self.assertFalse(
+                    {"new", "migrate", "queue"} & set(argv),
+                    f"{op_id} argv contains a writing verb: {argv}",
+                )
+
+    def test_missing_adr_reports_unavailable(self) -> None:
+        # adrkit is Node-based and optional, so most machines running this suite
+        # will not have it. Point PATH at a directory that cannot exist so the
+        # unavailable path is exercised deterministically either way.
+        env = {**os.environ, "PATH": str(self.root / "no-such-bin-dir")}
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            env=env,
+        )
+        self.assertEqual(result.returncode, 3)
+        payload = json.loads(result.stderr)
+        self.assertEqual(payload["status"], "unavailable")
+        self.assertIn("adr", payload["error"])
+
+    def test_missing_corpus_reports_unavailable_not_refusal(self) -> None:
+        # adrkit exits 2 when --dir is absent, and this runner reserves 2 for
+        # policy refusal. Without a preflight the caller would read "no corpus
+        # here" as "the runner refused", and an absent corpus would never yield
+        # the unreached result the contract requires. Absence of a corpus is not
+        # evidence that no decision governs the path.
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),  # a temp dir with no docs/adr
+            "--param",
+            "path=apm.yml",
+        )
+        self.assertEqual(result.returncode, 3, result.stderr)
+        payload = json.loads(result.stderr)
+        self.assertEqual(payload["status"], "unavailable")
+        self.assertIn("docs/adr", payload["error"])
+
+    def test_adr_corpus_dir_is_path_confined(self) -> None:
+        # The corpus directory is caller-supplied, so it goes through the same
+        # containment check as every other path parameter.
+        result = self.run_runner(
+            "--operation",
+            "adr-explain-path",
+            "--root",
+            str(self.root),
+            "--param",
+            "path=apm.yml",
+            "--param",
+            "dir=../../etc",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("escapes", json.loads(result.stderr)["error"])
 
 
 if __name__ == "__main__":

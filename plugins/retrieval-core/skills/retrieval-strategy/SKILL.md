@@ -1,6 +1,6 @@
 ---
 name: retrieval-strategy
-description: "Use when deciding HOW to find information — choosing or composing search modalities (lexical, structural, history, semantic/RAG, graph, durable memory) for a query and corpus."
+description: "Use when deciding HOW to find information — choosing or composing search modalities (lexical, structural, history, semantic/RAG, graph, durable/decision memory) for a query and corpus."
 license: MIT
 metadata:
   author: Mark Beacom
@@ -33,6 +33,12 @@ ships automatically with `code-search`.
 - Asking about a prior decision, constraint, procedure, preference, or bounded
   episode across sessions? → **durable memory** (`memory`: project-scoped recall,
   then open and verify the source).
+- Asking whether something was already **decided** — what governs these paths,
+  what was rejected, what superseded what? → **decision memory** (adrkit, if the
+  repository keeps a corpus: `adr explain <path>`, or the `governance` operations
+  of `verify`'s inspection runner). This is *ratified team governance*, distinct
+  from durable memory's agent-observed records; absent adrkit, report the
+  modality as unreached rather than assuming nothing governs the path.
 - Resuming the current task and its next action? → **handoff**, not durable memory
   (`context-handoff`: validate provenance and freshness first).
 - Need *every* unit accounted for rather than the relevant ones surfaced — and
@@ -51,6 +57,9 @@ Semantic, graph, and durable recall are available as the **indexkit**,
 - **Resolve then pin:** code-intelligence (LSP/`global`) returns the true symbol definition or references → `rg` pins and expands the exact lines.
 - **Recall then pin:** durable memory locates a prior decision/episode → open its
   cited source and pin current repository evidence.
+- **Govern then change:** before proposing a change, ask which decisions already
+  bind the paths involved → `adr explain` returns governing *and rejected*
+  records, so a settled question is not re-opened by accident.
 - **Recall then verify:** stale, conflicting, or consequential memory →
   `verify-before-trust` before it affects behavior.
 - **Retrieve then expand:** begin with a compact memory/RAG result → follow only

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.4 — 2026-08-08
+
+- Assess criteria 2 and 5 explicitly for adrkit. The table claimed criteria
+  "1, 3, 6–12" (nine) while the conclusion said 11 of 12, leaving 2 and 5
+  silently unclassified. Both pass; the qualification is now internally complete.
+
+## 0.5.3 — 2026-08-08
+
+- Record adrkit in the provider decision table as a peer corpus rather than a
+  provider, with the trust-model reason it cannot be one and the promotion path
+  from a `type: decision` record to a ratified ADR (ADR-0003).
+
 ## 0.5.2 — 2026-08-08
 
 - Fix a real failure in the pre-rename compatibility path. `store_env` and the

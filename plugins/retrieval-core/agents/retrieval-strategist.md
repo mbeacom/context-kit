@@ -1,6 +1,6 @@
 ---
 name: retrieval-strategist
-description: Use for open-ended "where/how/why was X handled" questions, or when the right search strategy is unclear. Sequences lexical, structural, symbol, history, semantic/RAG, and memory retrieval. Read-only.
+description: Use for open-ended "where/how/why was X handled or decided" questions, or an unclear search strategy. Sequences lexical, structural, symbol, history, semantic/RAG, memory, and ADR governance. Read-only.
 model: sonnet
 effort: medium
 tools: Grep, Glob, Read, Bash

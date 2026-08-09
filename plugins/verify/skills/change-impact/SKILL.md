@@ -59,7 +59,8 @@ holds the precise version; keep this section honest with it.
 - **Enforced by the inspection runner.** `scripts/run-impact-inspection.py` is a
   stdlib, no-shell executor with a fixed, plugin-owned catalog of read-only
   operations. It reaches history (git log/show/diff/blame), structural
-  (`git grep`), and structured-data (`jq`, and `yq` when installed) under a
+  (`git grep`), structured-data (`jq`, and `yq` when installed), and governance
+  (`adr explain`/`adr check`, when adrkit is installed) under a
   genuinely non-mutating constraint: it builds each argv itself, validates and
   positionally substitutes parameters, confines paths to the analysis root,
   scrubs the environment, and never invokes a shell. See
@@ -78,6 +79,7 @@ holds the precise version; keep this section honest with it.
 | history | runner: `git-log-*`, `git-show-commit`, `git-diff-revs`, `git-blame-path` | `retrieval-strategist`, or `code-search` when installed |
 | structural | runner: `git-grep` | `retrieval-strategist`, or `code-search` when installed |
 | structured-data | runner: `json-*`; `yaml-*` when `yq` is installed | `retrieval-strategist`, or `code-search` when installed |
+| governance | runner: `adr-explain-path`, `adr-check-path`, when adrkit is installed | — (no fallback; report unreached) |
 | code-intelligence | — (no enforced operation) | `retrieval-strategist`, or `code-search` when installed |
 | factual claim checks | `verifier` (Read/Grep/Glob grant) | — |
 | runtime observation | `/collect-runtime-evidence` only, never here | — |
@@ -103,7 +105,12 @@ or as unreached, and say which.
    search for exact names, code intelligence for definitions and references,
    structural search for code shapes, structured-data search for manifests and
    config, and history search when compatibility intent or prior migrations
-   matter. Run lexical search and file reading here. For history,
+   matter. When the repository keeps an ADR corpus, also run a **governance**
+   check (`adr-explain-path`) on the paths the change touches: it reports the
+   decisions that bind them, including rejected and superseded ones, so a
+   settled question is not re-opened by accident. Treat a missing corpus or a
+   missing `adr` binary as an unreached modality, never as "nothing governs
+   this". Run lexical search and file reading here. For history,
    structured-data, and `git grep` structural search, prefer the enforced
    inspection runner (`scripts/run-impact-inspection.py`, see the tool boundary
    above); reach code-intelligence — and any modality the runner reports

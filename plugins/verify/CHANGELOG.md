@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.1 — 2026-08-08
+
+- Preflight the ADR corpus directory for governance operations. adrkit exits 2
+  when `--dir` is missing and this runner reserves 2 for policy refusal, so a
+  repository without `docs/adr` reported a refusal instead of the required
+  `unavailable`. A missing corpus is now an unreached modality, never a finding.
+- Make governance reachable from `change-impact/SKILL.md` itself — tool boundary,
+  modality table, and the analysis flow — rather than only in progressive detail,
+  so the main workflow cannot complete without considering it.
+- Assert the governance read-only guarantee at the argv level. The prior test
+  matched operation-id substrings, so repointing a builder at `adr new` would
+  still have passed; verified by mutation.
+
+## 0.5.0 — 2026-08-08
+
+- Add a `governance` modality to the enforced inspection runner (ADR-0003):
+  `adr-explain-path` and `adr-check-path` reach adrkit's read-only `explain`
+  and `check` verbs as exact argv. Structural and historical evidence cannot
+  say what the team already decided or rejected; this can.
+- adrkit stays optional. A missing `adr` binary exits `unavailable`, so the
+  modality is reported as unreached rather than silently skipped — an absent
+  corpus is not evidence that no decision governs a path.
+- Only read-only verbs are catalogued, and a test asserts the writing verbs
+  (`new`, `migrate`) never enter a catalog whose contract is non-mutating.
+  The caller-supplied corpus directory is path-confined like any other path.
+
 ## 0.4.3 — 2026-08-04
 
 - Shorten the `verifier` agent and `verify-before-trust` skill triggers to free aggregate discovery budget for the new
