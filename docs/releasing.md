@@ -107,16 +107,22 @@ ADR-0005's and holds unconditionally.
 
 Then:
 
-1. **Rehearse.** Run the workflow via `workflow_dispatch` with the intended tag.
+1. **Correct the README first, if it hedges about publication.** The plugin
+   README is the package's `readme`, so it becomes the PyPI project page. A
+   "not on PyPI yet" note that is true when written is false the moment the
+   upload succeeds, and it cannot be fixed on the published page without a new
+   release. Both `indexkit` and `memorykit` shipped their first release with
+   that note still in place. Do this before the tag, not as follow-up.
+2. **Rehearse.** Run the workflow via `workflow_dispatch` with the intended tag.
    Dispatch runs verification only and never publishes, so this exercises the
    guard, tests, `uv build`, `twine check --strict`, and the built-artifact
    assertion without spending a tag. Rehearse before every release: the
    dispatch path is the only place a build-stage bug can surface while the tag
    is still free to move.
-2. **Tag and push**, as above. The `publish` job runs only on a tag push, and
+3. **Tag and push**, as above. The `publish` job runs only on a tag push, and
    only if `verify` succeeded.
-3. **Confirm** the release on <https://pypi.org/p/indexkit>.
-4. **Confirm provenance.** Publishing emits PEP 740 attestations for **both**
+4. **Confirm** the release on <https://pypi.org/p/indexkit>.
+5. **Confirm provenance.** Publishing emits PEP 740 attestations for **both**
    distributions; check that both landed, using the endpoint below rather than
    the obvious one.
 
@@ -218,17 +224,16 @@ records this so the duplication is not mistaken for an oversight.
 
 The same one-time prerequisites apply, with `memorykit` values: a PyPI **pending
 publisher** for `memorykit` — owner `mbeacom`, repository `context-kit`, workflow
-`release-memorykit.yml`, environment `pypi`. As of this writing that publisher
-has not been created and nothing has been uploaded; the name is unclaimed on
-PyPI, and the first upload claims it permanently.
+`release-memorykit.yml`, environment `pypi`. Both are configured, and
+`memorykit` 0.6.0 published on 2026-08-09.
 
-**Before the first `memorykit` release, remove the "Not on PyPI yet" note from
-`plugins/memory/README.md`** and promote `pip install memorykit` from "once
-published" to the primary instruction. That README *is* the PyPI long
-description, so leaving the note in place would publish a project page that
-says the project is not published. This is not hypothetical: the same note had
-to be cleaned up for `indexkit` after it shipped (PR #45). Treat it as part of
-the release, not as follow-up.
+**A plugin README that is also a PyPI long description has to be corrected
+before the tag, not after.** Both `indexkit` and `memorykit` shipped their first
+release with a "Not on PyPI yet" note still in the README, so each project page
+launched saying the project was not published. `indexkit` was corrected in
+PR #45 and `memorykit` after 0.6.0; the note above was written to prevent the
+second occurrence and did not, because it lived here rather than in the release
+checklist. It is now step 1 of that checklist.
 
 ## Recovery
 

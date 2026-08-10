@@ -34,20 +34,16 @@ Installing `memory` also installs `context-handoff`, `verify`, and
 The contract, validator, and MCP server are also packaged as **`memorykit`**, a
 pure-standard-library Python package (ADR-0002, ADR-0009).
 
-> **Not on PyPI yet.** The package is publish-ready but the name has not been
-> claimed, so `pip install memorykit` does **not** currently install this — it
-> will fail, or, if someone else claims the name first, install something else
-> entirely. Until the release workflow runs, install from a clone.
+```bash
+pip install memorykit             # or: uv tool install memorykit
+```
+
+To work from a clone instead — for contributing, or to run an unreleased
+revision:
 
 ```bash
 # From a clone of https://github.com/mbeacom/context-kit
 pip install ./plugins/memory      # or: uv tool install ./plugins/memory
-```
-
-Once published, that becomes:
-
-```bash
-pip install memorykit             # or: uv tool install memorykit
 ```
 
 Either way that is the whole install: no bootstrap step, no plugin runtime, no
