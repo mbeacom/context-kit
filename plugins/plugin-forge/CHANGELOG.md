@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.7.5 — 2026-08-11
+
+Deep review of 0.7.4 found the new gate's hand-rolled line parser both
+over- and under-rejecting, so the logic moves to a tested peer module.
+
+- **`scripts/agent_frontmatter.py`** now owns the `skills` contract, reusing
+  `command_frontmatter.py`'s standard-library YAML type resolution instead of
+  re-deriving it. `check-skills.sh` keeps discovery frontmatter and delegates
+  the type question, mirroring `check-commands.sh`.
+- **Fix a false negative:** `skills: [[a]]` passed. `strip("[]")` removes
+  *characters*, not one bracket pair, so an array-of-arrays looked flat —
+  precisely the shape Copilot rejects, which is the one failure this gate must
+  never wave through. Flow sequences are now split with nesting and quote
+  tracking, and non-scalar items are rejected.
+- **Fix two false positives:** `skills: # comment` and `skills: &anchor`
+  followed by a valid list were reported as strings, blocking legal YAML in
+  pre-commit — and the printed suggestion was empty, so the message told the
+  author nothing.
+- **Add `tests/test_agent_frontmatter.py`** (32 cases) and
+  `scripts/test-agents.sh`, wired into pre-commit and CI. 0.7.4 shipped this
+  logic with no regression coverage while `command_frontmatter.py` had 345
+  lines of it.
+- Document the monorepo scope of the skill-existence check: it does not verify
+  that a cross-plugin preload is backed by a declared dependency.
+
 ## 0.7.4 — 2026-08-11
 
 - **`check-skills.sh` now validates agent `skills` frontmatter.** `skills` is a

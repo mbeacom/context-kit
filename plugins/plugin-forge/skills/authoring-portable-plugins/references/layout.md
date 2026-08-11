@@ -160,6 +160,16 @@ same instructions to a general-purpose worker. That silently discards the
 agent's `tools` restriction, so a read-only reviewer becomes a worker that can
 write. Prefer failing loudly over a fallback that quietly widens permissions.
 
-`check-skills.sh` enforces the list shape and additionally rejects a `skills`
-entry naming a skill that does not exist in this repo, since a preload the host
-skips leaves the agent running without the knowledge it was built around.
+`check-skills.sh` enforces the list shape through `scripts/agent_frontmatter.py`,
+a peer of `command_frontmatter.py` that reuses the same standard-library YAML
+type resolution rather than re-deriving it. It additionally rejects an empty
+`skills`, a non-scalar item (`[[a]]` is an array of arrays, which Copilot also
+refuses), and an entry naming a skill that does not exist in this repo, since a
+preload the host skips leaves the agent running without the knowledge it was
+built around. `scripts/test-agents.sh` covers those cases.
+
+The existence check is monorepo-scoped on purpose: it asserts the skill exists
+somewhere under `plugins/`, not that it ships in the agent's own plugin.
+Cross-plugin preloads are legitimate — `context-handoff`'s agent preloads
+`verify-before-trust` from `verify` — but they are only safe because the plugin
+declares that dependency, which this gate does not check for you.

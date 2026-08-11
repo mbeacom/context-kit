@@ -202,6 +202,12 @@ suites.
   384-character per-component ceiling; `check-catalog-quality.sh` warns at 95%
   and fails above the limit. See `AGENTS.md` and
   `plugins/plugin-forge/skills/authoring-portable-plugins/references/catalog-quality.md`.
+- **Agent frontmatter:** `tools` is a comma-separated string, but `skills` is a
+  **YAML list** (`skills:` then a `- <skill-name>` item). Claude Code tolerates the
+  string form; GitHub Copilot rejects the entire frontmatter, so the agent never
+  registers and callers fall back to a general-purpose worker without the
+  agent's `tools` restriction. `check-skills.sh` enforces this via
+  `scripts/agent_frontmatter.py`.
 - **Markdown:** `.markdownlint-cli2.jsonc` disables MD013/MD033/MD041/MD060.
   Fix real lint findings rather than disabling more rules.
 

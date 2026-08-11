@@ -84,6 +84,12 @@ repos:
         language: system
         pass_filenames: false
         files: '^plugins/.*/(SKILL\.md|agents/.*\.md)$'
+      - id: test-agents
+        name: agent frontmatter regression tests
+        entry: bash plugins/plugin-forge/scripts/test-agents.sh
+        language: system
+        pass_filenames: false
+        files: '^plugins/(.*/agents/.*\.md|.*/skills/.*/SKILL\.md|plugin-forge/(scripts/(agent_frontmatter\.py|command_frontmatter\.py|check-skills\.sh|test-agents\.sh)|tests/test_agent_frontmatter\.py))$'
       - id: check-commands
         # A command whose frontmatter resolves to the wrong YAML type fails to
         # load outright (e.g. unquoted `argument-hint: [path]` is a sequence).

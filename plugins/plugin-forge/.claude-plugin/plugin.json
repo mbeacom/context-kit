@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "plugin-forge",
   "displayName": "Plugin Forge",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Author portable GitHub Copilot, APM, and Claude Code plugins while keeping plugin.json and apm.yml in sync. Ships conventions, scaffolding, manifest checks, and deterministic discovery, retrieval-contract, and release-readiness gates.",
   "author": {
     "name": "Mark Beacom"
