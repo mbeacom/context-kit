@@ -37,7 +37,13 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from command_frontmatter import Entry, entry_type, parse_frontmatter
+from command_frontmatter import (
+    Entry,
+    entry_type,
+    parse_frontmatter,
+    resolve_type,
+    scalar_text,
+)
 
 FIELD = "skills"
 
@@ -118,6 +124,7 @@ def _split_flow(raw: str) -> list[str] | None:
 
 
 def _unquote(value: str) -> str:
+    """Strip surrounding quotes from the scalar used to build a fix suggestion."""
     value = value.strip()
     if len(value) >= 2 and value[0] == value[-1] and value[0] in QUOTES:
         return value[1:-1]
@@ -125,7 +132,13 @@ def _unquote(value: str) -> str:
 
 
 def sequence_items(entry: Entry) -> tuple[list[str], list[str]]:
-    """Return (names, problems) for a ``skills`` entry already typed as a seq."""
+    """Return (names, problems) for a ``skills`` entry already typed as a seq.
+
+    Each item is resolved as a YAML node, not compared as raw text. Copilot
+    validates an array of *strings*, so a bare ``true``/``null``/``123`` item is
+    a type failure rather than an oddly named skill, and ``- s1 # note`` is the
+    skill ``s1`` rather than a skill literally called ``s1 # note``.
+    """
     inline = entry.inline.strip()
     problems: list[str] = []
     raw_items: list[str] = []
@@ -140,9 +153,20 @@ def sequence_items(entry: Entry) -> tuple[list[str], list[str]]:
             stripped = line.strip()
             if not stripped or stripped.startswith("#"):
                 continue
-            if stripped == "-" or not stripped.startswith("- "):
-                if stripped.startswith("-"):
-                    problems.append(f"list item {stripped!r} has no value")
+            if not stripped.startswith("-"):
+                # A significant line that is not a list item makes the whole
+                # block invalid YAML. Skipping it would accept a document the
+                # host rejects, which is the failure this gate exists to catch.
+                problems.append(
+                    f"block sequence contains a non-item line {stripped!r}; "
+                    f"every line must be a `- <skill-name>` item"
+                )
+                continue
+            if stripped == "-":
+                problems.append("list item has no value")
+                continue
+            if not stripped.startswith("- "):
+                problems.append(f"list item {stripped!r} needs a space after the dash")
                 continue
             raw_items.append(stripped[2:].strip())
 
@@ -151,13 +175,14 @@ def sequence_items(entry: Entry) -> tuple[list[str], list[str]]:
         if not item:
             problems.append("list contains an empty item")
             continue
-        if item[:1] in ("[", "{", "-"):
+        kind = resolve_type(item)
+        if kind != "str":
             problems.append(
-                f"list item {item!r} is not a plain string; `skills` must be a "
-                f"flat array of skill names"
+                f"list item {item!r} resolves to a YAML {kind}, not a string; "
+                f"`skills` must be a flat array of skill names"
             )
             continue
-        names.append(_unquote(item))
+        names.append(scalar_text(item))
     return names, problems
 
 

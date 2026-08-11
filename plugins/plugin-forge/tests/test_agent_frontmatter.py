@@ -107,6 +107,17 @@ class AcceptedShapes(Harness):
     def test_trailing_comment_on_flow(self) -> None:
         self.assertAccepted("skills: [s1] # preloaded")
 
+    def test_trailing_comment_on_block_item(self) -> None:
+        """Review regression: `- s1 # note` is the skill `s1`, not `s1 # note`.
+
+        Comparing the raw item text rejected valid YAML with a nonsense message
+        naming a skill nobody wrote.
+        """
+        self.assertAccepted("skills:\n  - s1 # note")
+
+    def test_trailing_comment_on_quoted_item(self) -> None:
+        self.assertAccepted('skills:\n  - "s1" # note')
+
 
 class RejectedShapes(Harness):
     def test_bare_scalar(self) -> None:
@@ -147,10 +158,36 @@ class RejectedShapes(Harness):
         valid `[s1]`. Copilot validates array-of-strings and would reject it,
         which is the false negative this gate must never produce.
         """
-        self.assertRejected("skills: [[s1]]", "not a plain string")
+        self.assertRejected("skills: [[s1]]", "not a string")
 
     def test_mapping_item_in_flow(self) -> None:
-        self.assertRejected("skills: [{a: b}]", "not a plain string")
+        self.assertRejected("skills: [{a: b}]", "not a string")
+
+    def test_stray_line_in_block_sequence(self) -> None:
+        """Review regression: this was ACCEPTED.
+
+        A non-item line makes the block invalid YAML, so the host rejects the
+        whole frontmatter — but the gate skipped the line and passed on the
+        valid item beside it, recreating the registration failure it exists to
+        prevent.
+        """
+        self.assertRejected("skills:\n  - s1\n  unexpected", "non-item line")
+
+    def test_bool_item_is_not_a_string(self) -> None:
+        self.assertRejected("skills:\n  - true", "resolves to a YAML bool")
+
+    def test_int_item_is_not_a_string(self) -> None:
+        self.assertRejected("skills:\n  - 123", "resolves to a YAML int")
+
+    def test_null_item_is_not_a_string(self) -> None:
+        self.assertRejected("skills:\n  - ~", "resolves to a YAML null")
+
+    def test_item_without_space_after_dash_is_a_scalar(self) -> None:
+        """`  -s1` is the plain scalar `-s1`, so the whole value is a string."""
+        self.assertRejected("skills:\n  -s1", "must be a YAML list")
+
+    def test_later_item_without_space_after_dash(self) -> None:
+        self.assertRejected("skills:\n  - s1\n  -s2", "space after the dash")
 
     def test_unterminated_flow_sequence(self) -> None:
         self.assertRejected("skills: [s1", "unterminated")
@@ -160,6 +197,21 @@ class RejectedShapes(Harness):
 
     def test_valueless_list_item(self) -> None:
         self.assertRejected("skills:\n  -\n  - s1", "no value")
+
+
+class ScalarTextTests(unittest.TestCase):
+    def test_drops_trailing_comment(self) -> None:
+        self.assertEqual(agent_frontmatter.scalar_text("s1 # note"), "s1")
+
+    def test_unquotes(self) -> None:
+        self.assertEqual(agent_frontmatter.scalar_text('"s1"'), "s1")
+        self.assertEqual(agent_frontmatter.scalar_text("'s1'"), "s1")
+
+    def test_unquotes_then_drops_comment(self) -> None:
+        self.assertEqual(agent_frontmatter.scalar_text('"s1" # note'), "s1")
+
+    def test_preserves_hash_inside_quotes(self) -> None:
+        self.assertEqual(agent_frontmatter.scalar_text('"s#1"'), "s#1")
 
 
 class SplitFlowTests(unittest.TestCase):

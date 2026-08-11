@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.6 — 2026-08-11
+
+PR review found the gate still comparing raw item text instead of resolving
+each item as a YAML node.
+
+- **Fix a second false negative:** a block sequence containing a non-item line
+  (`skills:` followed by `- s1` and then a bare `unexpected`) was accepted. The
+  stray line makes the whole document invalid YAML, so the host rejects the
+  frontmatter while the gate passed on the valid item beside it. Every
+  significant block line must now be a `- <skill-name>` item.
+- **Type-check each item.** A bare `true`, `~`, or `123` is a bool/null/int
+  node, not the string Copilot's array requires; these were previously reported
+  as oddly named unknown skills. Items now resolve through `resolve_type` and
+  must be `str`.
+- **Fix a false positive:** `- s1 # note` was compared literally as
+  `s1 # note` and rejected as an unknown skill. Items are decoded with a new
+  public `command_frontmatter.scalar_text()`, which drops trailing comments and
+  quotes — keeping quote handling in the one module that owns it.
+
 ## 0.7.5 — 2026-08-11
 
 Deep review of 0.7.4 found the new gate's hand-rolled line parser both
