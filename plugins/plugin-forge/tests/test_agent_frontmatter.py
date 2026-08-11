@@ -50,7 +50,9 @@ class Harness(unittest.TestCase):
                     f'"Use when exercising the gate."\n---\n\nBody.\n',
                     encoding="utf-8",
                 )
-            (plugins / "p/agents/a1.md").write_text(agent(skills_block), encoding="utf-8")
+            (plugins / "p/agents/a1.md").write_text(
+                agent(skills_block), encoding="utf-8"
+            )
             return agent_frontmatter.validate_plugins(plugins)
 
     def assertAccepted(self, block: str | None, **kwargs) -> None:

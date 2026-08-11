@@ -62,7 +62,9 @@ def resolve_entry_type(entry: Entry) -> str:
     treating the bare anchor as a scalar would reject valid YAML.
     """
     if ANCHOR_ONLY_RE.match(entry.inline.strip()):
-        return entry_type(Entry(inline="", line_number=entry.line_number, body=entry.body))
+        return entry_type(
+            Entry(inline="", line_number=entry.line_number, body=entry.body)
+        )
     return entry_type(entry)
 
 
@@ -102,7 +104,9 @@ def _split_flow(raw: str) -> list[str] | None:
                 trailing = raw[index + 1 :].strip()
                 if trailing and not trailing.startswith("#"):
                     return None
-                return [item.strip() for item in items if item.strip() or len(items) > 1]
+                return [
+                    item.strip() for item in items if item.strip() or len(items) > 1
+                ]
             current += char
             continue
         if char == "," and depth == 1:
