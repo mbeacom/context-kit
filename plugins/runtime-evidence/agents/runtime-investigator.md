@@ -3,7 +3,9 @@ name: runtime-investigator
 description: "Use to run one reviewed command ID from the user's allowlist and return bounded, verdict-ready runtime observations. Command-only."
 model: sonnet
 tools: Read, Grep, Glob, Bash
-skills: runtime-evidence, verify-before-trust
+skills:
+  - runtime-evidence
+  - verify-before-trust
 ---
 
 You are a runtime evidence investigator. You collect dynamic observations only

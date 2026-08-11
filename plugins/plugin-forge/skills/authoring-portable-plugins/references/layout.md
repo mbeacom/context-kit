@@ -129,3 +129,47 @@ gate never fails a value YAML would accept. That has deliberate consequences
 worth knowing: `1e3` and `1.0e3` are strings because the exponent form needs an
 explicit sign, `0o17` is a string because YAML 1.1 octal is `017`, and `y` / `n`
 are strings because PyYAML omits the single-letter booleans.
+
+## Agent frontmatter
+
+`tools` and `skills` look interchangeable and are not. `tools` is a
+comma-separated string; **`skills` is a YAML list**, and using the `tools` shape
+for it is the single portability trap in an agent file:
+
+```yaml
+# Wrong — Copilot rejects the WHOLE frontmatter:
+#   "skills: Expected array, received string"
+skills: verify-before-trust, runtime-evidence
+
+# Right — both hosts accept a sequence.
+tools: Read, Grep, Glob
+skills:
+  - verify-before-trust
+  - runtime-evidence
+```
+
+This fails asymmetrically, which is why it survives review. Claude Code
+documents `skills` as a list but tolerates the string, so an agent authored and
+tested only on Claude looks correct. GitHub Copilot CLI validates it as an
+array, and a schema failure on one key discards *every* field — the agent loads
+with empty metadata and never registers.
+
+The damage is not a missing agent. A skill that dispatches it fails with "agent
+type isn't registered", and the caller's natural recovery is to re-dispatch the
+same instructions to a general-purpose worker. That silently discards the
+agent's `tools` restriction, so a read-only reviewer becomes a worker that can
+write. Prefer failing loudly over a fallback that quietly widens permissions.
+
+`check-skills.sh` enforces the list shape through `scripts/agent_frontmatter.py`,
+a peer of `command_frontmatter.py` that reuses the same standard-library YAML
+type resolution rather than re-deriving it. It additionally rejects an empty
+`skills`, a non-scalar item (`[[a]]` is an array of arrays, which Copilot also
+refuses), and an entry naming a skill that does not exist in this repo, since a
+preload the host skips leaves the agent running without the knowledge it was
+built around. `scripts/test-agents.sh` covers those cases.
+
+The existence check is monorepo-scoped on purpose: it asserts the skill exists
+somewhere under `plugins/`, not that it ships in the agent's own plugin.
+Cross-plugin preloads are legitimate — `context-handoff`'s agent preloads
+`verify-before-trust` from `verify` — but they are only safe because the plugin
+declares that dependency, which this gate does not check for you.

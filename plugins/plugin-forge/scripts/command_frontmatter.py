@@ -192,6 +192,23 @@ def resolve_type(raw: str) -> str:
     return "str"
 
 
+def scalar_text(raw: str) -> str:
+    """Decoded text of a YAML scalar: quotes removed, trailing comment dropped.
+
+    Callers that compare a value against a known name need what YAML would
+    hand the host, not the raw source. ``- s1 # note`` is the skill ``s1``, and
+    ``"s1"`` is also ``s1``. Check ``resolve_type`` first — this assumes the
+    value is a scalar and does not validate it.
+    """
+    value = raw.strip()
+    if value[:1] in QUOTES:
+        end = _closing_quote(value)
+        if end is None:
+            return value
+        return value[1 : end - 1]
+    return _strip_comment(value).strip()
+
+
 def _significant(body: list[str]) -> list[str]:
     """Body lines that carry a value, ignoring blanks and whole-line comments."""
     return [

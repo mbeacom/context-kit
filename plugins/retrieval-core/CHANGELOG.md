@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.2 — 2026-08-11
+
+- **Fix: `retrieval-strategist` now registers on GitHub Copilot CLI.** Its `skills`
+  frontmatter preloaded `retrieval-strategy` as a comma-separated
+  string, borrowing the `tools:` convention. Claude Code documents `skills` as a
+  YAML list and tolerated the string; Copilot CLI validates it as an array and
+  rejected the *entire* frontmatter (`skills: Expected array, received string`),
+  so the agent loaded with empty metadata and never registered. Dispatching it
+  failed with "agent type isn't registered", and callers silently fell back to a
+  general-purpose worker — dropping the `tools` restriction this agent relies on.
+  Now a YAML sequence, which both hosts accept. No behavior change on Claude Code.
+
 ## 0.6.1 — 2026-08-08
 
 - Add decision/governance triggers to the skill and agent discovery descriptions.

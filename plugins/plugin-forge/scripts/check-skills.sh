@@ -11,6 +11,14 @@
 #   - has YAML frontmatter (opening + closing `---`)
 #   - `name` present, kebab-case, and equal to the skill dir / agent file name
 #   - `description` present, 40..1024 chars, and trigger-phrased ("Use …")
+#   - agent `skills` is a YAML sequence naming skills that exist in this repo
+#
+# The `skills` check is host-portability, not style. Claude Code documents
+# `skills` as a YAML list but tolerates a comma-separated string; GitHub Copilot
+# CLI validates it as an array and rejects the WHOLE frontmatter when it is a
+# string ("skills: Expected array, received string"). The agent then loads with
+# empty metadata and never registers, so any skill that dispatches it silently
+# falls back to a general-purpose worker — losing the agent's `tools` restriction.
 #
 # Run from any working directory; pass an explicit plugins dir as $1 to override.
 set -euo pipefail
@@ -104,6 +112,7 @@ def discover(root):
 
 errors = []
 count = 0
+
 for path, expected, kind in sorted(discover(plugins_dir)):
     count += 1
     label = os.path.relpath(path, repo_dir)
@@ -149,3 +158,8 @@ if errors:
 
 print(f"OK: {count} skills/agents, discovery frontmatter valid")
 PY
+
+# The `skills` preload contract is a YAML *type* question, not a discovery one,
+# so it lives in a peer module beside command_frontmatter.py rather than in the
+# folding line parser above — which cannot tell a sequence from a string.
+python3 "${SCRIPT_DIR}/agent_frontmatter.py" "$PLUGINS_DIR"

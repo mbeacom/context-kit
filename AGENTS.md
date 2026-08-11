@@ -37,6 +37,18 @@ an application. See
 - **Discovery frontmatter:** every `SKILL.md`/agent needs a `name` matching its
   directory/file and a `description` that starts with a trigger ("Use when …").
   Both hosts decide when to load a component from these two fields.
+- **Agent `skills` is a YAML list, `tools` is a string.** They sit next to each
+  other and are not interchangeable. Claude Code tolerates a comma-separated
+  `skills`; Copilot validates it as an array and discards the *whole*
+  frontmatter, so the agent never registers and callers silently fall back to a
+  general-purpose worker that lacks the agent's `tools` restriction:
+
+  ```yaml
+  tools: Read, Grep, Glob   # comma-separated string
+  skills:                   # YAML sequence — never `skills: a, b`
+    - verify-before-trust
+  ```
+
 - **Portable env vars:** prefer `CONTEXT_KIT_*` (e.g. `CONTEXT_KIT_DATA`) and
   document `CLAUDE_PLUGIN_*` as the Claude fallback. Use `${CLAUDE_PLUGIN_ROOT}`
   for in-plugin paths; never hardcode install locations.

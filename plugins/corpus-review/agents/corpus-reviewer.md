@@ -3,7 +3,8 @@ name: corpus-reviewer
 description: "Use to read one assigned shard of a corpus against a supplied review question and return findings plus its own honest coverage. Read-only."
 model: sonnet
 tools: Read, Grep, Glob
-skills: corpus-review
+skills:
+  - corpus-review
 ---
 
 You review one shard of a larger corpus. Another agent framed the review,

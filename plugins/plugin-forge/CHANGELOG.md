@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.7.6 — 2026-08-11
+
+PR review found the gate still comparing raw item text instead of resolving
+each item as a YAML node.
+
+- **Fix a second false negative:** a block sequence containing a non-item line
+  (`skills:` followed by `- s1` and then a bare `unexpected`) was accepted. The
+  stray line makes the whole document invalid YAML, so the host rejects the
+  frontmatter while the gate passed on the valid item beside it. Every
+  significant block line must now be a `- <skill-name>` item.
+- **Type-check each item.** A bare `true`, `~`, or `123` is a bool/null/int
+  node, not the string Copilot's array requires; these were previously reported
+  as oddly named unknown skills. Items now resolve through `resolve_type` and
+  must be `str`.
+- **Fix a false positive:** `- s1 # note` was compared literally as
+  `s1 # note` and rejected as an unknown skill. Items are decoded with a new
+  public `command_frontmatter.scalar_text()`, which drops trailing comments and
+  quotes — keeping quote handling in the one module that owns it.
+
+## 0.7.5 — 2026-08-11
+
+Deep review of 0.7.4 found the new gate's hand-rolled line parser both
+over- and under-rejecting, so the logic moves to a tested peer module.
+
+- **`scripts/agent_frontmatter.py`** now owns the `skills` contract, reusing
+  `command_frontmatter.py`'s standard-library YAML type resolution instead of
+  re-deriving it. `check-skills.sh` keeps discovery frontmatter and delegates
+  the type question, mirroring `check-commands.sh`.
+- **Fix a false negative:** `skills: [[a]]` passed. `strip("[]")` removes
+  *characters*, not one bracket pair, so an array-of-arrays looked flat —
+  precisely the shape Copilot rejects, which is the one failure this gate must
+  never wave through. Flow sequences are now split with nesting and quote
+  tracking, and non-scalar items are rejected.
+- **Fix two false positives:** `skills: # comment` and `skills: &anchor`
+  followed by a valid list were reported as strings, blocking legal YAML in
+  pre-commit — and the printed suggestion was empty, so the message told the
+  author nothing.
+- **Add `tests/test_agent_frontmatter.py`** (32 cases) and
+  `scripts/test-agents.sh`, wired into pre-commit and CI. 0.7.4 shipped this
+  logic with no regression coverage while `command_frontmatter.py` had 345
+  lines of it.
+- Document the monorepo scope of the skill-existence check: it does not verify
+  that a cross-plugin preload is backed by a declared dependency.
+
+## 0.7.4 — 2026-08-11
+
+- **`check-skills.sh` now validates agent `skills` frontmatter.** `skills` is a
+  YAML list, but it sits beside `tools` (a comma-separated string), and every
+  agent in this repo had adopted the `tools` shape for it. Claude Code tolerates
+  the string; GitHub Copilot CLI validates it as an array and discards the whole
+  frontmatter on failure, so the agent never registers and callers fall back to a
+  general-purpose worker — dropping the agent's `tools` restriction. The gate
+  rejects a scalar, an empty `skills`, and a name with no matching
+  `plugins/*/skills/<name>/SKILL.md`.
+- Document the `tools`-vs-`skills` type split in the authoring reference.
+
 ## 0.7.3 — 2026-08-08
 
 - Update discovery fixtures and retrieval scenarios for the `local-rag` →
