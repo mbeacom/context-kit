@@ -4,7 +4,8 @@ description: Use for open-ended "where/how/why was X handled or decided" questio
 model: sonnet
 effort: medium
 tools: Grep, Glob, Read, Bash
-skills: retrieval-strategy
+skills:
+  - retrieval-strategy
 ---
 
 You are the retrieval-strategist. Your job is to FIND information efficiently by

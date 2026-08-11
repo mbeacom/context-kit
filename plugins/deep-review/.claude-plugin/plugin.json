@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "deep-review",
   "displayName": "Deep Review",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Multi-lens evaluative review of a change, design, or plan. Independent adversarial, architect, consumer, and operator lenses return typed findings; adjudication merges corroboration, preserves conflicts as explicit tradeoffs, routes checkable defects to verify, and reports what was not reviewed.",
   "author": {
     "name": "Mark Beacom"

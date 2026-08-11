@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.4 — 2026-08-11
+
+- **`check-skills.sh` now validates agent `skills` frontmatter.** `skills` is a
+  YAML list, but it sits beside `tools` (a comma-separated string), and every
+  agent in this repo had adopted the `tools` shape for it. Claude Code tolerates
+  the string; GitHub Copilot CLI validates it as an array and discards the whole
+  frontmatter on failure, so the agent never registers and callers fall back to a
+  general-purpose worker — dropping the agent's `tools` restriction. The gate
+  rejects a scalar, an empty `skills`, and a name with no matching
+  `plugins/*/skills/<name>/SKILL.md`.
+- Document the `tools`-vs-`skills` type split in the authoring reference.
+
 ## 0.7.3 — 2026-08-08
 
 - Update discovery fixtures and retrieval scenarios for the `local-rag` →

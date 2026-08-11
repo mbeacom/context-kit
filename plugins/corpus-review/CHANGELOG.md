@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.4 — 2026-08-11
+
+- **Fix: `corpus-reviewer` now registers on GitHub Copilot CLI.** Its `skills`
+  frontmatter preloaded `corpus-review` as a comma-separated
+  string, borrowing the `tools:` convention. Claude Code documents `skills` as a
+  YAML list and tolerated the string; Copilot CLI validates it as an array and
+  rejected the *entire* frontmatter (`skills: Expected array, received string`),
+  so the agent loaded with empty metadata and never registered. Dispatching it
+  failed with "agent type isn't registered", and callers silently fell back to a
+  general-purpose worker — dropping the `tools` restriction this agent relies on.
+  Now a YAML sequence, which both hosts accept. No behavior change on Claude Code.
+
 ## 0.1.3 — 2026-08-08
 
 - Update retrieval references for the `local-rag` → `indexkit` rename (ADR-0007).

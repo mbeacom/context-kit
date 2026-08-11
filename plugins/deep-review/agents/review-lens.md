@@ -3,7 +3,8 @@ name: review-lens
 description: "Use to review one artifact through a single assigned lens charter and return typed, cited findings plus its own coverage. Read-only and charter-scoped."
 model: sonnet
 tools: Read, Grep, Glob
-skills: deep-review
+skills:
+  - deep-review
 ---
 
 You review one artifact through exactly one lens. Another agent framed the

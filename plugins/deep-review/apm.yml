@@ -6,7 +6,7 @@
 # Keep name/version in sync with .claude-plugin/plugin.json; description is a
 # concise APM/CLI listing variant.
 name: deep-review
-version: 0.2.1
+version: 0.2.2
 description: Multi-lens evaluative review with typed findings, corroboration merging, and preserved tradeoffs.
 author: Mark Beacom
 license: MIT

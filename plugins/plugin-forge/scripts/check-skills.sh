@@ -11,6 +11,14 @@
 #   - has YAML frontmatter (opening + closing `---`)
 #   - `name` present, kebab-case, and equal to the skill dir / agent file name
 #   - `description` present, 40..1024 chars, and trigger-phrased ("Use …")
+#   - agent `skills` is a YAML sequence naming skills that exist in this repo
+#
+# The `skills` check is host-portability, not style. Claude Code documents
+# `skills` as a YAML list but tolerates a comma-separated string; GitHub Copilot
+# CLI validates it as an array and rejects the WHOLE frontmatter when it is a
+# string ("skills: Expected array, received string"). The agent then loads with
+# empty metadata and never registers, so any skill that dispatches it silently
+# falls back to a general-purpose worker — losing the agent's `tools` restriction.
 #
 # Run from any working directory; pass an explicit plugins dir as $1 to override.
 set -euo pipefail
@@ -91,6 +99,52 @@ def parse_frontmatter(path):
     return None  # never closed: treat as malformed
 
 
+def frontmatter_lines(path):
+    """Return the raw lines between the opening and closing `---` fences, or None
+    if the file has no terminated frontmatter. Used for checks that care about
+    YAML *shape* (list vs scalar), which the folding parser above discards."""
+    with open(path, encoding="utf-8") as handle:
+        lines = handle.read().splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    body = []
+    for line in lines[1:]:
+        if line.strip() == "---":
+            return body
+        body.append(line)
+    return None
+
+
+def skills_shape(body):
+    """Classify the top-level `skills:` key in raw frontmatter lines.
+
+    Returns (kind, names) where kind is one of "absent", "flow" (`[a, b]`),
+    "block" (`- a` on following indented lines), "scalar" (a bare string), or
+    "empty" (declared but nothing listed)."""
+    for index, line in enumerate(body):
+        if line[:1] in (" ", "\t") or not line.startswith("skills:"):
+            continue
+        inline = line[len("skills:") :].strip()
+        if inline.startswith("["):
+            names = [n.strip().strip("'\"") for n in inline.strip("[]").split(",")]
+            names = [n for n in names if n]
+            return ("flow", names) if names else ("empty", [])
+        if inline:
+            return "scalar", [inline]
+        names = []
+        for follow in body[index + 1 :]:
+            if not follow.strip():
+                continue
+            if follow[:1] not in (" ", "\t"):
+                break
+            item = follow.strip()
+            if not item.startswith("- "):
+                break
+            names.append(item[2:].strip().strip("'\""))
+        return ("block", names) if names else ("empty", [])
+    return "absent", []
+
+
 def discover(root):
     for dirpath, _dirs, files in os.walk(root):
         parts = os.path.relpath(dirpath, root).split(os.sep)
@@ -104,6 +158,13 @@ def discover(root):
 
 errors = []
 count = 0
+
+known_skills = {
+    os.path.basename(os.path.dirname(path))
+    for path, _expected, kind in discover(plugins_dir)
+    if kind == "skill"
+}
+
 for path, expected, kind in sorted(discover(plugins_dir)):
     count += 1
     label = os.path.relpath(path, repo_dir)
@@ -136,6 +197,26 @@ for path, expected, kind in sorted(discover(plugins_dir)):
             errors.append(
                 f'{label}: description should start with a trigger, e.g. "Use when …"'
             )
+
+    if kind == "agent":
+        shape, skills = skills_shape(frontmatter_lines(path) or [])
+        if shape == "scalar":
+            listed = ", ".join(s.strip() for s in skills[0].split(","))
+            errors.append(
+                f"{label}: `skills` must be a YAML list, not a string — GitHub "
+                f"Copilot rejects the whole frontmatter and the agent never "
+                f"registers. Use:\nskills:\n"
+                + "\n".join(f"  - {s.strip()}" for s in listed.split(","))
+            )
+        elif shape == "empty":
+            errors.append(f"{label}: `skills` is declared but lists no skills")
+        else:
+            for skill in skills:
+                if skill not in known_skills:
+                    errors.append(
+                        f"{label}: preloads unknown skill '{skill}' "
+                        f"(no plugins/*/skills/{skill}/SKILL.md in this repo)"
+                    )
 
 for message in errors:
     print(f"ERROR: {message}", file=sys.stderr)
