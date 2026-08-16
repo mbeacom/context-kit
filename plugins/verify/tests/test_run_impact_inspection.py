@@ -788,7 +788,7 @@ class GovernanceOperationTests(unittest.TestCase):
         # The rejected design was an `npx` fallback. Guard the property that
         # replaced it: the override names something that must already exist, so a
         # bare package specifier is refused rather than fetched.
-        env = {**os.environ, "CONTEXT_KIT_ADR_BIN": "@adrkit/cli@0.4.0"}
+        env = {**os.environ, "CONTEXT_KIT_ADR_BIN": "@adrkit/cli@0.7.0"}
         result = self.run_runner(
             "--operation",
             "adr-explain-path",

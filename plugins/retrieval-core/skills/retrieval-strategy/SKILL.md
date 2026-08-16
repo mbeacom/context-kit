@@ -35,8 +35,9 @@ ships automatically with `code-search`.
   then open and verify the source).
 - Asking whether something was already **decided** — what governs these paths,
   what was rejected, what superseded what? → **decision memory** (adrkit, if the
-  repository keeps a corpus: `adr explain <path>`, or the `governance` operations
-  of `verify`'s inspection runner). This is *ratified team governance*, distinct
+  repository keeps a corpus: `adr explain <path>`, the `governance` operations
+  of `verify`'s inspection runner, or the `adr-bridge` plugin's commands). This
+  is *ratified team governance*, distinct
   from durable memory's agent-observed records; absent adrkit, report the
   modality as unreached rather than assuming nothing governs the path.
 - Resuming the current task and its next action? → **handoff**, not durable memory
@@ -47,7 +48,8 @@ ships automatically with `code-search`.
 
 Lexical/structural/code-intelligence/structured-data/history/metrics/docs live in **code-search**.
 Semantic, graph, and durable recall are available as the **indexkit**,
-**obsidian**, and **memory** plugins.
+**obsidian**, and **memory** plugins. Decision memory is reachable through
+**adr-bridge**.
 
 ## Composition (modalities are layers, not rivals)
 
@@ -59,7 +61,10 @@ Semantic, graph, and durable recall are available as the **indexkit**,
   cited source and pin current repository evidence.
 - **Govern then change:** before proposing a change, ask which decisions already
   bind the paths involved → `adr explain` returns governing *and rejected*
-  records, so a settled question is not re-opened by accident.
+  records, so a settled question is not re-opened by accident. With no path in
+  hand, enter semantically over the corpus first, then resolve each hit to its
+  record — `status` is invisible to similarity, so a rejected record reads like
+  an accepted one.
 - **Recall then verify:** stale, conflicting, or consequential memory →
   `verify-before-trust` before it affects behavior.
 - **Retrieve then expand:** begin with a compact memory/RAG result → follow only

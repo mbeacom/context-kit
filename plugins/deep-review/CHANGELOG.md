@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 — 2026-08-15
+
+- **Add the `conformance` lens charter**, the review lens ADR-0003 anticipated.
+  It reviews an artifact against a ratified decision corpus and reports what
+  binds, what conflicts, and what revives a rejected option. Its non-scope keeps
+  it out of `architect`'s territory: it does not relitigate whether a decision
+  was correct, and its hard rule requires citing the record id and the `affects`
+  matcher that fired — an uncited conformance finding borrows authority the
+  corpus never granted. When `adr` is unavailable the lens reports **unreached**
+  and files nothing, because silence from a tool that never ran is not evidence
+  of compliance. Doubles as the worked example the *Domain charters* section
+  previously lacked. Reference-only: no discovery-budget cost.
+
 ## 0.2.2 — 2026-08-11
 
 - **Fix: `review-lens` now registers on GitHub Copilot CLI.** Its `skills`

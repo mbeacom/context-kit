@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.4 — 2026-08-15
+
+- **Update the adrkit pin from `0.4.0` to `0.7.0`** in the `governance`
+  operations' install hint and in `inspection-runner.md`. The repository already
+  documented inbound `@adr` markers — a 0.5.0 feature — while telling operators
+  to install 0.4.0, so anyone following the hint got a binary that could not
+  produce the behavior the docs described. Verified against this repository's own
+  corpus: `adr lint` on 0.7.0 reports 9 records, 0 errors, 0 warnings, and
+  `adr explain --json` returns the documented `governedBy` / `governing` /
+  `activeProposals` / `history` shape. The catalog, argv construction, and
+  read-only contract are unchanged.
+
 ## 0.5.3 — 2026-08-11
 
 - **Fix: `verifier` now registers on GitHub Copilot CLI.** Its `skills`
