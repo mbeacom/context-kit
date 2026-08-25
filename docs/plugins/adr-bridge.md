@@ -31,14 +31,14 @@ npm install -g @adrkit/cli@0.9.0
 
 | Command | Purpose |
 |---|---|
-| `/promote-decision-to-adr` | Promote an accepted `type: decision` memory record into an unratified draft ADR after checking for duplicates and rejected options |
+| `/promote-decision-to-adr` | Prepare an accepted `type: decision` memory record as an evidence-and-governance handoff for adrkit's upstream `/adr-draft` |
 | `/index-decisions` | Index the ADR corpus with indexkit, query it by meaning, then resolve each hit back to the authoritative record and status |
 
 ## Boundary
 
 A memory record is an **observation that a decision was made**. An ADR is **the
-decision, ratified**. Promotion never writes `provenance.ratifiedBy` and never
-sets `status: accepted`; a human ratifies it.
+decision, ratified**. The bridge leaves memory and the ADR corpus unchanged;
+adrkit's `/adr-draft` constructs the proposed record, and a human ratifies it.
 
 Semantic hits are leads, not rulings. Similarity cannot distinguish an accepted
 record from a rejected one, so `/index-decisions` always resolves hits back to

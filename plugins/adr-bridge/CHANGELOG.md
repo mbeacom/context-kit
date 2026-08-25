@@ -8,12 +8,11 @@ anticipated but left unbuilt.
 
 - **`/promote-decision-to-adr`** — the promotion path from ADR-0003 action item
   4. Turns a `type: decision` memory record (an *observation* that a decision was
-  made) into a **draft** ADR a human can ratify. Checks `governing`,
-  `activeProposals`, and `history` first, so a duplicate or an already-rejected
-  option stops the command instead of entering the corpus. Never writes
-  `provenance.ratifiedBy` and never sets `status: accepted` — adrkit's
-  `agent-accepted-requires-ratifier` rule is treated as a property to uphold, not
-  an obstacle to route around.
+  made) into an evidence-and-governance handoff for adrkit's upstream
+  `/adr-draft`. Checks `governing`, `activeProposals`, and `history` first, so a
+  duplicate or an already-rejected option stops the command instead of entering
+  the corpus. Generic record construction, schema, supersession, and linting stay
+  with adrkit's versioned command.
 - **`/index-decisions`** — composes `indexkit` over the corpus so decisions are
   findable by meaning when no path is known, since `adr explain` is
   path-addressed. Requires every semantic hit to be resolved back to its record,

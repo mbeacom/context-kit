@@ -22,7 +22,7 @@ affects:
     note: Owns the enforced read-only governance operations the bridge calls.
   - type: path
     pattern: plugins/retrieval-core/**
-    note: Routes the decision-memory modality this ADR assigns to the bridge.
+    note: Routes generic decision memory to adrkit or verify and the memory-promotion and semantic-index joins to adr-bridge.
   - type: path
     pattern: plugins/plugin-forge/quality/**
     note: Encodes the decision-memory route and govern-then-change composition.
@@ -81,7 +81,7 @@ where its churn originates.
 - **`context-kit` owns the bridge.** A new `adr-bridge` plugin holds only what
   references *this catalog's* plugins: `/promote-decision-to-adr`,
   `/index-decisions`, plus the `deep-review` `conformance` charter and the
-  `decision-memory` route in `retrieval-core`.
+  bridge-specific decision-memory compositions in `retrieval-core`.
 - **adrkit owns the generic agent workflow and tool usage.** Its portable plugin
   owns context, plan checking, drafting, and queue review. Its CLI and MCP
   surfaces own flags, schema, and ratification rules, versioned with the tool
@@ -92,8 +92,8 @@ discovery budget. This is a fit, not only a workaround: governance is a
 deliberate act, and a user-invoked command is the honest surface for one.
 
 `verify` is the bridge's only dependency, for its enforced read-only runner.
-`memory`, `plan-execute`, and `indexkit` stay optional and are reported as
-`unreached` when absent, per ADR-0003.
+`memory` and `indexkit` stay optional and are reported as `unreached` when
+absent, per ADR-0003.
 
 ## Options considered
 
@@ -139,11 +139,11 @@ had been right; choosing it now would be choosing not to test that.
   supplies only the context-kit-specific joins.
 - **Commands are not auto-discovered.** A skill would let a model route to this
   capability unprompted; commands must be invoked. We accept weaker discovery for
-  zero budget cost, and mitigate with the `decision-memory` route in
-  `retrieval-core`, which *is* always-on.
-- **Two repositories can drift.** The bridge names adrkit commands and JSON
-  fields; a breaking 0.x change breaks the bridge's instructions without breaking
-  its manifest, and nothing here fails loudly when that happens.
+  zero budget cost, and mitigate with `retrieval-core`, which routes generic
+  decision memory to adrkit or `verify` and the bridge-specific joins here.
+- **Two repositories can drift.** The bridge names adrkit commands and response
+  buckets; a breaking 0.x change can break the handoff without breaking its
+  manifest, and nothing here fails loudly when that happens.
 - **A fifteenth plugin is more catalog to keep honest**, and its value is
   conditional on a corpus existing at all.
 
@@ -170,8 +170,8 @@ had been right; choosing it now would be choosing not to test that.
 1. [x] Create `adr-bridge` with the two context-kit-specific bridging commands,
    commands-only.
 2. [x] Add the `conformance` lens charter to `deep-review` (ADR-0003 consequence).
-3. [x] Encode the `decision-memory` route and `govern-then-change` composition in
-   the retrieval contracts, which documented both but tested neither.
+3. [x] Encode generic `decision-memory` routing, the bridge-specific joins, and
+   the `govern-then-change` composition in the retrieval contracts.
 4. [x] Update the adrkit pin from 0.4.0 to the current release, which the `@adr`
    marker documentation already assumed.
 5. [x] adrkit shipped its portable agent plugin in

@@ -1,43 +1,40 @@
 ---
-description: Promote an observed decision in durable memory toward a ratifiable adrkit ADR, checking first whether an existing record already governs or already rejected it.
+description: Prepare an accepted memory decision for adrkit drafting by resolving its evidence, affected paths, and governing records, then hand it to upstream /adr-draft.
 argument-hint: <memory record id, decision statement, or the paths the decision governs>
 ---
 
 Promote `$ARGUMENTS` from an **observation that a decision was made** into a
-**draft ADR a human can ratify**.
+**verified drafting handoff** for adrkit's `/adr-draft`.
 
 If `$ARGUMENTS` is empty, ask which decision to promote. Do not scan memory and
 pick one — choosing what becomes repository governance is the user's call.
 
-## What this command may and may not do
+## Ownership boundary
 
-This is the promotion path defined by ADR-0003, and its single hard rule is that
-**ratification is a human act**. You may draft. You may never ratify.
-
-Concretely, the record you write must carry `provenance.authoredBy:
-agent-drafted` and must **not** carry `provenance.ratifiedBy`, and its `status`
-must be `draft` or `proposed` — never `accepted`. adrkit enforces exactly this
-pairing (`agent-accepted-requires-ratifier`): a machine-originated record cannot
-reach `accepted` without a named human ratifier, and `adr lint` fails it. Do not
-work around the rule by setting `authoredBy: human`; that is a false provenance
-claim about who authored the record, and it is the one field the corpus cannot
-reconstruct later.
+This bridge owns the context-kit-specific work: resolving a reviewed memory
+record, retaining its evidence, identifying the paths it would govern, and
+checking the existing decision corpus. adrkit's portable plugin owns record
+construction, schema rules, validation, and ratification. Do not recreate those
+rules here.
 
 A memory record and an ADR are also not the same object, so this is a
 **promotion, not a migration**. Leave the memory record in place and unmodified.
-It remains the evidence-bound observation; the ADR becomes the ratified decision.
+It remains the evidence-bound observation. `/adr-draft` may create a proposed
+record from the handoff; only a human may ratify it.
 
 ## Steps
 
 1. **Resolve the decision.** If `memory` is installed and `$ARGUMENTS` names a
    record, use `/recall-memory` or the `memory-workflows` skill to read it, and
    keep its `source` and `source_hash` — they become the ADR's evidence. If the
-   decision was given as prose, say so in the draft rather than implying a record
-   exists. If `$ARGUMENTS` names a record that is not `review: accepted`, stop
-   and report it: an unreviewed observation is not ready to become governance.
+   decision was given as prose, label that explicitly rather than implying a
+   record exists. If `$ARGUMENTS` names a record that is not `review: accepted`,
+   stop and report it: an unreviewed observation is not ready to become
+   governance.
 
-2. **Determine the paths it governs.** These become `affects`. A decision that
-   governs no path is usually not an ADR — reconsider before continuing.
+2. **Determine the paths it governs.** Pass these paths and their rationale to
+   upstream drafting. A decision that governs no path is usually not an ADR —
+   reconsider before continuing.
 
 3. **Check what already binds those paths — this is the step that earns the
    command.** For each path, run the `governance` operations of `verify`'s
@@ -64,36 +61,36 @@ It remains the evidence-bound observation; the ADR becomes the ratified decision
    and stop rather than padding the corpus — a corpus that rots is worse than
    none, because it looks authoritative.
 
-5. **Scaffold the record.** `adr new "<title>" --status draft --dir <dir>`. This
-   is the one step here that writes, and it writes a draft. Then fill in:
-   - `affects` — one entry per governed path, `type: path` with a
-     picomatch-style glob `pattern` and a `note` saying why that path is bound.
-     Other valid types are `entity`, `package`, `resource`, `api`, and `data`;
-     there is no `glob` or `service` type.
-   - `provenance.authoredBy: agent-drafted`, plus the agent name, model, and
-     harness. No `ratifiedBy`.
-   - `relatesTo` — any record found in step 3 that is adjacent but not superseded.
-   - `supersedes` and `status: superseded` on the **old** record only when the
-     user explicitly decides to supersede it. Never supersede a record on your
-     own initiative.
+5. **Prepare the handoff.** Assemble:
+   - the proposed title and decision statement;
+   - the memory record id, `source`, `source_hash`, and accepted review state, or
+     an explicit statement that the decision came from prose;
+   - each path the decision would govern and why;
+   - the ids, statuses, and relevant reasoning from `governing`,
+     `activeProposals`, and `history`;
+   - the threshold judgment from step 4; and
+   - whether the user explicitly intends this proposal to replace an existing
+     decision. Describe that as a candidate relationship only. Do not edit either
+     record in this command.
 
-6. **Write the reasoning, not just the rule.** The rule already lives in the
-   instruction files; the corpus exists for what they cannot hold. Fill Context,
-   Options considered (**including the options rejected, and why** — this is the
-   field that stops re-litigation), Trade-offs stated plainly, Consequences, and
-   an explicit "how we would know this was wrong" with a revisit condition. An
-   ADR whose Options section has one option is a rationalization, not a decision.
+6. **Hand off generic drafting.** Give that payload to adrkit's
+   `/adr-draft "<title>"` command. Let the upstream command own CLI resolution,
+   scaffolding, schema fields, supersession mechanics, and linting. Do not create
+   or edit an ADR locally.
 
-7. **Validate.** `adr lint --dir <dir>`. Exit `0` is clean; `1` means errors that
-   must be fixed before handing it over.
+   If the host cannot invoke another command from this command, or adrkit's
+   portable plugin is not installed, return the complete payload and the exact
+   `/adr-draft "<title>"` next command. Mark drafting as **unreached** rather than
+   substituting a local copy of adrkit's workflow.
 
 ## Report
 
-Return: the decision promoted and its evidence; what step 3 found in each of the
-three buckets; the threshold judgment from step 4; the record path written and
-its `affects` entries; the lint result; and an explicit statement that the record
-is **unratified** and names the human decision still required — who must ratify,
-and what they are being asked to agree to.
+Return: the decision and its evidence; what step 3 found in each of the three
+buckets; the threshold judgment from step 4; the complete drafting handoff; and
+whether `/adr-draft` was reached.
+
+If upstream drafting completed, relay its record path, id, validation result, and
+statement that the record remains unratified. If it was unreached, write no ADR.
 
 If you stopped at a duplicate, a rejection, or the threshold, report that instead
 and write nothing. Stopping is a successful outcome for this command.

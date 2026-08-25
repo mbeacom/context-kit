@@ -41,14 +41,15 @@ Then make `adr` reachable. It is optional — every command degrades to a stated
 
 ```bash
 npm i -g @adrkit/cli@0.9.0          # provides `adr`
-# or point at an existing install without a global:
-export CONTEXT_KIT_ADR_BIN=./node_modules/.bin/adr
+# or install project-locally and expose the same binary to every integration:
+npm i --save-dev @adrkit/cli@0.9.0
+export PATH="$PWD/node_modules/.bin:$PATH"
 ```
 
-`CONTEXT_KIT_ADR_BIN` must name an executable that **already exists**; a package
-specifier is refused rather than fetched. `npx` is never used, because these
-operations are contracted read-only and offline and `npx --yes` contacts the
-registry on every invocation.
+Putting the project-local binary on `PATH` makes it available to `verify`'s
+governance runner, direct bridge checks, and adrkit's upstream commands. Setting
+only `CONTEXT_KIT_ADR_BIN` configures the first of those, not the complete
+workflow.
 
 ## The boundary this plugin keeps
 
@@ -64,9 +65,9 @@ object:
 
 A memory record is an **observation that a decision was made**. An ADR is **the
 decision, ratified**. They compose as a promotion path, and the promotion is
-manual on purpose: `provenance.ratifiedBy` is a human act, which adrkit enforces
-by refusing `accepted` on a machine-authored record without a named ratifier.
-`/promote-decision-to-adr` drafts; it never ratifies.
+manual on purpose. `/promote-decision-to-adr` prepares the memory evidence and
+governance context, adrkit's `/adr-draft` constructs and validates the proposed
+record, and a human ratifies it.
 
 ## A failure mode worth stating
 
