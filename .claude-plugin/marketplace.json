@@ -4,7 +4,7 @@
     "name": "Mark Beacom"
   },
   "metadata": {
-    "description": "Fourteen context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, orchestration, steering, verification, multi-lens review, exhaustive corpus review, runtime evidence, token economics, handoff, and portable plugin authoring."
+    "description": "Fifteen context-engineering plugins for GitHub Copilot, APM, and Claude Code: retrieval modalities, hybrid local RAG, durable memory, decision-corpus governance, orchestration, steering, verification, multi-lens review, exhaustive corpus review, runtime evidence, token economics, handoff, and portable plugin authoring."
   },
   "plugins": [
     {
@@ -58,6 +58,20 @@
         "notes",
         "graph",
         "rag",
+        "retrieval"
+      ]
+    },
+    {
+      "name": "adr-bridge",
+      "source": "./plugins/adr-bridge",
+      "description": "Bridge an adrkit decision corpus to context-kit's durable memory and semantic retrieval: promote observed decisions toward ratifiable ADRs and recall decisions by meaning.",
+      "category": "retrieval",
+      "tags": [
+        "adr",
+        "adrkit",
+        "governance",
+        "decision-memory",
+        "architecture-decisions",
         "retrieval"
       ]
     },

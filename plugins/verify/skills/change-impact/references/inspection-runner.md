@@ -163,7 +163,7 @@ The `unavailable` payload names the remedy verbatim, and `CONTEXT_KIT_ADR_BIN`
 lets an operator point at an install that is not a bare `adr` on `PATH`:
 
 ```bash
-npm i -g @adrkit/cli@0.4.0                      # provides `adr`
+npm i -g @adrkit/cli@0.9.0                      # provides `adr`
 # or, without a global install:
 export CONTEXT_KIT_ADR_BIN=./node_modules/.bin/adr
 ```

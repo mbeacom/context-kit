@@ -1,6 +1,6 @@
 # Plugins
 
-The marketplace ships fourteen plugins. The **spine** is retrieval — a routing
+The marketplace ships fifteen plugins. The **spine** is retrieval — a routing
 agent that picks and composes modalities — surrounded by plugins for
 orchestration, steering, verification and impact analysis, multi-lens review,
 exhaustive corpus review, controlled runtime evidence, token economics,
@@ -47,6 +47,15 @@ cross-session handoff, and authoring.
 
     Skill-only RAG bridge: turn a vault's graph and tags into a candidate set
     fed to `indexkit`.
+
+    `retrieval` · shipped
+
+-   :material-source-branch:{ .lg .middle } **[adr-bridge](adr-bridge.md)**
+
+    ---
+
+    Bridge an adrkit decision corpus to context-kit's durable memory and
+    semantic retrieval without duplicating adrkit's own agent plugin.
 
     `retrieval` · shipped
 

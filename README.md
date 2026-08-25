@@ -1,5 +1,10 @@
 # context-kit
 
+[![Validate](https://github.com/mbeacom/context-kit/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/mbeacom/context-kit/actions/workflows/validate.yml)
+[![ADR corpus](https://github.com/mbeacom/context-kit/actions/workflows/adr.yml/badge.svg?branch=main)](https://github.com/mbeacom/context-kit/actions/workflows/adr.yml)
+[![ADRs](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmbeacom.github.io%2Fcontext-kit%2Fadrkit%2Flint.json&query=%24.checked&label=ADRs&color=cb492d)](./docs/adr)
+[![ARB queue](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmbeacom.github.io%2Fcontext-kit%2Fadrkit%2Fqueue.json&query=%24.totalItems&label=ARB%20queue&suffix=%20pending&color=cb492d)](./docs/adr)
+
 A context-engineering plugin pack for **GitHub Copilot CLI**, Microsoft's
 [APM](https://github.com/microsoft/apm) (Agent Package Manager), and
 [Claude Code](https://code.claude.com) — getting the right information in front of
@@ -20,7 +25,7 @@ disagreements survive),
 (provenance-bound durable recall with an optional MemPalace provider),
 **token-economics** (measure token spend and prove tool savings), and
 **plugin-forge** (author and quality-check portable plugins). The marketplace
-ships fourteen plugins.
+ships fifteen plugins.
 
 📖 **[Documentation site](https://mbeacom.github.io/context-kit/)** — install
 guides, architecture, and a page for every plugin.
@@ -45,6 +50,7 @@ copilot plugin marketplace add mbeacom/context-kit
 copilot plugin install code-search@context-kit      # auto-installs retrieval-core
 copilot plugin install indexkit@context-kit
 copilot plugin install obsidian@context-kit
+copilot plugin install adr-bridge@context-kit       # memory + indexkit joins for adrkit
 copilot plugin install plan-execute@context-kit   # plan-big/execute-small orchestration
 copilot plugin install context-steering@context-kit
 copilot plugin install verify@context-kit          # auto-installs retrieval-core
@@ -72,6 +78,7 @@ apm marketplace add mbeacom/context-kit
 apm install code-search@context-kit      # also pulls retrieval-core (the spine)
 apm install indexkit@context-kit
 apm install obsidian@context-kit
+apm install adr-bridge@context-kit
 apm install plan-execute@context-kit
 apm install context-steering@context-kit
 apm install verify@context-kit           # also pulls retrieval-core
@@ -103,6 +110,7 @@ Then install what you need (installing `code-search` auto-installs `retrieval-co
 /plugin install code-search@context-kit     # lexical/structural/data/history search
 /plugin install indexkit@context-kit        # local semantic search (turbovec + ollama)
 /plugin install obsidian@context-kit          # Obsidian vault → RAG bridge
+/plugin install adr-bridge@context-kit        # memory + indexkit joins for adrkit
 /plugin install plan-execute@context-kit      # plan-big/execute-small orchestration
 /plugin install context-steering@context-kit  # place guidance at the cheapest layer
 /plugin install verify@context-kit            # claims + change impact (pulls retrieval-core)

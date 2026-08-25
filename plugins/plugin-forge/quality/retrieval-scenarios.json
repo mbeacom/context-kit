@@ -93,6 +93,14 @@
         "mempalace"
       ]
     },
+    "decision-memory": {
+      "kind": "modality",
+      "plugin": "verify",
+      "tools": [
+        "adr explain",
+        "adr check"
+      ]
+    },
     "handoff": {
       "kind": "non-retrieval",
       "plugin": "context-handoff",
@@ -188,6 +196,18 @@
         [
           "durable-memory",
           "verify-before-trust"
+        ]
+      ]
+    },
+    "govern-then-change": {
+      "step_variants": [
+        [
+          "decision-memory",
+          "structural"
+        ],
+        [
+          "semantic-rag",
+          "decision-memory"
         ]
       ]
     },
@@ -1121,6 +1141,102 @@
           "query": "Prove every endpoint document in this archive was actually read.",
           "expected_route": "corpus-review",
           "reason": "Provable coverage over many units is corpus review; depth of judgment over one artifact is not."
+        }
+      ]
+    },
+    {
+      "id": "decision-memory-what-governs-this-path",
+      "query": "Which ratified decisions govern plugins/memory, and was any approach here already rejected?",
+      "corpus_cues": [
+        "the repository keeps an ADR corpus under docs/adr",
+        "a concrete path is already in hand",
+        "rejected and superseded records matter as much as governing ones"
+      ],
+      "expected": {
+        "route": "decision-memory",
+        "plugins": [
+          "verify"
+        ],
+        "tools": [
+          "adr explain"
+        ]
+      },
+      "rationale": "A path-addressed governance question is exactly what affects matchers answer; durable memory would return agent-observed notes rather than ratified records.",
+      "near_misses": [
+        {
+          "query": "What did we conclude about this module in an earlier session that nobody ratified?",
+          "expected_route": "durable-memory",
+          "reason": "An agent-observed episode is durable memory; only a ratified record is decision memory."
+        }
+      ]
+    },
+    {
+      "id": "govern-then-change-before-refactor",
+      "query": "Before refactoring the provider abstraction, check what binds it and then find every implementation to change.",
+      "corpus_cues": [
+        "a change is proposed but not yet written",
+        "an ADR corpus exists alongside the source tree",
+        "the edit set is defined by a code shape, not a literal string"
+      ],
+      "expected": {
+        "route": "decision-memory",
+        "plugins": [
+          "verify",
+          "code-search"
+        ],
+        "tools": [
+          "adr explain",
+          "ast-grep"
+        ],
+        "composition": {
+          "name": "govern-then-change",
+          "steps": [
+            "decision-memory",
+            "structural"
+          ]
+        }
+      },
+      "rationale": "Consulting governance first is cheapest while the work is still a plan; a settled question reopened after the edit set exists is discovered too late.",
+      "near_misses": [
+        {
+          "query": "Find every implementation of the provider abstraction so I can refactor them.",
+          "expected_route": "structural",
+          "reason": "Without a governance question the structural search stands alone and needs no corpus consultation."
+        }
+      ]
+    },
+    {
+      "id": "govern-then-change-topic-without-a-path",
+      "query": "Have we ever decided anything about caching? I have no idea which files it would touch.",
+      "corpus_cues": [
+        "no path or record id is known",
+        "the corpus is markdown with disciplined frontmatter",
+        "the wording used in the records is unknown"
+      ],
+      "expected": {
+        "route": "semantic-rag",
+        "plugins": [
+          "indexkit",
+          "verify"
+        ],
+        "tools": [
+          "indexkit query",
+          "adr explain"
+        ],
+        "composition": {
+          "name": "govern-then-change",
+          "steps": [
+            "semantic-rag",
+            "decision-memory"
+          ]
+        }
+      },
+      "rationale": "adr explain is path-addressed, so a topic question with no path must enter semantically and then resolve each hit to an authoritative record whose status decides whether it binds.",
+      "near_misses": [
+        {
+          "query": "Which decisions govern the caching module at src/cache?",
+          "expected_route": "decision-memory",
+          "reason": "Once a path is known the semantic entry point is unnecessary; matchers answer directly."
         }
       ]
     }

@@ -76,6 +76,38 @@ defaults' territory.
 A domain lens without a non-scope will duplicate the adversarial lens, because
 every domain concern can be phrased as a way things break.
 
+### `conformance` (worked example)
+
+Run this lens when the repository keeps a ratified decision corpus — an
+[adrkit](https://github.com/mbeacom/adrkit) corpus under `docs/adr`, or any
+equivalent. It is the concrete shape a domain charter takes.
+
+- **Responsibility** — agreement with decisions that were already ratified.
+  Whether the artifact does what an `accepted` record forbids, omits what one
+  requires, or revives an option a `rejected` or `superseded` record retired.
+- **Non-scope** — whether the decision was *correct*. This lens does not
+  relitigate governance, and it does not judge design quality, failure modes, or
+  API taste. It reports what binds and whether the artifact complies. If a
+  binding record looks wrong, that is a `JUDGMENT` finding naming the record to
+  revisit, never a quiet deviation.
+- **Evidence** — the corpus. `adr explain <path> --dir <dir> --json` per touched
+  path, or `adr check <paths...>` for the whole set; `governing` holds `accepted`
+  records, `activeProposals` holds `draft`/`proposed`, `history` holds `rejected`,
+  `superseded`, and `deprecated`. Read all three: history is where re-litigation
+  is caught.
+- **Hard rule** — **cite the record id and the `affects` matcher that fired.** A
+  conformance finding with no citation is an architect finding wearing a badge,
+  and it is worse than no finding because it borrows authority the corpus never
+  granted. If `adr` is unavailable or the corpus is absent, report the lens as
+  **unreached** and file no findings; silence from a tool that never ran is not
+  evidence of compliance.
+
+**Why this does not duplicate `architect`.** The architect lens judges coherence
+with what exists and the precedent a change sets — an argued judgment. This lens
+performs a lookup and reports a citation. When they overlap, the distinction to
+hold is that architect may say a change is *unwise*; only conformance may say it
+is *disallowed*, and only with a record id attached.
+
 ## Selecting lenses
 
 - **Match lenses to stakes, not to a ritual.** A docs-only change does not need

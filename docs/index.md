@@ -19,6 +19,8 @@ right information in front of your agent, and keep the wrong information out.
 ![APM](https://img.shields.io/badge/APM-package-6366f1)
 ![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-6366f1)
 ![Local first](https://img.shields.io/badge/Local-first-22c55e)
+[![ADRs](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmbeacom.github.io%2Fcontext-kit%2Fadrkit%2Flint.json&query=%24.checked&label=ADRs&color=cb492d)](https://github.com/mbeacom/context-kit/tree/main/docs/adr)
+[![ARB queue](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fmbeacom.github.io%2Fcontext-kit%2Fadrkit%2Fqueue.json&query=%24.totalItems&label=ARB%20queue&suffix=%20pending&color=cb492d)](https://github.com/mbeacom/context-kit/tree/main/docs/adr)
 </div>
 
 [Get started :material-rocket-launch-outline:](getting-started.md){ .md-button .md-button--primary }
@@ -36,7 +38,7 @@ code-intelligence, structured-data, history, semantic (RAG), graph, and durable
 memory — plus a routing agent that picks and composes them. Default workflows
 keep indexes and reviewed records on your machine; configured model endpoints,
 providers, and allowlisted commands can reach external systems. Around that
-retrieval spine, fourteen shipped plugins add
+retrieval spine, fifteen shipped plugins add
 orchestration, steering, read-only verification and change-impact analysis,
 multi-lens evaluative review, exhaustive corpus review, controlled runtime
 evidence, token economics, cross-session handoff, and authoring quality.

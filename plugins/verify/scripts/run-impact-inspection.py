@@ -306,7 +306,7 @@ def _op_yaml_field(v: dict[str, str]) -> list[str]:
 # when the network is degraded. Naming an executable the operator already
 # installed keeps every one of those properties; fetching one does not.
 ADR_INSTALL_HINT = (
-    "install adrkit (`npm i -g @adrkit/cli@0.4.0`, which provides `adr`) or set "
+    "install adrkit (`npm i -g @adrkit/cli@0.9.0`, which provides `adr`) or set "
     "CONTEXT_KIT_ADR_BIN to an existing adrkit executable; `npx` is not used "
     "because these operations are contracted read-only and offline"
 )

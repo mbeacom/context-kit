@@ -17,6 +17,7 @@ copilot plugin marketplace add mbeacom/context-kit
 copilot plugin install code-search@context-kit      # auto-installs retrieval-core
 copilot plugin install indexkit@context-kit
 copilot plugin install obsidian@context-kit
+copilot plugin install adr-bridge@context-kit
 copilot plugin install plan-execute@context-kit
 copilot plugin install context-steering@context-kit
 copilot plugin install verify@context-kit           # auto-installs retrieval-core

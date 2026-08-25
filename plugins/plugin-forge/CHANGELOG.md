@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.7 — 2026-08-15
+
+- **Add the `decision-memory` route and the `govern-then-change` composition** to
+  the retrieval contracts. `retrieval-strategy` has documented both since the
+  modality was introduced, but neither existed in `retrieval-scenarios.json`, so
+  the gate could not catch a regression in the one modality whose absence is
+  silent by nature. Adds three scenarios covering the standalone route and both
+  composition variants (`decision-memory → structural`, and
+  `semantic-rag → decision-memory` for topic questions with no path in hand).
+
 ## 0.7.6 — 2026-08-11
 
 PR review found the gate still comparing raw item text instead of resolving
