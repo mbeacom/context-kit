@@ -95,7 +95,7 @@
     },
     "decision-memory": {
       "kind": "modality",
-      "plugin": "adr-bridge",
+      "plugin": "verify",
       "tools": [
         "adr explain",
         "adr check"
@@ -1155,7 +1155,7 @@
       "expected": {
         "route": "decision-memory",
         "plugins": [
-          "adr-bridge"
+          "verify"
         ],
         "tools": [
           "adr explain"
@@ -1181,7 +1181,7 @@
       "expected": {
         "route": "decision-memory",
         "plugins": [
-          "adr-bridge",
+          "verify",
           "code-search"
         ],
         "tools": [
@@ -1217,7 +1217,7 @@
         "route": "semantic-rag",
         "plugins": [
           "indexkit",
-          "adr-bridge"
+          "verify"
         ],
         "tools": [
           "indexkit query",

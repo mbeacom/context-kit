@@ -128,6 +128,7 @@ nav:
       - code-search: plugins/code-search.md
       - indexkit: plugins/indexkit.md
       - obsidian: plugins/obsidian.md
+      - adr-bridge: plugins/adr-bridge.md
       - plan-execute: plugins/plan-execute.md
       - context-steering: plugins/context-steering.md
       - verify: plugins/verify.md

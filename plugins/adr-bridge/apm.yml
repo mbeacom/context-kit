@@ -3,7 +3,7 @@
 # concise APM/CLI listing variant.
 name: adr-bridge
 version: 0.1.0
-description: Bridges an adrkit decision corpus to durable memory, planning, review, and semantic retrieval — optional and invocation-only.
+description: Bridges an adrkit decision corpus to context-kit's durable memory and semantic retrieval — optional and invocation-only.
 author: Mark Beacom
 license: MIT
 homepage: https://github.com/mbeacom/context-kit
@@ -15,6 +15,6 @@ dependencies:
     # Mirrors plugin.json "dependencies": ["verify"]. APM does not read that
     # Claude field, so declare the sibling plugin explicitly. verify owns the
     # enforced read-only inspection runner whose `governance` operations this
-    # plugin calls; memory, plan-execute, and indexkit stay optional by design
+    # plugin calls; memory and indexkit stay optional by design
     # (ADR-0003), so they are deliberately not dependencies.
     - path: ../verify

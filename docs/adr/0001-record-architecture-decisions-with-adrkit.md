@@ -17,6 +17,9 @@ affects:
   - type: path
     pattern: .github/workflows/validate.yml
     note: Where corpus linting is enforced.
+  - type: path
+    pattern: .github/workflows/adr.yml
+    note: Where corpus linting and governing-decision PR comments are enforced.
 provenance:
   authoredBy: agent-drafted
   ratifiedBy: "@mbeacom"
@@ -135,5 +138,6 @@ flip in a single commit without coordination.
 ## Action items
 
 1. [x] Scaffold `docs/adr/` and author the founding records.
-2. [ ] Add `adr lint` to CI as a non-blocking check first, then enforce.
-3. [ ] Document the corpus in `docs/contributing.md`.
+2. [x] Enforce `adr lint` in CI and surface governing decisions on pull
+   requests through adrkit's pinned GitHub Action.
+3. [x] Document the corpus in `docs/contributing.md`.

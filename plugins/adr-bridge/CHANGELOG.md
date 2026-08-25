@@ -14,11 +14,6 @@ anticipated but left unbuilt.
   `provenance.ratifiedBy` and never sets `status: accepted` — adrkit's
   `agent-accepted-requires-ratifier` rule is treated as a property to uphold, not
   an obstacle to route around.
-- **`/check-plan-against-decisions`** — the governance gate ADR-0003 promised for
-  planning. Resolves the paths a plan touches and classifies each governing
-  record as conforms / conflicts / re-opens-a-settled-question / unaddressed.
-  Documents the trap that `adr check` exits `0` when the *corpus* is valid, which
-  is not the same as the plan being approved.
 - **`/index-decisions`** — composes `indexkit` over the corpus so decisions are
   findable by meaning when no path is known, since `adr explain` is
   path-addressed. Requires every semantic hit to be resolved back to its record,
@@ -32,10 +27,10 @@ Design notes:
   consume that budget; commands do not. Governance work is also deliberate rather
   than ambient, so user-invoked commands are the honest surface.
 - **Optional everywhere.** `verify` is the only dependency, for its enforced
-  read-only inspection runner. `memory`, `plan-execute`, and `indexkit` are used
-  when installed and degrade to a stated `unreached` otherwise. A corpus that was
-  never consulted and a corpus that returned nothing are different states.
-- **No tool-usage skill.** Teaching adrkit's own CLI belongs with adrkit, which
-  already ships an MCP server and a Spec Kit adapter and shipped three minor
-  versions in three weeks. This plugin only owns what references *this* catalog's
-  plugins.
+  read-only inspection runner. `memory` and `indexkit` are used when installed
+  and degrade to a stated `unreached` otherwise. A corpus that was never
+  consulted and a corpus that returned nothing are different states.
+- **No tool-usage skill or generic plan-check command.** adrkit ships its own
+  portable `decision-memory` skill, `decision-checker` agent, and `/adr-context`,
+  `/adr-check`, `/adr-draft`, and `/adr-queue` commands. This plugin only owns
+  what references *this* catalog's plugins.

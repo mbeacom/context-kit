@@ -24,6 +24,7 @@ apm marketplace add mbeacom/context-kit
 apm install code-search@context-kit      # also pulls retrieval-core (the spine)
 apm install indexkit@context-kit
 apm install obsidian@context-kit
+apm install adr-bridge@context-kit
 apm install plan-execute@context-kit
 apm install context-steering@context-kit
 apm install verify@context-kit           # also pulls retrieval-core

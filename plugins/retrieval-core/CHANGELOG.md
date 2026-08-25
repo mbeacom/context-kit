@@ -2,12 +2,12 @@
 
 ## 0.6.3 — 2026-08-15
 
-- **Name `adr-bridge` as the reachable surface for the decision-memory
-  modality.** The skill already routed the modality but named only adrkit itself
-  and `verify`'s governance operations, so the composition commands were
-  unreachable from routing. Also state the path-less case explicitly: with no
-  path in hand, `govern-then-change` enters semantically over the corpus and then
-  resolves each hit to its record, because `status` is invisible to similarity.
+- **Name adrkit's own agent plugin and `verify` as the generic
+  decision-memory surfaces, with `adr-bridge` limited to context-kit's
+  memory-promotion and semantic-index joins.** Also state the path-less case
+  explicitly: with no path in hand, `govern-then-change` enters semantically
+  over the corpus and then resolves each hit to its record, because `status` is
+  invisible to similarity.
 
 ## 0.6.2 — 2026-08-11
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.5 — 2026-08-24
+
+- Update the optional adrkit install hint from 0.7.0 to 0.9.0, matching the
+  version pinned by the repository's ADR lint, governing-decisions workflow,
+  contributor instructions, and badge-report generation. The runner's exact-argv,
+  read-only, offline, and `unavailable` contracts are unchanged.
+
 ## 0.5.4 — 2026-08-15
 
 - **Update the adrkit pin from `0.4.0` to `0.7.0`** in the `governance`

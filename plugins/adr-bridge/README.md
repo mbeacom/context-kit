@@ -1,7 +1,7 @@
 # adr-bridge
 
 Bridges an [adrkit](https://github.com/mbeacom/adrkit) decision corpus to the
-rest of `context-kit`: durable memory, planning, review, and semantic retrieval.
+parts only `context-kit` owns: durable memory and semantic retrieval.
 
 It deliberately does **not** teach you how to use adrkit. That knowledge belongs
 with the tool that ships it — see [Scope](#scope-what-lives-here-and-what-does-not).
@@ -12,18 +12,22 @@ with the tool that ships it — see [Scope](#scope-what-lives-here-and-what-does
 runner exposes `adr explain` and `adr check` as enforced read-only `governance`
 operations. That answers *"what governs this path?"* and nothing else.
 
-Three questions were left unanswered, all of them named in
+Two questions were left unanswered, both named in
 [ADR-0003](../../docs/adr/0003-treat-adrkit-as-a-peer-decision-corpus-not-a-memory-provider.md):
 
 | Question | Command |
 |---|---|
 | This decision was observed in memory — should it become governance? | `/promote-decision-to-adr` |
-| Does this plan violate something we already ratified, or revive something we rejected? | `/check-plan-against-decisions` |
 | Have we decided anything about *X*, when I have no path to ask about? | `/index-decisions` |
 
 Each is a **composition** that neither tool can own alone. adrkit does not know
-`memory-v1` records, `execution-worker`, or `indexkit` exist; those plugins do
-not know adrkit's schema. The bridge is the only place both are in scope.
+`memory-v1` records or `indexkit` exist; those plugins do not know adrkit's
+schema. The bridge is the only place both are in scope.
+
+For generic decision context, plan checking, ADR drafting, and queue review,
+install adrkit's own portable agent plugin. It ships the `decision-memory` skill,
+the `decision-checker` agent, and `/adr-context`, `/adr-check`, `/adr-draft`, and
+`/adr-queue`.
 
 ## Install
 
@@ -36,7 +40,7 @@ Then make `adr` reachable. It is optional — every command degrades to a stated
 `unreached` without it — but nothing here is useful until it resolves:
 
 ```bash
-npm i -g @adrkit/cli@0.7.0          # provides `adr`
+npm i -g @adrkit/cli@0.9.0          # provides `adr`
 # or point at an existing install without a global:
 export CONTEXT_KIT_ADR_BIN=./node_modules/.bin/adr
 ```
@@ -64,12 +68,8 @@ manual on purpose: `provenance.ratifiedBy` is a human act, which adrkit enforces
 by refusing `accepted` on a machine-authored record without a named ratifier.
 `/promote-decision-to-adr` drafts; it never ratifies.
 
-## Two failure modes worth stating
+## A failure mode worth stating
 
-- **`adr check` exit `0` does not mean "plan approved."** It exits `1` only when
-  a *changed ADR record* has an error finding. Conflict between a plan and a
-  governing decision is a judgment you must make and state; no exit code makes it
-  for you.
 - **A semantic hit is a lead, not a ruling.** `status` is invisible to
   similarity, so a `rejected` record retrieved by `/index-decisions` reads exactly
   like an accepted one. Always resolve a hit back to its record and label the
@@ -79,13 +79,12 @@ by refusing `accepted` on a machine-authored record without a named ratifier.
 
 | Lives here | Lives in adrkit |
 |---|---|
-| Compositions referencing `memory`, `plan-execute`, `indexkit`, `verify`, `deep-review` | How to run `adr new` / `lint` / `check`, the frontmatter schema, ratification rules |
+| Compositions referencing `memory` and `indexkit`, plus the `deep-review` conformance charter | Generic context/check/draft/queue workflows, CLI usage, schema, and ratification rules |
 
-adrkit already ships `@adrkit/mcp` (a read-only, offline, no-LLM MCP server) and
-`@adrkit/spec-kit` (`/speckit.adrkit.context`, `/check`, `/draft`). Duplicating
-that here would fork the documentation and rot on adrkit's release cadence, not
-this catalog's — it shipped 0.4.0 → 0.7.0 in about three weeks. Point agents at
-adrkit's own MCP server for tool usage; use this plugin for the joins.
+adrkit ships `@adrkit/mcp`, `@adrkit/spec-kit`, and a portable agent plugin.
+Duplicating those here would fork the documentation and rot on adrkit's release
+cadence, not this catalog's — it shipped 0.4.0 → 0.9.0 in about a month. Use
+adrkit's plugin for the generic workflow and this plugin for the joins.
 
 ## Related
 

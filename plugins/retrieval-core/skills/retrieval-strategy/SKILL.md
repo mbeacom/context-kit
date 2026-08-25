@@ -35,9 +35,9 @@ ships automatically with `code-search`.
   then open and verify the source).
 - Asking whether something was already **decided** — what governs these paths,
   what was rejected, what superseded what? → **decision memory** (adrkit, if the
-  repository keeps a corpus: `adr explain <path>`, the `governance` operations
-  of `verify`'s inspection runner, or the `adr-bridge` plugin's commands). This
-  is *ratified team governance*, distinct
+  repository keeps a corpus: adrkit's `decision-memory` skill, `adr explain
+  <path>`, or the `governance` operations of `verify`'s inspection runner).
+  This is *ratified team governance*, distinct
   from durable memory's agent-observed records; absent adrkit, report the
   modality as unreached rather than assuming nothing governs the path.
 - Resuming the current task and its next action? → **handoff**, not durable memory
@@ -49,7 +49,8 @@ ships automatically with `code-search`.
 Lexical/structural/code-intelligence/structured-data/history/metrics/docs live in **code-search**.
 Semantic, graph, and durable recall are available as the **indexkit**,
 **obsidian**, and **memory** plugins. Decision memory is reachable through
-**adr-bridge**.
+adrkit's own agent plugin or **verify**; **adr-bridge** adds the context-kit-only
+memory-promotion and semantic-index joins.
 
 ## Composition (modalities are layers, not rivals)
 
