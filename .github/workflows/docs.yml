@@ -41,8 +41,8 @@ jobs:
       - name: Generate ADR badge reports
         run: |
           mkdir -p site/adrkit
-          npx --yes @adrkit/cli@0.9.0 lint --dir docs/adr --json > site/adrkit/lint.json
-          npx --yes @adrkit/cli@0.9.0 queue --dir docs/adr --format json > site/adrkit/queue.json
+          npx --yes @adrkit/cli@0.12.0 lint --dir docs/adr --json > site/adrkit/lint.json
+          npx --yes @adrkit/cli@0.12.0 queue --dir docs/adr --format json > site/adrkit/queue.json
           python3 -c "import json,sys; d=json.load(open('site/adrkit/lint.json')); sys.exit(0 if type(d.get('checked')) is int else 'checked missing')"
           python3 -c "import json,sys; d=json.load(open('site/adrkit/queue.json')); sys.exit(0 if type(d.get('totalItems')) is int else 'totalItems missing')"
       - name: Upload Pages artifact

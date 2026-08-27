@@ -100,9 +100,9 @@ The `main` branch deploys to GitHub Pages automatically via
   managed by [adrkit](https://github.com/mbeacom/adrkit) ([ADR-0001](https://github.com/mbeacom/context-kit/blob/main/docs/adr/0001-record-architecture-decisions-with-adrkit.md)).
   The instruction files keep the *rules*; the corpus keeps the *reasoning, the
   rejected options, and the revisit conditions*. Create one with
-  `npx @adrkit/cli@0.9.0 new "<title>"`, fill in `affects` so the decision is
+  `npx @adrkit/cli@0.12.0 new "<title>"`, fill in `affects` so the decision is
   locatable by path, and check what already governs a file with
-  `npx @adrkit/cli@0.9.0 explain <path>`. Do **not** write an ADR for naming,
+  `npx @adrkit/cli@0.12.0 explain <path>`. Do **not** write an ADR for naming,
   formatting, or anything a contributor can flip in one commit.
   Code that exists *because of* a decision — compatibility shims especially —
   can declare it inline with a dedicated `# @adr NNNN` comment line, which
@@ -123,7 +123,7 @@ The `main` branch deploys to GitHub Pages automatically via
   [`/analyze-impact`](plugins/verify.md) — that runner executes an installed
   binary and never fetches one, so with only `npx` it reports `unavailable`
   forever. To make it reachable, either install the CLI
-  (`npm i -g @adrkit/cli@0.9.0`, which provides `adr`) or point
+  (`npm i -g @adrkit/cli@0.12.0`, which provides `adr`) or point
   `CONTEXT_KIT_ADR_BIN` at an existing adrkit executable — a project-local
   `node_modules/.bin/adr` works.
 - **Licensing** — repo and all plugins are MIT (Mark Beacom). Content is written
