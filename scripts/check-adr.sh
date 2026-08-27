@@ -14,7 +14,7 @@
 set -euo pipefail
 
 # Pinned: adrkit is pre-1.0 and its schema may change across minor versions.
-ADRKIT_VERSION="${ADRKIT_VERSION:-0.9.0}"
+ADRKIT_VERSION="${ADRKIT_VERSION:-0.12.0}"
 ADR_DIR="${ADR_DIR:-docs/adr}"
 
 skip() {

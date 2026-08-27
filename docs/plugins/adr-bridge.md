@@ -24,7 +24,7 @@ copilot plugin install adrkit@adrkit
 Both plugins shell out to the `adr` CLI:
 
 ```bash
-npm install -g @adrkit/cli@0.9.0
+npm install -g @adrkit/cli@0.12.0
 ```
 
 ## Commands
