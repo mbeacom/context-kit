@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 SERVER_NAME = "context-kit-memory"
-SERVER_VERSION = "0.7.0"
+SERVER_VERSION = "0.8.0"
 # Newest first. The client's requested version is echoed when supported.
 SUPPORTED_PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
 # The provider is this package's sibling module, so one path is correct in both

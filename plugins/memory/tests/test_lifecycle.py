@@ -5,6 +5,8 @@ import importlib.util
 import io
 import json
 import os
+import stat
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -332,6 +334,301 @@ class CaptureBoundaryHookTests(LifecycleTestCase):
         # Hooking them would spawn a process per tool call and capture noise.
         self.assertNotIn("PreToolUse", configured)
         self.assertNotIn("PostToolUse", configured)
+
+
+class CopilotSessionBindingTests(LifecycleTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.repo = self.root / "repo"
+        self.repo.mkdir()
+        subprocess.run(
+            ["git", "init", "-q"],
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/mbeacom/context-kit.git",
+            ],
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+        )
+        self.session_id = "ccb7ee61-57da-4533-b123-01afb28876f6"
+
+    def hook_payload(
+        self,
+        event: str,
+        *,
+        cwd: Path | None = None,
+        environment_session_id: str | None = None,
+        payload_session_id: str | None = None,
+        extra_env: dict[str, str] | None = None,
+    ) -> tuple[int, str, str]:
+        environment_session_id = environment_session_id or self.session_id
+        payload_session_id = payload_session_id or self.session_id
+        environment = {
+            "CONTEXT_KIT_MEMORY_HOME": str(self.home),
+            memory_provider.COPILOT_SESSION_ID_ENV: environment_session_id,
+        }
+        environment.update(extra_env or {})
+        payload = json.dumps(
+            {
+                "cwd": str(cwd or self.repo),
+                "sessionId": payload_session_id,
+            }
+        ).encode()
+        with patch.dict(os.environ, environment, clear=True):
+            return self.invoke(["hook", event], payload)
+
+    def binding_path(self, session_id: str | None = None) -> Path:
+        return (
+            self.home
+            / memory_provider.SESSION_BINDING_DIRNAME
+            / f"{session_id or self.session_id}.json"
+        )
+
+    def test_trusted_session_start_creates_a_minimal_private_binding(self) -> None:
+        result, stdout, stderr = self.hook_payload("session-start")
+
+        self.assertEqual(0, result, stderr)
+        self.assertEqual({}, json.loads(stdout))
+        binding = self.binding_path()
+        self.assertEqual(
+            {
+                "project": "mbeacom/context-kit",
+                "session_id": self.session_id,
+            },
+            json.loads(binding.read_text(encoding="utf-8")),
+        )
+        if os.name == "posix":
+            self.assertEqual(
+                0o700,
+                stat.S_IMODE(binding.parent.stat().st_mode),
+            )
+            self.assertEqual(0o600, stat.S_IMODE(binding.stat().st_mode))
+
+    def test_session_environment_must_exactly_match_the_payload(self) -> None:
+        result, stdout, stderr = self.hook_payload(
+            "session-start",
+            payload_session_id="another-session",
+        )
+
+        self.assertEqual(0, result, stderr)
+        self.assertEqual({}, json.loads(stdout))
+        self.assertFalse(self.binding_path().exists())
+
+    def test_non_git_and_originless_directories_leave_memory_unbound(self) -> None:
+        plain = self.root / "plain"
+        plain.mkdir()
+        originless = self.root / "originless"
+        originless.mkdir()
+        subprocess.run(
+            ["git", "init", "-q"],
+            cwd=originless,
+            check=True,
+            capture_output=True,
+        )
+
+        for index, cwd in enumerate((plain, originless), start=1):
+            session_id = f"missing-context-{index}"
+            with self.subTest(cwd=cwd):
+                result, stdout, stderr = self.hook_payload(
+                    "session-start",
+                    cwd=cwd,
+                    environment_session_id=session_id,
+                    payload_session_id=session_id,
+                )
+                self.assertEqual(0, result, stderr)
+                self.assertEqual({}, json.loads(stdout))
+                self.assertFalse(self.binding_path(session_id).exists())
+
+    def test_project_precedence_keeps_explicit_configuration_authoritative(
+        self,
+    ) -> None:
+        self.hook_payload("session-start")
+        args = type(
+            "Args",
+            (),
+            {"provider": None, "home": str(self.home), "project": None},
+        )()
+        environment = {
+            memory_provider.COPILOT_SESSION_ID_ENV: self.session_id,
+            "CONTEXT_KIT_MEMORY_PROJECT": "portable/project",
+            "PRODUCTIVITY_SKILLS_MEMORY_PROJECT": "legacy/project",
+            "CLAUDE_PLUGIN_OPTION_PROJECT": "claude/project",
+        }
+        with patch.dict(os.environ, environment, clear=True):
+            self.assertEqual("portable/project", memory_provider._config(args).project)
+            del os.environ["CONTEXT_KIT_MEMORY_PROJECT"]
+            self.assertEqual("legacy/project", memory_provider._config(args).project)
+            del os.environ["PRODUCTIVITY_SKILLS_MEMORY_PROJECT"]
+            self.assertEqual("claude/project", memory_provider._config(args).project)
+            del os.environ["CLAUDE_PLUGIN_OPTION_PROJECT"]
+            self.assertEqual(
+                "mbeacom/context-kit",
+                memory_provider._config(args).project,
+            )
+            args.project = "argument/project"
+            self.assertEqual("argument/project", memory_provider._config(args).project)
+
+    def test_wrong_session_cannot_resolve_an_existing_binding(self) -> None:
+        self.hook_payload("session-start")
+        args = type(
+            "Args",
+            (),
+            {"provider": None, "home": str(self.home), "project": None},
+        )()
+        with patch.dict(
+            os.environ,
+            {memory_provider.COPILOT_SESSION_ID_ENV: "different-session"},
+            clear=True,
+        ):
+            self.assertIsNone(memory_provider._config(args).project)
+
+    def test_resume_is_idempotent_and_cannot_rebind_to_another_project(self) -> None:
+        self.hook_payload("session-start")
+        binding = self.binding_path()
+        original = binding.read_bytes()
+        original_inode = binding.stat().st_ino
+
+        self.hook_payload("session-start")
+        self.assertEqual(original, binding.read_bytes())
+        self.assertEqual(original_inode, binding.stat().st_ino)
+
+        other = self.root / "other"
+        other.mkdir()
+        subprocess.run(
+            ["git", "init", "-q"],
+            cwd=other,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/someone/else.git",
+            ],
+            cwd=other,
+            check=True,
+            capture_output=True,
+        )
+        result, stdout, stderr = self.hook_payload("session-start", cwd=other)
+
+        self.assertEqual(0, result)
+        self.assertEqual({}, json.loads(stdout))
+        self.assertIn("another project", stderr)
+        self.assertEqual(
+            {"project": "", "session_id": self.session_id},
+            json.loads(binding.read_text(encoding="utf-8")),
+        )
+        args = type(
+            "Args",
+            (),
+            {"provider": None, "home": str(self.home), "project": None},
+        )()
+        with (
+            patch.dict(
+                os.environ,
+                {memory_provider.COPILOT_SESSION_ID_ENV: self.session_id},
+                clear=True,
+            ),
+            self.assertRaisesRegex(memory_provider.Refusal, "invalid project"),
+        ):
+            memory_provider._config(args)
+
+        repeated, _, repeated_stderr = self.hook_payload("session-start", cwd=other)
+        self.assertEqual(0, repeated)
+        self.assertIn("already conflicted", repeated_stderr)
+        ended, _, ended_stderr = self.hook_payload(
+            "session-end",
+            cwd=other,
+            extra_env={"CONTEXT_KIT_MEMORY_AUTO_CAPTURE": "true"},
+        )
+        self.assertEqual(2, ended)
+        self.assertIn("CONTEXT_KIT_MEMORY_PROJECT", ended_stderr)
+        self.assertFalse(binding.exists())
+
+    def test_session_end_cleans_only_a_matching_session_binding(self) -> None:
+        self.hook_payload("session-start")
+        binding = self.binding_path()
+        self.assertTrue(binding.exists())
+
+        result, stdout, stderr = self.hook_payload("session-end")
+
+        self.assertEqual(0, result, stderr)
+        self.assertEqual({}, json.loads(stdout))
+        self.assertFalse(binding.exists())
+
+    def test_session_end_queues_under_the_binding_before_cleanup(self) -> None:
+        self.hook_payload("session-start")
+
+        result, stdout, stderr = self.hook_payload(
+            "session-end",
+            extra_env={"CONTEXT_KIT_MEMORY_AUTO_CAPTURE": "true"},
+        )
+
+        self.assertEqual(0, result, stderr)
+        response = json.loads(stdout)
+        self.assertEqual("queued-for-review", response["status"])
+        pending = Path(response["pending"])
+        expected_slug = memory_provider.Config(
+            provider="none",
+            home=self.home,
+            project="mbeacom/context-kit",
+            auto_capture=True,
+        ).project_slug
+        self.assertEqual(expected_slug, pending.parent.name)
+        self.assertTrue(pending.is_file())
+        self.assertFalse(self.binding_path().exists())
+
+    def test_mismatched_session_end_and_stop_leave_the_binding_in_place(self) -> None:
+        self.hook_payload("session-start")
+        binding = self.binding_path()
+
+        self.hook_payload("stop")
+        self.assertTrue(binding.exists())
+        self.hook_payload(
+            "session-end",
+            payload_session_id="another-session",
+        )
+        self.assertTrue(binding.exists())
+
+    def test_unsafe_session_ids_and_permissions_are_refused(self) -> None:
+        result, stdout, stderr = self.hook_payload(
+            "session-start",
+            environment_session_id="../escape",
+            payload_session_id="../escape",
+        )
+        self.assertEqual(0, result, stderr)
+        self.assertEqual({}, json.loads(stdout))
+        self.assertFalse((self.home / "escape.json").exists())
+
+        self.hook_payload("session-start")
+        if os.name == "posix":
+            self.binding_path().chmod(0o644)
+            with self.assertRaisesRegex(memory_provider.Refusal, "permissions"):
+                memory_provider._read_session_binding(self.home, self.session_id)
+
+    @unittest.skipUnless(os.name == "posix", "symlink refusal requires POSIX")
+    def test_symlinked_session_binding_is_refused(self) -> None:
+        self.hook_payload("session-start")
+        binding = self.binding_path()
+        target = self.root / "outside.json"
+        target.write_bytes(binding.read_bytes())
+        binding.unlink()
+        binding.symlink_to(target)
+
+        with self.assertRaisesRegex(memory_provider.Refusal, "safely open"):
+            memory_provider._read_session_binding(self.home, self.session_id)
 
 
 class AuditTests(LifecycleTestCase):

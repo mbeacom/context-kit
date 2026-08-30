@@ -183,12 +183,15 @@ CONTEXT_KIT_MEMORY_PROJECT=owner/repository \
 
 Three tools are exposed — `memory_recall`, `memory_capture`, and
 `memory_review` — because a connected server advertises its schemas into context
-on every turn. The bundled MCP definition forwards the operator-set project
-environment into the server; prompt content cannot select another project
-store. MCP capture requires an absolute evidence path because plugin hosts may
-launch outside the active repository. Memory clears the "reach for MCP last"
-bar because it is live local state plus actions, not static knowledge a skill
-could carry.
+on every turn. The bundled MCP definition forwards explicit project/home
+configuration into the server. GitHub Copilot Desktop can instead use a trusted
+ephemeral binding: `SessionStart` requires payload `sessionId` to exactly match
+`COPILOT_AGENT_SESSION_ID`, then resolves payload `cwd` to the Git top-level and
+normalized `origin`. MCP cwd, `PWD`, prompt content, and tool arguments cannot
+select another project store. MCP capture requires an absolute evidence path
+because plugin hosts may launch outside the active repository. Memory clears the
+"reach for MCP last" bar because it is live local state plus actions, not static
+knowledge a skill could carry.
 
 The server is a surface, not a source of truth: every tool shells out to
 `memory-provider.py` with exact argv, so validation, isolation, and review state
@@ -197,10 +200,10 @@ it** — a record that is not `review: proposed` is refused, and proposals stay
 out of active recall until promoted with the append-only `record-state` CLI.
 `sync-provider`, promotion, mining, and destructive operations are not exposed.
 
-## Opt-in automatic capture
+## Lifecycle hooks and opt-in capture
 
-Claude lifecycle hooks ship **disabled**. Enable only after provider setup,
-project scoping, and a retention/privacy decision:
+Recall injection and payload queuing ship **disabled**. Enable capture only
+after provider setup, project scoping, and a retention/privacy decision:
 
 ```bash
 export CONTEXT_KIT_MEMORY_PROVIDER=mempalace
@@ -208,12 +211,19 @@ export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
 export CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true
 ```
 
-`Stop` and `PreCompact` forward in the foreground with bounded timeouts.
-`SessionEnd` saves a mode-0600 pending payload and starts a detached worker so
-the short host shutdown budget does not lose the final capture.
+Enabled `Stop`, `PreCompact`, and `SessionEnd` hooks save exact mode-0600 payloads
+for explicit review. They never create `memory-v1` records or write a provider.
 
 APM does not deploy plugin hooks, so its default remains explicit
 capture unless the user separately configures a native MemPalace integration.
+
+Copilot's project binding is the bounded routing-only exception to the disabled
+hook behavior. It stores only `session_id` and normalized `project` under
+`CONTEXT_KIT_MEMORY_HOME/session-bindings/` (mode-0700 directory, atomic
+mode-0600 files), never a transcript or memory record. Repeated starts are
+idempotent, a same-session cross-project mismatch is refused, and a matching
+`SessionEnd` removes the binding. `Stop`/`agentStop` does not. Crash leftovers
+are isolated by unique host session IDs.
 
 ## Configuration
 
@@ -221,7 +231,7 @@ capture unless the user separately configures a native MemPalace integration.
 | --- | --- |
 | `CONTEXT_KIT_MEMORY_PROVIDER` | `none` (default), `rag`, or `mempalace`. |
 | `CONTEXT_KIT_MEMORY_HOME` | Reviewed records and project-isolated provider data. |
-| `CONTEXT_KIT_MEMORY_PROJECT` | Required explicit project scope; forwarded by the plugin MCP definition. |
+| `CONTEXT_KIT_MEMORY_PROJECT` | Explicit project scope; overrides a trusted Copilot session binding and is required on other hosts. |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | Enables Claude lifecycle forwarding when truthy. |
 | `CONTEXT_KIT_MEMORY_ROOT` | Installed plugin root for portable command use. |
 | `CONTEXT_KIT_MEMPALACE_BIN` | Optional absolute MemPalace executable override. |
@@ -231,6 +241,7 @@ capture unless the user separately configures a native MemPalace integration.
 
 - no automatic capture unless explicitly enabled;
 - no global project-memory fallback;
+- no project inference from MCP cwd, `PWD`, prompts, or tool arguments;
 - no destructive consolidation;
 - no transcript harvesting by the context-kit adapter — session mining
   proposes reviewable candidates and never creates memory records;

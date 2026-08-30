@@ -27,6 +27,7 @@ automatically:
       "command": "python3",
       "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"],
       "env": {
+        "CONTEXT_KIT_MEMORY_HOME": "${CONTEXT_KIT_MEMORY_HOME}",
         "CONTEXT_KIT_MEMORY_PROJECT": "${CONTEXT_KIT_MEMORY_PROJECT}"
       }
     }
@@ -35,9 +36,15 @@ automatically:
 ```
 
 Copilot does not populate Claude's `userConfig` fields for a
-plugin-contributed MCP server. The bundled definition therefore forwards
-`CONTEXT_KIT_MEMORY_PROJECT` from the Copilot project environment. Set it there
-to `owner/repository`; do not edit Copilot's generated MCP entry.
+plugin-contributed MCP server. The bundled definition therefore forwards the
+portable project and home variables. Explicit project configuration is still
+preferred and always wins.
+
+GitHub Copilot Desktop can also use the plugin's trusted ephemeral session
+binding. `SessionStart` accepts only host-authored `cwd` and `sessionId`, requires
+an exact match with the MCP child's `COPILOT_AGENT_SESSION_ID`, and binds the
+normalized Git `origin` project for that session. This avoids the unsafe MCP
+working directory/PWD guess without adding project scope to any tool schema.
 
 Package-only and other hosts configure MCP their own way; point them at the same
 command with an absolute path:
@@ -50,14 +57,16 @@ Environment:
 
 | Variable | Purpose |
 | --- | --- |
-| `CONTEXT_KIT_MEMORY_PROJECT` | **Required.** Explicit `owner/repository` scope. |
+| `CONTEXT_KIT_MEMORY_PROJECT` | Explicit `owner/repository` scope; required outside supported Copilot plugin sessions. |
 | `CONTEXT_KIT_MEMORY_HOME` | Record store root. |
 | `CONTEXT_KIT_MEMORY_PROVIDER` | `none`, `rag`, or `mempalace` for recall. |
 
-There is no default project. With `CONTEXT_KIT_MEMORY_PROJECT` unset every tool
-refuses, because memory must never be read from or written to an inferred
-global store. The project comes only from operator-controlled host or MCP
-configuration, never from a model-supplied tool argument.
+There is no default or global project. Resolution order is explicit
+`--project`, `CONTEXT_KIT_MEMORY_PROJECT`, deprecated
+`PRODUCTIVITY_SKILLS_MEMORY_PROJECT`, `CLAUDE_PLUGIN_OPTION_PROJECT`, then a
+matching trusted Copilot session binding. With none present every tool refuses.
+Project scope never comes from MCP cwd, `PWD`, prompt content, or a
+model-supplied tool argument.
 
 ## Tools
 
@@ -100,8 +109,9 @@ and `source_hash` is verified against the actual source bytes.
 
 The server is a **surface, not a source of truth**. Every tool shells out
 to `memory-provider.py` with exact argv and no shell, so contract validation,
-project isolation, review state, and reconciliation have exactly one
-implementation and the CLI and MCP paths cannot drift.
+project resolution/isolation, review state, and reconciliation have exactly one
+implementation and the CLI and MCP paths cannot drift. `mcp.py` contains no
+session-binding logic.
 
 It is standard library only, adds no runtime dependency, needs no daemon, and
 does not depend on Claude hooks.

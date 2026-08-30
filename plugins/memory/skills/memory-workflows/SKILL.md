@@ -79,9 +79,11 @@ candidate stays an explicit judgment step. See `references/session-mining.md`.
 
 ## Recall
 
-1. Scope recall to an explicit project. Plugin-installed MCP servers receive
-   `CONTEXT_KIT_MEMORY_PROJECT` from the host environment and refuse when it is
-   absent. Never query a global personal store by accident.
+1. Scope recall to an explicit project, or to GitHub Copilot's trusted ephemeral
+   session binding. Resolution is `--project` → `CONTEXT_KIT_MEMORY_PROJECT` →
+   deprecated `PRODUCTIVITY_SKILLS_MEMORY_PROJECT` →
+   `CLAUDE_PLUGIN_OPTION_PROJECT` → matching Copilot session binding. MCP tool
+   arguments and prompt content can never select scope.
 2. Search primary memories and cue language. Treat results as candidate leads.
 3. Open the cited source and compare its hash, repository anchors, and current
    code state.
@@ -118,8 +120,8 @@ proposes a `record-state` transition for each. It never edits or deletes.
 
 ## Optional lifecycle hooks
 
-Hooks ship inert behind two independent switches, because reading and writing
-are different risks:
+Recall and capture hooks ship inert behind two independent switches, because
+reading and writing are different risks:
 
 ```bash
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
@@ -132,6 +134,13 @@ Both Claude Code and GitHub Copilot CLI load `hooks/hooks.json` and honor
 reviewed records or mutate a provider store — review a queued payload, create a
 `memory-v1` artifact, run explicit `capture`, then `sync-provider --apply`.
 Tool-level hooks are deliberately not used; see `references/automation.md`.
+
+GitHub Copilot has one bounded routing-only exception: its host-authored
+`SessionStart` payload can create a private session-ID-to-project binding after
+the payload `sessionId` exactly matches `COPILOT_AGENT_SESSION_ID` and `cwd`
+resolves to a Git repository with an `origin`. `SessionEnd` removes it. This
+metadata is not a memory record, transcript capture, or provider write. APM and
+hosts without both trusted fields still require explicit project configuration.
 
 ## Resources
 

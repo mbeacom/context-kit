@@ -1,17 +1,19 @@
 # Opt-in Automation
 
 The memory plugin declares `SessionStart`, `Stop`, `PreCompact`, and
-`SessionEnd` hooks. Every one is inert until explicitly enabled, and they are
-governed by **two independent switches**, because reading and writing are
-different risks.
+`SessionEnd` hooks. Memory recall and payload queuing are inert until explicitly
+enabled and are governed by **two independent switches**, because reading and
+writing are different risks.
 
 | Switch | Governs | Hook |
 | --- | --- | --- |
 | `CONTEXT_KIT_MEMORY_RECALL_ON_START` | injecting reviewed memory into a session | `SessionStart` |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | queuing lifecycle payloads for review | `Stop`, `PreCompact`, `SessionEnd` |
 
-Both also require `CONTEXT_KIT_MEMORY_PROJECT`. A missing project is a visible
-refusal, never a silent global fallback.
+Both also require a project scope. Explicit configuration is portable and always
+wins. GitHub Copilot Desktop can supply the scope through the trusted ephemeral
+session binding described below; all other hosts require
+`CONTEXT_KIT_MEMORY_PROJECT` (or the documented fallback).
 
 ## Host boundaries
 
@@ -28,6 +30,37 @@ names Claude uses, so one file serves both hosts.
 
 APM does not deploy hooks, so on APM both paths stay explicit commands.
 
+### Bounded Copilot routing metadata
+
+GitHub Copilot Desktop has no clean per-project environment surface for a
+plugin-contributed MCP server. Its host-authored `SessionStart` input does carry
+`cwd` and `sessionId`, while the MCP child receives
+`COPILOT_AGENT_SESSION_ID`. The provider uses that pair only when:
+
+1. `COPILOT_AGENT_SESSION_ID` is present and is a safe filename component;
+2. payload `sessionId` exactly matches it;
+3. payload `cwd` is absolute and resolves through `git rev-parse
+   --show-toplevel`; and
+4. that repository has an `origin` that normalizes to `owner/repository`.
+
+No MCP working directory, `PWD`, prompt content, or model-supplied tool argument
+participates. Missing, invalid, originless, or conflicting context leaves memory
+unbound.
+
+The hook writes only `session_id` and normalized `project` under
+`${CONTEXT_KIT_MEMORY_HOME}/session-bindings/`: the directory is mode 0700 and
+each atomic write-once JSON file is mode 0600. Repeating `SessionStart` for the
+same session/project is idempotent; reusing that session ID for another project
+is refused. A matching `SessionEnd` removes the binding. `Stop`/`agentStop` does
+not. A crash may leave a file, but unique host session IDs prevent another
+session from resolving it.
+
+This is ephemeral routing metadata, not a `memory-v1` record, lifecycle payload,
+provider projection, or permission to retain session content. Explicit
+`--project`, portable/legacy project environment variables, and Claude's plugin
+option all take precedence over it. APM and hosts without the matching Copilot
+hook plus session environment must configure a project explicitly.
+
 ## Recall on session start
 
 ```bash
@@ -41,7 +74,7 @@ count and a character budget, because a priming block competes with real work
 for context.
 
 Recall is read-only, so it is deliberately not gated on `AUTO_CAPTURE`. If
-anything fails — no project configured, an unreadable store — the hook prints
+anything fails — no project scope, an unreadable store — the hook prints
 `{}` and the session proceeds. A memory problem must never break a session.
 
 ## Capture at boundaries
@@ -91,3 +124,5 @@ unset CONTEXT_KIT_MEMORY_RECALL_ON_START
 ```
 
 Local reviewed records remain available; only the lifecycle behavior stops.
+Copilot's minimal session routing binding is still created and cleaned because
+it is neither recall nor capture.

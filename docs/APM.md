@@ -126,7 +126,7 @@ APM plugins have no Claude-style `userConfig`, so configure `indexkit` and
 | `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
 | `CONTEXT_KIT_MEMORY_PROVIDER` | `none` or optional `mempalace` provider | `CLAUDE_PLUGIN_OPTION_PROVIDER` |
 | `CONTEXT_KIT_MEMORY_HOME` | reviewed records and project-isolated provider data | `CLAUDE_PLUGIN_OPTION_MEMORY_HOME` |
-| `CONTEXT_KIT_MEMORY_PROJECT` | explicit durable-memory project scope | `CLAUDE_PLUGIN_OPTION_PROJECT` |
+| `CONTEXT_KIT_MEMORY_PROJECT` | required durable-memory project scope (APM has no Copilot session binding) | `CLAUDE_PLUGIN_OPTION_PROJECT` |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | opt-in Claude lifecycle forwarding | `CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE` |
 | `CONTEXT_KIT_MEMORY_ROOT` | installed memory plugin root | `CLAUDE_PLUGIN_ROOT` |
 

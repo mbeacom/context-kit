@@ -194,13 +194,21 @@ CONTEXT_KIT_MEMORY_PROJECT=owner/repository \
 CONTEXT_KIT_MEMORY_PROJECT=owner/repository memorykit-mcp
 ```
 
-The bundled `.mcp.json` forwards `CONTEXT_KIT_MEMORY_PROJECT` from the host
-environment into the plugin process. Set it to the current
-`owner/repository` in the Copilot project environment or before launching the
-host; do not edit Copilot's generated MCP entry. MCP capture records must use
-an absolute `source` path because plugin hosts may launch the server outside
-the active repository. The server refuses an unset project and never infers a
-repository or falls back to a global store.
+The bundled `.mcp.json` forwards explicit project/home configuration into the
+plugin process. GitHub Copilot Desktop can additionally bind the MCP child to
+the active project through trusted host data: `SessionStart` requires payload
+`sessionId` to exactly match `COPILOT_AGENT_SESSION_ID`, then resolves payload
+`cwd` to the Git top-level and normalized `origin`. It stores only that session
+ID and project under the private memory home and removes the binding on
+`SessionEnd`.
+
+Explicit `--project`, `CONTEXT_KIT_MEMORY_PROJECT`, deprecated
+`PRODUCTIVITY_SKILLS_MEMORY_PROJECT`, and `CLAUDE_PLUGIN_OPTION_PROJECT` take
+precedence, in that order, over the binding. MCP cwd, `PWD`, prompts, and tool
+arguments never select scope. APM, package-only use, and hosts without the
+matching Copilot hook/session ID still require explicit configuration. MCP
+capture records must use an absolute `source` path because plugin hosts may
+launch the server outside the active repository.
 
 The surface can propose memory but **cannot activate it**: a record whose
 frontmatter is not `review: proposed` is refused, and proposals stay out of
@@ -211,7 +219,7 @@ See [`references/mcp-server.md`](skills/memory-workflows/references/mcp-server.m
 
 ## Opt-in lifecycle queue
 
-Claude hooks are inert until enabled:
+Recall and payload-queue behavior is inert until enabled:
 
 ```bash
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
@@ -222,6 +230,11 @@ Enabled hooks queue exact payloads locally for explicit review; they never creat
 memory records or mutate a provider store. Claude Code and GitHub Copilot CLI
 both load `hooks/hooks.json`; APM does not deploy hooks, so capture stays an
 explicit command there.
+
+Copilot's routing-only `SessionStart` binding is the bounded exception: it is
+created even when both switches are off, contains no transcript or secret, and
+is cleaned at `SessionEnd` (not `Stop`/`agentStop`). It is ephemeral routing
+metadata, not automatic memory capture.
 
 ## Components
 

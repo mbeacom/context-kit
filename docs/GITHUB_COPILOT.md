@@ -110,7 +110,7 @@ Supported neutral environment variables:
 | `CONTEXT_KIT_HANDOFF_PATH` | handoff artifact override | — |
 | `CONTEXT_KIT_MEMORY_PROVIDER` | `none` or optional `mempalace` provider | `CLAUDE_PLUGIN_OPTION_PROVIDER` |
 | `CONTEXT_KIT_MEMORY_HOME` | reviewed records and project-isolated provider data | `CLAUDE_PLUGIN_OPTION_MEMORY_HOME` |
-| `CONTEXT_KIT_MEMORY_PROJECT` | explicit durable-memory project scope | `CLAUDE_PLUGIN_OPTION_PROJECT` |
+| `CONTEXT_KIT_MEMORY_PROJECT` | explicit durable-memory project scope (overrides Copilot auto-detection) | `CLAUDE_PLUGIN_OPTION_PROJECT` |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | opt-in Claude lifecycle forwarding | `CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE` |
 | `CONTEXT_KIT_MEMORY_ROOT` | installed memory plugin root | `CLAUDE_PLUGIN_ROOT` |
 | `CONTEXT_KIT_TOKEN_ECONOMICS_ROOT` | installed token-economics root | `CLAUDE_PLUGIN_ROOT` |
@@ -118,10 +118,20 @@ Supported neutral environment variables:
 | `CONTEXT_KIT_COPILOT_DB` | Copilot CLI session store to read | — |
 
 Copilot plugin installs discover the memory plugin's stdio MCP server
-automatically. Its bundled configuration forwards
-`CONTEXT_KIT_MEMORY_PROJECT` from the Copilot project environment into the
-server. Set that variable to the current `owner/repository`; the server refuses
-when it is absent and never lets prompt content select a project scope.
+automatically. GitHub Copilot Desktop has no separate per-project MCP
+environment surface, so the memory hook creates a narrowly scoped session
+binding from trusted host data: `SessionStart` payload `sessionId` must exactly
+match `COPILOT_AGENT_SESSION_ID`, and payload `cwd` must resolve to a Git
+top-level with an `origin`. The binding contains only the session ID and
+normalized `owner/repository`, is mode-0600 below a mode-0700 directory, and is
+removed by a matching `SessionEnd`.
+
+Explicit configuration still wins, with resolution order `--project` →
+`CONTEXT_KIT_MEMORY_PROJECT` → deprecated
+`PRODUCTIVITY_SKILLS_MEMORY_PROJECT` → `CLAUDE_PLUGIN_OPTION_PROJECT` → trusted
+Copilot binding. MCP cwd, `PWD`, prompt content, and tool arguments never select
+scope. Hosts without Copilot's matching hook/session-ID support still refuse
+until a project is configured.
 
 The Claude-specific variables remain supported so existing plugin installs keep
 working. The `CONTEXT_KIT_*` names are preferred for portable docs and
