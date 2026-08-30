@@ -69,12 +69,15 @@ bash plugins/code-search/scripts/check-tools.sh
 Plugin installation does not install third-party CLIs.
 
 **GitHub Copilot CLI loads a plugin's `hooks/hooks.json`** (verified on 1.0.79),
-so `indexkit` auto-bootstraps and `memory`'s opt-in lifecycle hooks work there
-exactly as they do in Claude Code. Both stay off until explicitly enabled.
+so `indexkit` auto-bootstraps and `memory`'s opt-in recall/capture hooks work
+there. GitHub Copilot Desktop also creates the memory plugin's minimum ephemeral
+project binding even when those switches are off; that routing metadata is not a
+memory record or captured payload.
 
 **APM does not deploy hooks**, so on APM:
 
 - bootstrap `indexkit` manually;
+- set `CONTEXT_KIT_MEMORY_PROJECT`;
 - use explicit memory commands; and
 - do not expect lifecycle capture or `SessionStart` behavior.
 
@@ -185,7 +188,8 @@ Handoffs default to `.context-kit/handoff.md`; a relative
 
 ## Memory scope, provider, and hooks
 
-Set an explicit project and run the doctor before capture or recall:
+Set an explicit project and run the doctor before capture or recall on APM,
+package-only installs, and hosts without Copilot's trusted session binding:
 
 ```bash
 export CONTEXT_KIT_MEMORY_PROJECT="owner/repository"
@@ -195,13 +199,13 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
 
 | Symptom | Check |
 | --- | --- |
-| Missing or invalid project | Use a concrete `owner/repository`; there is no global fallback |
+| Missing or invalid project | Use a concrete `owner/repository`; Copilot auto-detection is POSIX-only and also requires matching host `sessionId`, absolute payload `cwd`, Git top-level, and canonical `github.com/owner/repository` origin |
+| Copilot Desktop MCP is unbound | Do not use MCP cwd/PWD; update the plugin, start a new or resumed session, and verify SessionStart completed |
 | Artifact repository mismatch | Capture under the matching project or correct the artifact provenance |
 | MemPalace selected but unavailable | Install it separately or set `CONTEXT_KIT_MEMPALACE_BIN` to an absolute executable |
 | Provider timeout or nonzero exit | Run `doctor`, inspect provider output, and verify the installed version |
 | Recall source is unavailable or drifted | Open current repository evidence and reverify before acting |
-| Claude automatic capture does nothing | Set provider, project, and `CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true`; hooks are Claude-only |
-| Detached hook failure | Inspect `${CONTEXT_KIT_MEMORY_HOME}/logs/` |
+| Automatic capture does nothing | Set project scope and `CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true`; APM does not deploy hooks |
 
 `CONTEXT_KIT_MEMORY_PROVIDER=none` is a ready local mode; MemPalace is optional.
 Unsetting `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` disables future forwarding but keeps

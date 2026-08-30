@@ -1,5 +1,5 @@
 {
-  "description": "Opt-in memory lifecycle. SessionStart injects reviewed recall; the boundary events queue payloads for review. Neither writes to a provider. Both Claude Code and GitHub Copilot CLI load this file.",
+  "description": "Memory lifecycle. Copilot SessionStart creates private ephemeral routing metadata and SessionEnd removes it. Opt-in recall injects reviewed memory; opt-in boundary capture queues payloads for review. No hook writes a memory record or provider.",
   "hooks": {
     "SessionStart": [
       {

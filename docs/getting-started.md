@@ -124,8 +124,9 @@ command has no side effects.
 
     Needs Python 3.10+ and Git on `PATH` for local reviewed records. Optional
     provider recall uses a separately installed MemPalace CLI
-    (`uv tool install mempalace`). Automatic capture is disabled by default and
-    requires an explicit project scope.
+    (`uv tool install mempalace`). Automatic capture is disabled by default.
+    Project scope is explicit except for GitHub Copilot Desktop's trusted POSIX
+    per-session binding for canonical `github.com/owner/repository` origins.
 
 </div>
 

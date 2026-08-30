@@ -274,6 +274,10 @@ class HostWiringTests(unittest.TestCase):
         self.assertEqual("stdio", server["type"])
         self.assertEqual(
             {
+                "CONTEXT_KIT_MEMORY_HOME": "${CONTEXT_KIT_MEMORY_HOME}",
+                "PRODUCTIVITY_SKILLS_MEMORY_HOME": (
+                    "${PRODUCTIVITY_SKILLS_MEMORY_HOME}"
+                ),
                 "CONTEXT_KIT_MEMORY_PROJECT": "${CONTEXT_KIT_MEMORY_PROJECT}",
                 "PRODUCTIVITY_SKILLS_MEMORY_PROJECT": (
                     "${PRODUCTIVITY_SKILLS_MEMORY_PROJECT}"

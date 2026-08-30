@@ -195,11 +195,22 @@ automatically ingest handoffs into RAG or memory.
 
 ## Memory: scope, provider, and hooks
 
-[`memory`](plugins/memory.md) requires an explicit
-`CONTEXT_KIT_MEMORY_PROJECT=owner/repository`. Local reviewed records live below
-`CONTEXT_KIT_MEMORY_HOME`, defaulting to
+[`memory`](plugins/memory.md) requires a concrete `owner/repository` scope.
+Explicit `CONTEXT_KIT_MEMORY_PROJECT` works on every host and overrides
+auto-detection. Local reviewed records live below `CONTEXT_KIT_MEMORY_HOME`,
+defaulting to
 `~/.local/share/context-kit/memory`. The adapter rejects records whose repository
 does not match the configured project.
+
+GitHub Copilot Desktop may establish scope from a trusted ephemeral binding,
+never from MCP cwd, `PWD`, prompts, or model-supplied arguments. The host's
+`SessionStart` payload `sessionId` must exactly match
+`COPILOT_AGENT_SESSION_ID`; payload `cwd` must resolve to a Git top-level with a
+canonical `github.com/owner/repository` origin. Only `session_id` and project
+are stored in a private binding file. Invalid, originless, foreign-host,
+deep-namespace, or conflicting context leaves memory unbound. Automatic binding
+is POSIX-only; Windows cannot verify the promised owner-only ACL through this
+standard-library path. APM and unsupported hosts require explicit configuration.
 
 `CONTEXT_KIT_MEMORY_PROVIDER=mempalace` delegates recall or archival to a
 separately installed executable. The adapter gives each project a distinct
@@ -207,13 +218,17 @@ provider path and invokes exact argv without a shell, but MemPalace remains a
 separate dependency with its own behavior. Run `doctor`, review upgrades, and
 keep consequential recall tied to the original evidence and current repository.
 
-Claude memory hooks ship disabled. Enabling
+Memory recall and payload-capture hooks ship disabled. Enabling
 `CONTEXT_KIT_MEMORY_AUTO_CAPTURE=true` forwards `Stop` and `PreCompact` payloads
-in the foreground with bounded timeouts. `SessionEnd` writes a mode-0600 pending
-file and starts a detached worker; detached-worker errors go to the memory log
-directory. Make an explicit privacy, retention, and project-scope decision
-first. Unsetting the variable stops forwarding but does not delete existing
-records, pending files, or logs.
+plus `SessionEnd` into mode-0600 pending files for explicit review; it does not
+create a memory record or write a provider. Make an explicit privacy, retention,
+and project-scope decision first. Unsetting the variable stops payload queuing
+but does not delete existing records or pending files.
+
+Copilot session routing is the bounded exception: `SessionStart` creates or
+confirms an atomic binding in a mode-0700 directory, and a matching `SessionEnd`
+removes it. `Stop`/`agentStop` does not. This minimum routing metadata contains
+no transcript or secret and is not durable memory or automatic capture.
 
 ## Host and hook boundaries
 
@@ -221,10 +236,10 @@ records, pending files, or logs.
   that creates or refreshes its uv environment; `memory` declares opt-in
   lifecycle hooks.
 - **GitHub Copilot CLI** installs the shared plugin content and also loads a
-  plugin's `hooks/hooks.json`, so the same opt-in hooks apply there; they remain
-  disabled by default and are governed by the same switches.
+  plugin's `hooks/hooks.json`, so the same opt-in recall/capture hooks apply.
+  Desktop can additionally create the trusted routing-only binding above.
 - **APM** installs the shared plugin content but does not deploy hooks.
-  Bootstrap `indexkit` and capture memory explicitly.
+  Bootstrap `indexkit`, configure project scope, and capture memory explicitly.
 - **`context-handoff`** has no hooks.
 - **`context-steering`** ships inert hook examples only; copying one into an
   active host configuration is a separate operator action.

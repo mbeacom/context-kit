@@ -12,6 +12,7 @@ from pathlib import Path
 
 PLUGIN_ROOT = Path(__file__).resolve().parents[1]
 SERVER = PLUGIN_ROOT / "src" / "memorykit" / "mcp.py"
+PROVIDER = PLUGIN_ROOT / "src" / "memorykit" / "provider.py"
 SPEC = importlib.util.spec_from_file_location("memory_mcp_server", SERVER)
 assert SPEC is not None and SPEC.loader is not None
 server = importlib.util.module_from_spec(SPEC)
@@ -67,15 +68,19 @@ class McpProtocolTests(unittest.TestCase):
         messages: list[dict[str, object]],
         *,
         project: str | None = "mbeacom/context-kit",
+        session_id: str | None = None,
     ) -> list[dict[str, object]]:
         env = dict(os.environ)
         env["CONTEXT_KIT_MEMORY_HOME"] = str(self.home)
+        env.pop("COPILOT_AGENT_SESSION_ID", None)
         if project is None:
             env.pop("CONTEXT_KIT_MEMORY_PROJECT", None)
             env.pop("PRODUCTIVITY_SKILLS_MEMORY_PROJECT", None)
             env.pop("CLAUDE_PLUGIN_OPTION_PROJECT", None)
         else:
             env["CONTEXT_KIT_MEMORY_PROJECT"] = project
+        if session_id is not None:
+            env["COPILOT_AGENT_SESSION_ID"] = session_id
         payload = "\n".join(json.dumps(message) for message in messages) + "\n"
         result = subprocess.run(
             [sys.executable, str(SERVER)],
@@ -171,6 +176,65 @@ class McpProtocolTests(unittest.TestCase):
         self.assertIn("tools", initialized["capabilities"])
         listed = [tool["name"] for tool in responses[1]["result"]["tools"]]
         self.assertEqual(["memory_recall", "memory_capture", "memory_review"], listed)
+
+    def test_mcp_resolves_only_the_matching_trusted_session_binding(self) -> None:
+        repo = self.root / "repo"
+        repo.mkdir()
+        subprocess.run(
+            ["git", "init", "-q"],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            [
+                "git",
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/mbeacom/context-kit.git",
+            ],
+            cwd=repo,
+            check=True,
+            capture_output=True,
+        )
+        session_id = "trusted-mcp-session"
+        env = dict(os.environ)
+        env["CONTEXT_KIT_MEMORY_HOME"] = str(self.home)
+        env["COPILOT_AGENT_SESSION_ID"] = session_id
+        for name in (
+            "CONTEXT_KIT_MEMORY_PROJECT",
+            "PRODUCTIVITY_SKILLS_MEMORY_PROJECT",
+            "CLAUDE_PLUGIN_OPTION_PROJECT",
+        ):
+            env.pop(name, None)
+        hook = subprocess.run(
+            [sys.executable, str(PROVIDER), "hook", "session-start"],
+            input=json.dumps({"cwd": str(repo), "sessionId": session_id}).encode(
+                "utf-8"
+            ),
+            capture_output=True,
+            check=False,
+            timeout=60,
+            env=env,
+        )
+        self.assertEqual(0, hook.returncode, hook.stderr.decode())
+
+        matching = self.converse(
+            [self.call(1, "memory_review", {})],
+            project=None,
+            session_id=session_id,
+        )
+        self.assertFalse(matching[0]["result"]["isError"], self.text(matching[0]))
+        self.assertEqual([], json.loads(self.text(matching[0]))["records"])
+
+        wrong = self.converse(
+            [self.call(1, "memory_review", {})],
+            project=None,
+            session_id="wrong-mcp-session",
+        )
+        self.assertTrue(wrong[0]["result"]["isError"])
+        self.assertIn("CONTEXT_KIT_MEMORY_PROJECT", self.text(wrong[0]))
 
     def test_malformed_input_does_not_end_the_session(self) -> None:
         responses = self.converse([{"jsonrpc": "2.0", "id": 1, "method": "ping"}])

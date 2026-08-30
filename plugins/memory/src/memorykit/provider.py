@@ -17,6 +17,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -25,6 +26,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 SCHEMA = "context-kit/memory-v1"
 MAX_BYTES = 32 * 1024
@@ -54,9 +56,13 @@ WAKE_SCHEMA = "context-kit/memory-wake-v1"
 # Session mining recognizes GitHub Copilot CLI event logs
 # (`~/.copilot/session-state/<session-id>/events.jsonl`).
 SESSION_PRODUCER = "github-copilot-cli"
-# `session_id` arrives from the session log and is used to name a candidate
-# file, so it is validated as a single safe path component before use.
+# Session identifiers arrive from Copilot logs and lifecycle payloads and are
+# used in filenames, so they must remain one bounded path component.
 SESSION_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+COPILOT_SESSION_ID_ENV = "COPILOT_AGENT_SESSION_ID"
+SESSION_BINDING_DIRNAME = "session-bindings"
+SESSION_BINDING_MAX_BYTES = 512
+SESSION_BINDING_KEYS = frozenset({"session_id", "project"})
 MAX_TURN_CHARS = 2000
 MAX_CANDIDATE_TURNS = 400
 # A wake digest primes a session, so it competes with real work for context.
@@ -437,7 +443,7 @@ def _indexkit_home() -> Path:
     return default_root / "indexkit"
 
 
-def _config(args: argparse.Namespace) -> Config:
+def _config(args: argparse.Namespace, *, allow_session_binding: bool = True) -> Config:
     provider = (
         getattr(args, "provider", None)
         or _first_env(
@@ -465,6 +471,8 @@ def _config(args: argparse.Namespace) -> Config:
         "PRODUCTIVITY_SKILLS_MEMORY_PROJECT",
         "CLAUDE_PLUGIN_OPTION_PROJECT",
     )
+    if not project and allow_session_binding:
+        project = _copilot_session_binding_project(home)
     auto_value = _first_env(
         "CONTEXT_KIT_MEMORY_AUTO_CAPTURE",
         "PRODUCTIVITY_SKILLS_MEMORY_AUTO_CAPTURE",
@@ -770,6 +778,288 @@ def _normalize_repository(remote: str) -> str:
     if len(parts) < 2:
         raise Refusal("cannot normalize the repository remote to owner/name")
     return "/".join(parts[-2:])
+
+
+def _normalize_copilot_origin(remote: str) -> str:
+    """Return an unambiguous project identity for automatic Copilot binding.
+
+    The memory contract represents repositories as `owner/name`, so automatic
+    detection cannot safely collapse a different host or a deeper namespace
+    onto that shape. Those repositories remain available through explicit
+    project configuration.
+    """
+    value = remote.strip()
+    host = ""
+    path = ""
+    if value.startswith("git@") and ":" in value:
+        authority, path = value.split(":", 1)
+        host = authority.rsplit("@", 1)[-1]
+    elif "://" in value:
+        parsed = urlsplit(value)
+        host = parsed.hostname or ""
+        path = parsed.path
+        if parsed.query or parsed.fragment:
+            raise Refusal(
+                "automatic Copilot project detection refuses origin queries "
+                "and fragments"
+            )
+    else:
+        raise Refusal(
+            "automatic Copilot project detection requires a canonical GitHub origin"
+        )
+    if host.lower() != "github.com":
+        raise Refusal(
+            "automatic Copilot project detection requires a github.com origin"
+        )
+    parts = [part for part in path.strip("/").split("/") if part]
+    if parts and parts[-1].endswith(".git"):
+        parts[-1] = parts[-1][:-4]
+    if len(parts) != 2 or not all(parts):
+        raise Refusal(
+            "automatic Copilot project detection requires exactly owner/repository"
+        )
+    project = _normalize_repository(value)
+    if project != "/".join(parts) or not REPOSITORY_RE.fullmatch(project):
+        raise Refusal("repository origin is not a concrete owner/name identity")
+    return project
+
+
+def _validate_session_id(value: object) -> str:
+    if not isinstance(value, str) or not SESSION_ID_RE.fullmatch(value):
+        raise Refusal("Copilot session id is not a safe path component")
+    return value
+
+
+def _copilot_session_id() -> str | None:
+    value = os.environ.get(COPILOT_SESSION_ID_ENV)
+    if not value:
+        return None
+    return _validate_session_id(value)
+
+
+def _private_session_bindings_supported() -> bool:
+    return os.name == "posix"
+
+
+def _session_binding_directory(home: Path, *, create: bool) -> Path | None:
+    if not _private_session_bindings_supported():
+        raise Refusal(
+            "automatic Copilot project detection requires verifiable POSIX "
+            "owner-only permissions; set CONTEXT_KIT_MEMORY_PROJECT explicitly"
+        )
+    directory = home / SESSION_BINDING_DIRNAME
+    if create:
+        home.mkdir(parents=True, exist_ok=True)
+        try:
+            os.mkdir(directory, 0o700)
+        except FileExistsError:
+            pass
+    try:
+        metadata = directory.lstat()
+    except FileNotFoundError:
+        return None
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise Refusal(f"session binding root is not a real directory: {directory}")
+    if os.name == "posix":
+        if metadata.st_uid != os.getuid():
+            raise Refusal(f"session binding root is owned by another user: {directory}")
+        if stat.S_IMODE(metadata.st_mode) & 0o077:
+            raise Refusal(f"session binding root permissions must be 0700: {directory}")
+    return directory
+
+
+def _session_binding_path(
+    home: Path, session_id: str, *, create_directory: bool
+) -> Path | None:
+    safe_id = _validate_session_id(session_id)
+    directory = _session_binding_directory(home, create=create_directory)
+    if directory is None:
+        return None
+    return directory / f"{safe_id}.json"
+
+
+def _load_session_binding(home: Path, session_id: str) -> dict[str, object] | None:
+    path = _session_binding_path(home, session_id, create_directory=False)
+    if path is None:
+        return None
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(path, flags)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise Refusal(f"cannot safely open Copilot session binding: {path}") from exc
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise Refusal(f"Copilot session binding is not a regular file: {path}")
+        if os.name == "posix":
+            if metadata.st_uid != os.getuid():
+                raise Refusal(
+                    f"Copilot session binding is owned by another user: {path}"
+                )
+            if stat.S_IMODE(metadata.st_mode) & 0o077:
+                raise Refusal(
+                    f"Copilot session binding permissions must be 0600: {path}"
+                )
+        if metadata.st_size > SESSION_BINDING_MAX_BYTES:
+            raise Refusal(f"Copilot session binding is unexpectedly large: {path}")
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = -1
+            raw = stream.read(SESSION_BINDING_MAX_BYTES + 1)
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+    if len(raw) > SESSION_BINDING_MAX_BYTES:
+        raise Refusal(f"Copilot session binding is unexpectedly large: {path}")
+    try:
+        payload = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Refusal(f"Copilot session binding is invalid JSON: {path}") from exc
+    if not isinstance(payload, dict) or set(payload) != SESSION_BINDING_KEYS:
+        raise Refusal(f"Copilot session binding has unexpected fields: {path}")
+    if payload.get("session_id") != session_id:
+        raise Refusal(f"Copilot session binding id does not match its filename: {path}")
+    return payload
+
+
+def _read_session_binding(home: Path, session_id: str) -> str | None:
+    payload = _load_session_binding(home, session_id)
+    if payload is None:
+        return None
+    path = _session_binding_path(home, session_id, create_directory=False)
+    assert path is not None
+    project = payload.get("project")
+    if not isinstance(project, str) or not REPOSITORY_RE.fullmatch(project):
+        raise Refusal(f"Copilot session binding has an invalid project: {path}")
+    return project
+
+
+def _session_binding_bytes(session_id: str, project: str) -> bytes:
+    raw = (
+        json.dumps(
+            {"session_id": session_id, "project": project},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        + "\n"
+    ).encode("utf-8")
+    if len(raw) > SESSION_BINDING_MAX_BYTES:
+        raise Refusal("Copilot session binding exceeds its size limit")
+    return raw
+
+
+def _replace_session_binding(path: Path, *, session_id: str, project: str) -> None:
+    raw = _session_binding_bytes(session_id, project)
+    with tempfile.NamedTemporaryFile(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        delete=False,
+    ) as handle:
+        handle.write(raw)
+        handle.flush()
+        os.fsync(handle.fileno())
+        temporary = Path(handle.name)
+    os.chmod(temporary, 0o600)
+    try:
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _write_session_binding(home: Path, session_id: str, project: str) -> str:
+    if not REPOSITORY_RE.fullmatch(project):
+        raise Refusal("memory project must be a concrete owner/name identity")
+    path = _session_binding_path(home, session_id, create_directory=True)
+    assert path is not None
+    raw = _session_binding_bytes(session_id, project)
+    with tempfile.NamedTemporaryFile(
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        delete=False,
+    ) as handle:
+        handle.write(raw)
+        handle.flush()
+        os.fsync(handle.fileno())
+        temporary = Path(handle.name)
+    os.chmod(temporary, 0o600)
+    try:
+        try:
+            os.link(temporary, path, follow_symlinks=False)
+        except FileExistsError:
+            existing_payload = _load_session_binding(home, session_id)
+            assert existing_payload is not None
+            existing = existing_payload.get("project")
+            if existing == project:
+                return "unchanged"
+            if not isinstance(existing, str) or not REPOSITORY_RE.fullmatch(existing):
+                raise Refusal("Copilot session binding is already conflicted")
+            # A conflicting SessionStart must not leave the old project
+            # addressable through the same session id. Keep only the two-field
+            # minimum payload, but make the project deliberately invalid so all
+            # later resolution fails closed until matching SessionEnd cleanup.
+            _replace_session_binding(path, session_id=session_id, project="")
+            raise Refusal(
+                "refusing to reuse a Copilot session binding for another project"
+            ) from None
+    finally:
+        temporary.unlink(missing_ok=True)
+    return "created"
+
+
+def _remove_session_binding(home: Path, session_id: str) -> bool:
+    path = _session_binding_path(home, session_id, create_directory=False)
+    if path is None:
+        return False
+    if _load_session_binding(home, session_id) is None:
+        return False
+    path.unlink()
+    return True
+
+
+def _copilot_session_binding_project(home: Path) -> str | None:
+    session_id = _copilot_session_id()
+    if session_id is None:
+        return None
+    return _read_session_binding(home, session_id)
+
+
+def _decode_hook_payload(payload: bytes) -> dict[str, object]:
+    try:
+        decoded = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise Refusal(f"hook payload must be valid JSON: {exc}") from exc
+    if not isinstance(decoded, dict):
+        raise Refusal("hook payload must be a JSON object")
+    return decoded
+
+
+def _matching_copilot_payload_session(
+    payload: dict[str, object],
+) -> str | None:
+    session_id = _copilot_session_id()
+    if session_id is None:
+        return None
+    payload_session_id = _validate_session_id(payload.get("sessionId"))
+    if payload_session_id != session_id:
+        raise Refusal("Copilot environment and hook payload session ids do not match")
+    return session_id
+
+
+def _project_from_session_start(payload: dict[str, object]) -> str:
+    cwd = payload.get("cwd")
+    if not isinstance(cwd, str) or not cwd or not Path(cwd).is_absolute():
+        raise Refusal("Copilot SessionStart cwd must be an absolute path")
+    repository = Path(cwd).resolve(strict=True)
+    if not repository.is_dir():
+        raise Refusal("Copilot SessionStart cwd must be a directory")
+    top_level = Path(_git(repository, "rev-parse", "--show-toplevel"))
+    if not top_level.is_absolute():
+        raise Refusal("git returned a non-absolute repository top-level")
+    root = top_level.resolve(strict=True)
+    return _normalize_copilot_origin(_git(root, "remote", "get-url", "origin"))
 
 
 def _assert_project_matches(metadata: dict[str, object], config: Config) -> None:
@@ -2739,32 +3029,86 @@ def _hook_recall(config: Config) -> int:
     return 0
 
 
+def _hook_session_start(config: Config, payload: bytes) -> int:
+    effective = config
+    try:
+        decoded = _decode_hook_payload(payload)
+        session_id = _matching_copilot_payload_session(decoded)
+        if session_id is not None:
+            project = _project_from_session_start(decoded)
+            _write_session_binding(config.home, session_id, project)
+            if not config.project:
+                effective = Config(
+                    provider=config.provider,
+                    home=config.home,
+                    project=project,
+                    auto_capture=config.auto_capture,
+                    recall_on_start=config.recall_on_start,
+                )
+    except (OSError, Refusal) as exc:
+        # Routing metadata must fail closed without breaking session startup.
+        print(f"memory session binding skipped: {exc}", file=sys.stderr)
+    return _hook_recall(effective)
+
+
 def _run_hook(event: str, config: Config, payload: bytes) -> int:
     if event == "session-start":
-        return _hook_recall(config)
-    if not config.auto_capture:
-        print("{}")
-        return 0
+        return _hook_session_start(config, payload)
+
+    decoded: dict[str, object] | None = None
+    cleanup_session_id: str | None = None
+    effective = config
+    if event == "session-end" and os.environ.get(COPILOT_SESSION_ID_ENV):
+        try:
+            decoded = _decode_hook_payload(payload)
+            cleanup_session_id = _matching_copilot_payload_session(decoded)
+        except (OSError, Refusal) as exc:
+            print(f"memory session binding cleanup skipped: {exc}", file=sys.stderr)
+            cleanup_session_id = None
+        if cleanup_session_id is not None and not config.project:
+            try:
+                bound_project = _read_session_binding(config.home, cleanup_session_id)
+                if bound_project:
+                    effective = Config(
+                        provider=config.provider,
+                        home=config.home,
+                        project=bound_project,
+                        auto_capture=config.auto_capture,
+                        recall_on_start=config.recall_on_start,
+                    )
+            except (OSError, Refusal):
+                # Cleanup below still removes a private conflicted binding, but
+                # no memory operation may resolve through it.
+                pass
+
+    response: dict[str, object] = {}
     try:
-        decoded = json.loads(payload)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise Refusal(f"hook payload must be valid JSON: {exc}") from exc
-    if not isinstance(decoded, dict):
-        raise Refusal("hook payload must be a JSON object")
-    pending_dir = config.home / "pending-hooks" / config.project_slug
-    pending = _new_write_once_path(pending_dir, f"-{event}.json")
-    if _write_once(pending, payload) != "created":
-        raise Refusal(f"refusing to reuse a generated hook payload path: {pending}")
-    print(
-        json.dumps(
-            {
+        if effective.auto_capture:
+            if decoded is None:
+                decoded = _decode_hook_payload(payload)
+            pending_dir = effective.home / "pending-hooks" / effective.project_slug
+            pending = _new_write_once_path(pending_dir, f"-{event}.json")
+            if _write_once(pending, payload) != "created":
+                raise Refusal(
+                    f"refusing to reuse a generated hook payload path: {pending}"
+                )
+            response = {
                 "status": "queued-for-review",
                 "event": event,
                 "pending": str(pending),
                 "provider_invoked": False,
             }
-        )
-    )
+    finally:
+        if cleanup_session_id is not None:
+            try:
+                _remove_session_binding(effective.home, cleanup_session_id)
+            except (OSError, Refusal) as exc:
+                # An unsafe or changed binding is left untouched for inspection.
+                print(
+                    f"memory session binding cleanup skipped: {exc}",
+                    file=sys.stderr,
+                )
+    print(json.dumps(response))
     return 0
 
 
@@ -2902,7 +3246,10 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "valid", "id": metadata["id"]}))
             return 0
 
-        config = _config(args)
+        allow_session_binding = not (
+            args.command == "hook" and args.event in {"session-start", "session-end"}
+        )
+        config = _config(args, allow_session_binding=allow_session_binding)
         if args.command == "capture":
             return _capture_memory(args, config)
         if args.command == "archive-handoff":
