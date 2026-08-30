@@ -57,7 +57,7 @@ anchors, rank fusion, evidence links, and reviewable consolidation.
 
 ## Local-only capture
 
-The adapter uses Python 3 plus Git on `PATH` and can preserve reviewed records
+The adapter uses Python 3.10+ plus Git on `PATH` and can preserve reviewed records
 without an external provider:
 
 ```bash

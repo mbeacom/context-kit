@@ -83,7 +83,7 @@ is the reverse of the `indexkit` launcher's preference, and deliberate.
 
 ## Local-only reviewed records
 
-Python 3 and Git on `PATH` are required. Configure an explicit project and
+Python 3.10+ and Git on `PATH` are required. Configure an explicit project and
 plugin root:
 
 ```bash

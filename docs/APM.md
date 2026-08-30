@@ -145,7 +145,7 @@ Python 3 is required for the stdlib `runtime-evidence` runner and
 Windows before execution; the handoff validator is cross-platform. Runtime
 evidence's optional-tool path ships no runner, so it needs neither Python nor
 POSIX — only an approved, host-exposed observation tool.
-The `memory` adapter also uses Python 3 and Git on `PATH`; MemPalace is a
+The `memory` adapter also uses Python 3.10+ and Git on `PATH`; MemPalace is a
 separately installed optional provider. APM does not execute Claude hooks, so
 memory capture remains explicit unless the target host is configured separately.
 

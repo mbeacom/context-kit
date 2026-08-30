@@ -171,7 +171,7 @@ The skills degrade gracefully and tell you what's missing.
   cross-platform. Runtime evidence's optional-tool path ships no runner, so it
   needs neither Python nor POSIX — only an approved, host-exposed observation
   tool.
-- **memory** — needs Python 3 and Git on `PATH` for local reviewed records.
+- **memory** — needs Python 3.10+ and Git on `PATH` for local reviewed records.
   Provider-backed recall optionally uses a separately installed `mempalace` CLI
   (`uv tool install mempalace`); automatic capture is disabled by default.
 
