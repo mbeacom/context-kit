@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.7 — 2026-08-30
+
+- Update the optional adrkit install hint from 0.12.0 to 0.13.0, matching the
+  repository's ADR lint, governing-decisions workflow, contributor instructions,
+  and badge-report generation. The runner's exact-argv, read-only, offline, and
+  `unavailable` contracts are unchanged.
+
 ## 0.5.6 — 2026-08-27
 
 - Update the optional adrkit install hint from 0.9.0 to 0.12.0, matching the

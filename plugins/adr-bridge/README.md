@@ -40,9 +40,9 @@ Then make `adr` reachable. It is optional — every command degrades to a stated
 `unreached` without it — but nothing here is useful until it resolves:
 
 ```bash
-npm i -g @adrkit/cli@0.12.0         # provides `adr`
+npm i -g @adrkit/cli@0.13.0         # provides `adr`
 # or install project-locally and expose the same binary to every integration:
-npm i --save-dev @adrkit/cli@0.12.0
+npm i --save-dev @adrkit/cli@0.13.0
 export PATH="$PWD/node_modules/.bin:$PATH"
 ```
 
@@ -84,7 +84,7 @@ record, and a human ratifies it.
 
 adrkit ships `@adrkit/mcp`, `@adrkit/spec-kit`, and a portable agent plugin.
 Duplicating those here would fork the documentation and rot on adrkit's release
-cadence, not this catalog's — it shipped 0.4.0 → 0.12.0 in under three weeks. Use
+cadence, not this catalog's — it shipped 0.4.0 → 0.13.0 in under a month. Use
 adrkit's plugin for the generic workflow and this plugin for the joins.
 
 ## Related

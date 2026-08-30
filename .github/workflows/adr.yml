@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: "22"
       - name: Lint ADR corpus
-        run: npx --yes @adrkit/cli@0.12.0 lint --dir docs/adr
+        run: npx --yes @adrkit/cli@0.13.0 lint --dir docs/adr
 
   governing-decisions:
     if: github.event_name == 'pull_request'
@@ -30,7 +30,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
-      # adrkit v0.12.0, pinned to the release commit rather than a moving tag.
-      - uses: mbeacom/adrkit/packages/ci@2f19524f07938f1a7841b9f58bbcd1313e60a4dc
+      # adrkit v0.13.0, pinned to the release commit rather than a moving tag.
+      - uses: mbeacom/adrkit/packages/ci@3e40675ed6f513d9712b1dccaa68034d649d1eb9
         with:
           dir: docs/adr
