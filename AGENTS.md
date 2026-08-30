@@ -62,7 +62,7 @@ an application. See
   it warns at 95% of the budget and fails above it.
 - **Decisions are recorded, and locatable:** `docs/adr/` holds the repository's
   architecture decision records (adrkit, ADR-0001). Before proposing a change to
-  a governed path, check what already binds it — `npx @adrkit/cli@0.12.0 explain
+  a governed path, check what already binds it — `npx @adrkit/cli@0.13.0 explain
   <path>` reports governing records *and the options that were rejected*, which
   is how a settled question stops being re-opened. These files keep the rules;
   the corpus keeps the reasoning, the rejected options, and the revisit
