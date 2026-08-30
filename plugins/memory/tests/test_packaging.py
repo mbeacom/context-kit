@@ -177,11 +177,17 @@ class SurfaceTests(unittest.TestCase):
         manifest = json.loads(
             (PLUGIN_ROOT / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
         )["version"]
+        server = re.search(
+            r'^SERVER_VERSION\s*=\s*"([^"]+)"',
+            (PACKAGE_ROOT / "mcp.py").read_text(encoding="utf-8"),
+            re.M,
+        )
+        self.assertIsNotNone(server)
+        assert server is not None
         self.assertEqual(
-            {dunder.group(1), project.group(1), manifest},
+            {dunder.group(1), project.group(1), server.group(1), manifest},
             {manifest},
-            "package __version__, pyproject version, and plugin.json disagree; "
-            "the release guard would block a tag on this",
+            "package, MCP server, pyproject, and plugin versions disagree",
         )
 
 
@@ -261,6 +267,20 @@ class HostWiringTests(unittest.TestCase):
                 (PLUGIN_ROOT / relative).is_file(),
                 f"{manifest.name} references {relative}, which does not exist",
             )
+
+    def test_mcp_manifest_declares_stdio_explicitly(self) -> None:
+        config = json.loads((PLUGIN_ROOT / ".mcp.json").read_text(encoding="utf-8"))
+        server = config["mcpServers"]["context-kit-memory"]
+        self.assertEqual("stdio", server["type"])
+        self.assertEqual(
+            {
+                "CONTEXT_KIT_MEMORY_PROJECT": "${CONTEXT_KIT_MEMORY_PROJECT}",
+                "PRODUCTIVITY_SKILLS_MEMORY_PROJECT": (
+                    "${PRODUCTIVITY_SKILLS_MEMORY_PROJECT}"
+                ),
+            },
+            server["env"],
+        )
 
 
 if __name__ == "__main__":

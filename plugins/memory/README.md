@@ -83,7 +83,8 @@ is the reverse of the `indexkit` launcher's preference, and deliberate.
 
 ## Local-only reviewed records
 
-Python 3 is the only requirement. Configure an explicit project and plugin root:
+Python 3.10+ and Git on `PATH` are required. Configure an explicit project and
+plugin root:
 
 ```bash
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
@@ -176,12 +177,13 @@ authoring a `memory-v1` record from a candidate stays an explicit judgment step.
 
 See [`references/session-mining.md`](skills/memory-workflows/references/session-mining.md).
 
-## MCP surface for non-plugin hosts
+## MCP surface
 
 An optional stdio MCP server exposes `memory_recall`, `memory_capture`, and
-`memory_review` so hosts that consume skills plus MCP can use durable memory
-without a plugin runtime. It is standard library only and shells out to the
-same provider, so the CLI and MCP paths cannot drift.
+`memory_review` so hosts that consume skills plus MCP can use durable memory.
+GitHub Copilot and Claude Code plugin installs discover it automatically;
+package-only hosts can launch it directly. It is standard library only and
+shells out to the same provider, so the CLI and MCP paths cannot drift.
 
 ```bash
 # From the plugin:
@@ -191,6 +193,14 @@ CONTEXT_KIT_MEMORY_PROJECT=owner/repository \
 # From the package, with no plugin at all:
 CONTEXT_KIT_MEMORY_PROJECT=owner/repository memorykit-mcp
 ```
+
+The bundled `.mcp.json` forwards `CONTEXT_KIT_MEMORY_PROJECT` from the host
+environment into the plugin process. Set it to the current
+`owner/repository` in the Copilot project environment or before launching the
+host; do not edit Copilot's generated MCP entry. MCP capture records must use
+an absolute `source` path because plugin hosts may launch the server outside
+the active repository. The server refuses an unset project and never infers a
+repository or falls back to a global store.
 
 The surface can propose memory but **cannot activate it**: a record whose
 frontmatter is not `review: proposed` is refused, and proposals stay out of
@@ -223,7 +233,7 @@ explicit command there.
 | `/review-memory` | Review freshness, conflicts, and consolidation proposals. |
 | `/archive-handoff` | Explicitly preserve a validated handoff as historical memory. |
 | `memory-provider.py` | Launcher for the `memorykit` provider: stdlib validator, local store, MemPalace adapter, and hook dispatcher. |
-| `src/memorykit/` | The packaged engine (`memorykit`, not yet on PyPI): contract, validator, provider, MCP server. |
+| `src/memorykit/` | The packaged `memorykit` engine: contract, validator, provider, MCP server. |
 
 ## Safety boundaries
 

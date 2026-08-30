@@ -117,6 +117,12 @@ Supported neutral environment variables:
 | `CONTEXT_KIT_CLAUDE_PROJECTS` | Claude Code transcript dir to read | — |
 | `CONTEXT_KIT_COPILOT_DB` | Copilot CLI session store to read | — |
 
+Copilot plugin installs discover the memory plugin's stdio MCP server
+automatically. Its bundled configuration forwards
+`CONTEXT_KIT_MEMORY_PROJECT` from the Copilot project environment into the
+server. Set that variable to the current `owner/repository`; the server refuses
+when it is absent and never lets prompt content select a project scope.
+
 The Claude-specific variables remain supported so existing plugin installs keep
 working. The `CONTEXT_KIT_*` names are preferred for portable docs and
 shell profiles shared across agents. The former `PRODUCTIVITY_SKILLS_*` names
@@ -147,10 +153,10 @@ skills expect:
   host policy, with nothing enforced by the plugin.
 - Optional for `obsidian-rag-bridge`: the official `obsidian` CLI with Obsidian
   running; otherwise use the `rg`/`fd` fallback over vault files.
-- Required for local `memory` records: Python 3. Optional provider recall uses a
-  separately installed `mempalace` CLI. Copilot CLI *does* load the plugin's
-  `hooks/hooks.json`, so opt-in session-start recall and boundary capture work
-  here; both stay off until explicitly enabled.
+- Required for local `memory` records: Python 3.10+ and Git on `PATH`. Optional
+  provider recall uses a separately installed `mempalace` CLI. Copilot CLI
+  *does* load the plugin's `hooks/hooks.json`, so opt-in session-start recall
+  and boundary capture work here; both stay off until explicitly enabled.
 
 Run `plugins/code-search/scripts/check-tools.sh` from a clone of this repository to
 see what is already installed and what `brew install ...` command would fill the gaps.

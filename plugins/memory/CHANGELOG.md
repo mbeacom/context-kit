@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0 — 2026-08-29
+
+- Make plugin-installed MCP safe and configurable in GitHub Copilot: declare
+  `stdio` explicitly and forward the operator-set
+  `CONTEXT_KIT_MEMORY_PROJECT` (or deprecated
+  `PRODUCTIVITY_SKILLS_MEMORY_PROJECT`) into the child process. The server still
+  refuses when no explicit scope is configured; prompt content cannot select
+  another project store.
+- Move MCP proposal-only and absolute-source enforcement into the provider, so
+  quoted frontmatter follows the same parser as CLI capture and policy cannot
+  drift between surfaces. Provider validation now refuses a missing or
+  non-regular evidence source instead of skipping hash verification.
+- Bound incoming JSON-RPC frames before decoding and reconcile the MCP server
+  version in packaging tests.
+- Add MCP tool safety annotations and collapse missing-source versus
+  hash-mismatch failures into one capture refusal, avoiding a path-existence
+  distinction while preserving explicit failure.
+
 ## 0.6.0 — 2026-08-09
 
 - **Package the memory contract, validator, and MCP server as `memorykit`, ready

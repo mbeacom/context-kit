@@ -63,7 +63,7 @@ Choose an entry plugin:
 | Verify repository claims | `verify` | — |
 | Verify, then observe runtime behavior | `runtime-evidence` | Runner path: Python 3, POSIX, reviewed allowlist. Optional-tool path: an approved host tool |
 | Verify, then hand off | `context-handoff` | Python 3 |
-| Recall durable project memory | `memory` | Python 3; MemPalace optional |
+| Recall durable project memory | `memory` | Python 3.10+; Git; MemPalace optional |
 | Plan, then delegate execution | `plan-execute` | A host with the required workflow/subagent support |
 | Choose where context belongs | `context-steering` | — |
 | Author portable plugins | `plugin-forge` | validation toolchain for maintainers |
@@ -122,9 +122,10 @@ command has no side effects.
 
     ---
 
-    Needs Python 3 for local reviewed records. Optional provider recall uses a
-    separately installed MemPalace CLI (`uv tool install mempalace`). Automatic
-    capture is disabled by default and requires an explicit project scope.
+    Needs Python 3.10+ and Git on `PATH` for local reviewed records. Optional
+    provider recall uses a separately installed MemPalace CLI
+    (`uv tool install mempalace`). Automatic capture is disabled by default and
+    requires an explicit project scope.
 
 </div>
 

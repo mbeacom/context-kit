@@ -244,5 +244,13 @@ checklist. It is now step 1 of that checklist.
 - Mark a faulty GitHub release as superseded and link to the corrective release.
   If urgent, the corrective patch may revert behavior, but it still receives a
   new version so host caches cannot confuse the two states.
+- For a confirmed defect in a published Python package, yank the affected
+  release on PyPI with a reason that names the corrective version. Verify in a
+  clean environment that an unconstrained install selects the prior safe
+  version, and tell existing users to run
+  `python3 -m pip install --upgrade "<package>==<last-safe-version>"` (or the
+  equivalent forced reinstall for their tool manager). A yank contains new
+  resolution; it does not delete the artifact or replace the required
+  fix-forward release.
 - If only an unpushed local tag is wrong, delete it locally and recreate it at the
   correct merged commit before publishing.

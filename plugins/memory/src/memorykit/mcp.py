@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 SERVER_NAME = "context-kit-memory"
-SERVER_VERSION = "0.3.0"
+SERVER_VERSION = "0.7.0"
 # Newest first. The client's requested version is echoed when supported.
 SUPPORTED_PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
 # The provider is this package's sibling module, so one path is correct in both
@@ -38,6 +38,11 @@ SUPPORTED_PROTOCOLS = ("2025-06-18", "2025-03-26", "2024-11-05")
 PROVIDER = Path(__file__).resolve().with_name("provider.py")
 CALL_TIMEOUT_SECONDS = 120.0
 MAX_RECORD_BYTES = 32 * 1024
+MAX_FRAME_CHARS = MAX_RECORD_BYTES * 8
+EVIDENCE_ERROR_MARKERS = (
+    "referenced source is not a readable file",
+    "source_hash does not match the referenced source file",
+)
 
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
@@ -70,14 +75,15 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["query"],
             "additionalProperties": False,
         },
+        "annotations": {"readOnlyHint": True, "openWorldHint": False},
     },
     {
         "name": "memory_capture",
         "description": (
             "Persist a context-kit/memory-v1 record as review: proposed. The "
-            "record must cite real evidence: its source_hash is verified "
-            "against the source file. Proposed records are inert until a human "
-            "accepts them with the record-state CLI."
+            "record must cite real evidence at an absolute source path: its "
+            "source_hash is verified against the source file. Proposed records "
+            "are inert until a human accepts them with the record-state CLI."
         ),
         "inputSchema": {
             "type": "object",
@@ -94,6 +100,12 @@ TOOLS: list[dict[str, Any]] = [
             "required": ["record"],
             "additionalProperties": False,
         },
+        "annotations": {
+            "readOnlyHint": False,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": False,
+        },
     },
     {
         "name": "memory_review",
@@ -106,6 +118,7 @@ TOOLS: list[dict[str, Any]] = [
             "properties": {},
             "additionalProperties": False,
         },
+        "annotations": {"readOnlyHint": True, "openWorldHint": False},
     },
 ]
 
@@ -119,26 +132,10 @@ def _log(message: str) -> None:
     print(f"{SERVER_NAME}: {message}", file=sys.stderr, flush=True)
 
 
-def _project_scope() -> str:
-    for name in ("CONTEXT_KIT_MEMORY_PROJECT", "CLAUDE_PLUGIN_OPTION_PROJECT"):
-        # Portable first, then the Claude userConfig fallback the CLI accepts.
-        # Checking only the portable name would make every tool refuse on a
-        # normal Claude install configured through the plugin's option.
-        project = os.environ.get(name, "").strip()
-        if project:
-            return project
-    raise ToolError(
-        "no memory project is configured; set CONTEXT_KIT_MEMORY_PROJECT to "
-        "an explicit owner/repository. Memory is never read from or written "
-        "to an inferred global store."
-    )
-
-
-def _run_provider(argv: list[str]) -> str:
+def _run_provider(argv: list[str], *, redact_evidence_errors: bool = False) -> str:
     if not PROVIDER.is_file():
         raise ToolError(f"memory provider script is missing: {PROVIDER}")
-    project = _project_scope()
-    command = [sys.executable, str(PROVIDER), *argv, "--project", project]
+    command = [sys.executable, str(PROVIDER), *argv]
     try:
         result = subprocess.run(
             command,
@@ -154,21 +151,12 @@ def _run_provider(argv: list[str]) -> str:
         raise ToolError(f"memory command could not run: {exc}") from exc
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
+        if redact_evidence_errors and any(
+            marker in detail for marker in EVIDENCE_ERROR_MARKERS
+        ):
+            detail = "memory capture refused: cited source evidence did not validate"
         raise ToolError(detail or f"memory command exited {result.returncode}")
     return result.stdout.decode("utf-8", errors="replace").strip()
-
-
-def _frontmatter_value(record: str, field: str) -> str | None:
-    lines = record.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return None
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        key, separator, value = line.partition(":")
-        if separator and key.strip() == field:
-            return value.strip()
-    return None
 
 
 def _tool_memory_recall(arguments: dict[str, Any]) -> str:
@@ -192,38 +180,21 @@ def _tool_memory_capture(arguments: dict[str, Any]) -> str:
         raise ToolError(
             f"record exceeds {MAX_RECORD_BYTES} bytes; keep a memory atomic"
         )
-    review = _frontmatter_value(record, "review")
-    if review is None:
-        raise ToolError("record is missing flat YAML frontmatter with a `review` field")
-    if review != "proposed":
-        # `capture` takes the initial state from frontmatter, so without this
-        # guard an agent could write `review: accepted` and activate a memory
-        # with no human review at all.
-        raise ToolError(
-            "this surface can only propose memory, but the record declares "
-            f"review: {review}. Set `review: proposed` and promote it later "
-            "with `memory-provider.py record-state <id> --review accepted "
-            "--reason ...` after the evidence has been checked."
-        )
-    # `validate_memory` verifies `source_hash` only when the source is a
-    # *regular file* (`source.is_file()`), so `exists()` here would be a weaker
-    # gate than the one it exists to mirror: a record citing a directory would
-    # pass this check, skip hash verification entirely, and persist with any
-    # 64-character hash and unverifiable provenance. Match the provider.
-    source = _frontmatter_value(record, "source")
-    if not source:
-        raise ToolError("record is missing a `source` field citing its evidence")
-    if not Path(source).expanduser().is_file():
-        raise ToolError(
-            f"the cited source is not a readable file: {source}. A memory must "
-            "point at evidence that can be re-read and hashed."
-        )
     handle, temporary = tempfile.mkstemp(prefix="memory-capture-", suffix=".md")
     path = Path(temporary)
     try:
         with os.fdopen(handle, "wb") as stream:
             stream.write(raw)
-        return _run_provider(["capture", str(path)])
+        return _run_provider(
+            [
+                "capture",
+                str(path),
+                "--require-review",
+                "proposed",
+                "--require-absolute-source",
+            ],
+            redact_evidence_errors=True,
+        )
     finally:
         path.unlink(missing_ok=True)
 
@@ -326,7 +297,22 @@ def _write(sink: Any, payload: dict[str, Any]) -> None:
 def serve(stdin: Any = None, stdout: Any = None) -> int:
     source = stdin if stdin is not None else sys.stdin
     sink = stdout if stdout is not None else sys.stdout
-    for line in source:
+    while True:
+        line = source.readline(MAX_FRAME_CHARS + 1)
+        if not line:
+            break
+        if len(line) > MAX_FRAME_CHARS:
+            while line and not line.endswith("\n"):
+                line = source.readline(MAX_FRAME_CHARS + 1)
+            _write(
+                sink,
+                _error(
+                    None,
+                    INVALID_REQUEST,
+                    f"JSON-RPC frame exceeds {MAX_FRAME_CHARS} characters",
+                ),
+            )
+            continue
         line = line.strip()
         if not line:
             continue

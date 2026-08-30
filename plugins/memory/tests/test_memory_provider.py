@@ -137,6 +137,14 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual(2, result)
         self.assertIn("does not match", stderr)
 
+    def test_rejects_a_missing_source_instead_of_skipping_verification(self) -> None:
+        self.source.unlink()
+
+        result, _, stderr = self.invoke(["validate", str(self.record)])
+
+        self.assertEqual(2, result)
+        self.assertIn("not a readable file", stderr)
+
     def test_rejects_invalid_project_provenance(self) -> None:
         replacements = (
             ("scope: project", "scope: personal"),
@@ -238,6 +246,20 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual("unchanged", json.loads(second_stdout)["status"])
         saved = self.home / "records" / self.project_slug() / "retry-policy.md"
         self.assertEqual(self.record.read_bytes(), saved.read_bytes())
+
+    def test_capture_can_require_a_specific_review_state(self) -> None:
+        result, _, stderr = self.invoke(
+            [
+                "capture",
+                str(self.record),
+                "--require-review",
+                "proposed",
+                *self.base_args(),
+            ]
+        )
+
+        self.assertEqual(2, result)
+        self.assertIn("review must be 'proposed'", stderr)
 
     def test_project_slug_separates_distinct_valid_identifiers(self) -> None:
         identifiers = ("foo/bar-baz", "foo-bar/baz", "Foo/Bar-Baz")
@@ -857,6 +879,24 @@ class MemoryProviderTests(unittest.TestCase):
         self.assertEqual("mempalace", config.provider)
         self.assertEqual(self.home.resolve(), config.home)
         self.assertEqual("portable/project", config.project)
+
+    def test_legacy_memory_environment_aliases_are_honored(self) -> None:
+        args = type("Args", (), {"provider": None, "home": None, "project": None})()
+        legacy_home = self.root / "legacy"
+        with patch.dict(
+            os.environ,
+            {
+                "PRODUCTIVITY_SKILLS_MEMORY_PROVIDER": "mempalace",
+                "PRODUCTIVITY_SKILLS_MEMORY_HOME": str(legacy_home),
+                "PRODUCTIVITY_SKILLS_MEMORY_PROJECT": "legacy/project",
+            },
+            clear=True,
+        ):
+            config = memory_provider._config(args)
+
+        self.assertEqual("mempalace", config.provider)
+        self.assertEqual(legacy_home.resolve(), config.home)
+        self.assertEqual("legacy/project", config.project)
 
     def test_disabled_hook_does_not_require_provider_or_project(self) -> None:
         with patch.dict(os.environ, {}, clear=True):

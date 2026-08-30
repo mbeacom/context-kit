@@ -1,8 +1,8 @@
 # MCP Server
 
 `memory` ships an optional stdio MCP server so hosts that consume **skills plus
-MCP** — GitHub Copilot, Scout-style agents, and other non-plugin hosts — can use
-durable memory without a Claude plugin runtime.
+MCP** — GitHub Copilot, Claude Code, Scout-style agents, and package-only hosts
+— can use durable memory.
 
 ## Why MCP is warranted here
 
@@ -16,27 +16,37 @@ around the whole CLI.
 
 ## Register
 
-Claude Code reads the bundled definition automatically:
+GitHub Copilot and Claude Code plugin installs read the bundled definition
+automatically:
 
 ```json
 {
   "mcpServers": {
     "context-kit-memory": {
+      "type": "stdio",
       "command": "python3",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"],
+      "env": {
+        "CONTEXT_KIT_MEMORY_PROJECT": "${CONTEXT_KIT_MEMORY_PROJECT}"
+      }
     }
   }
 }
 ```
 
-Other hosts configure MCP their own way; point them at the same command with an
-absolute path:
+Copilot does not populate Claude's `userConfig` fields for a
+plugin-contributed MCP server. The bundled definition therefore forwards
+`CONTEXT_KIT_MEMORY_PROJECT` from the Copilot project environment. Set it there
+to `owner/repository`; do not edit Copilot's generated MCP entry.
+
+Package-only and other hosts configure MCP their own way; point them at the same
+command with an absolute path:
 
 ```bash
 python3 /path/to/context-kit/plugins/memory/mcp/server.py
 ```
 
-Required environment:
+Environment:
 
 | Variable | Purpose |
 | --- | --- |
@@ -46,7 +56,8 @@ Required environment:
 
 There is no default project. With `CONTEXT_KIT_MEMORY_PROJECT` unset every tool
 refuses, because memory must never be read from or written to an inferred
-global store.
+global store. The project comes only from operator-controlled host or MCP
+configuration, never from a model-supplied tool argument.
 
 ## Tools
 
@@ -59,6 +70,13 @@ global store.
 Deliberately **not** exposed: `sync-provider`, `record-state` promotion, backup
 pruning, session mining, and anything destructive. Those stay explicit CLI
 operations a person runs.
+
+MCP capture requires an absolute `source` path. Plugin hosts may launch the
+server with the plugin directory as its working directory, so a
+repository-relative evidence path cannot be resolved safely at this boundary.
+It reads that exact path with the host user's authority. Keep the server limited
+to trusted sessions and retain host approval for `memory_capture`; the tool is
+annotated as a non-read-only, non-destructive, idempotent operation.
 
 ## The surface cannot activate memory
 
@@ -80,8 +98,8 @@ and `source_hash` is verified against the actual source bytes.
 
 ## Design
 
-The server is a **surface, not a source of truth**. Every tool shells out to
-`memory-provider.py` with exact argv and no shell, so contract validation,
+The server is a **surface, not a source of truth**. Every tool shells out
+to `memory-provider.py` with exact argv and no shell, so contract validation,
 project isolation, review state, and reconciliation have exactly one
 implementation and the CLI and MCP paths cannot drift.
 
