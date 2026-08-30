@@ -187,11 +187,13 @@ on every turn. The bundled MCP definition forwards explicit project/home
 configuration into the server. GitHub Copilot Desktop can instead use a trusted
 ephemeral binding: `SessionStart` requires payload `sessionId` to exactly match
 `COPILOT_AGENT_SESSION_ID`, then resolves payload `cwd` to the Git top-level and
-normalized `origin`. MCP cwd, `PWD`, prompt content, and tool arguments cannot
-select another project store. MCP capture requires an absolute evidence path
-because plugin hosts may launch outside the active repository. Memory clears the
-"reach for MCP last" bar because it is live local state plus actions, not static
-knowledge a skill could carry.
+accepts only a canonical `github.com/owner/repository` origin on POSIX. MCP cwd,
+`PWD`, prompt content, and tool arguments cannot select another project store.
+Windows, other Git hosts, and deeper namespaces require explicit scope. MCP
+capture requires an absolute evidence path because plugin hosts may launch
+outside the active repository. Memory clears the "reach for MCP last" bar
+because it is live local state plus actions, not static knowledge a skill could
+carry.
 
 The server is a surface, not a source of truth: every tool shells out to
 `memory-provider.py` with exact argv, so validation, isolation, and review state
@@ -231,7 +233,7 @@ are isolated by unique host session IDs.
 | --- | --- |
 | `CONTEXT_KIT_MEMORY_PROVIDER` | `none` (default), `rag`, or `mempalace`. |
 | `CONTEXT_KIT_MEMORY_HOME` | Reviewed records and project-isolated provider data. |
-| `CONTEXT_KIT_MEMORY_PROJECT` | Explicit project scope; overrides a trusted Copilot session binding and is required on other hosts. |
+| `CONTEXT_KIT_MEMORY_PROJECT` | Explicit project scope; overrides a trusted Copilot session binding and is required on unsupported hosts. |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | Enables Claude lifecycle forwarding when truthy. |
 | `CONTEXT_KIT_MEMORY_ROOT` | Installed plugin root for portable command use. |
 | `CONTEXT_KIT_MEMPALACE_BIN` | Optional absolute MemPalace executable override. |

@@ -5,14 +5,18 @@
 - Add safe automatic project detection for GitHub Copilot plugin installs.
   `SessionStart` accepts only the host-supplied `cwd` and `sessionId`, requires
   `sessionId` to exactly match `COPILOT_AGENT_SESSION_ID`, resolves the Git
-  top-level and `origin` through the provider's existing normalizer, and fails
-  closed for missing, invalid, or conflicting repository context.
+  top-level and a canonical `github.com/owner/repository` origin through the
+  provider's existing normalizer, and fails closed for missing, foreign-host,
+  deep-namespace, invalid, or conflicting repository context.
 - Persist only `session_id` and normalized `project` in a private, atomic,
   idempotent binding under `CONTEXT_KIT_MEMORY_HOME/session-bindings`. Session
   IDs are validated as safe filenames, same-session cross-project reuse is
   refused, explicit configuration keeps precedence, and `SessionEnd` removes
   the matching binding. Crash leftovers cannot cross sessions because lookup is
   keyed by the host-generated session ID.
+- Fail closed on non-POSIX hosts, where the standard library cannot verify
+  owner-only ACLs for the binding root. Windows and other unsupported platforms
+  retain the full explicit project configuration path.
 - Keep project resolution in the provider used by both CLI and MCP. MCP tool
   arguments, prompt content, MCP working directory, and `PWD` remain ineligible
   scope inputs. Hosts without Copilot's matching hook/session-ID support,

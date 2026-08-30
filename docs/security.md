@@ -206,10 +206,11 @@ GitHub Copilot Desktop may establish scope from a trusted ephemeral binding,
 never from MCP cwd, `PWD`, prompts, or model-supplied arguments. The host's
 `SessionStart` payload `sessionId` must exactly match
 `COPILOT_AGENT_SESSION_ID`; payload `cwd` must resolve to a Git top-level with a
-normalizable `origin`. Only `session_id` and project are stored in a private
-binding file. Invalid, originless, or conflicting context leaves memory
-unbound. APM and hosts without both trusted values still require explicit
-configuration.
+canonical `github.com/owner/repository` origin. Only `session_id` and project
+are stored in a private binding file. Invalid, originless, foreign-host,
+deep-namespace, or conflicting context leaves memory unbound. Automatic binding
+is POSIX-only; Windows cannot verify the promised owner-only ACL through this
+standard-library path. APM and unsupported hosts require explicit configuration.
 
 `CONTEXT_KIT_MEMORY_PROVIDER=mempalace` delegates recall or archival to a
 separately installed executable. The adapter gives each project a distinct

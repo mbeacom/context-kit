@@ -198,16 +198,18 @@ The bundled `.mcp.json` forwards explicit project/home configuration into the
 plugin process. GitHub Copilot Desktop can additionally bind the MCP child to
 the active project through trusted host data: `SessionStart` requires payload
 `sessionId` to exactly match `COPILOT_AGENT_SESSION_ID`, then resolves payload
-`cwd` to the Git top-level and normalized `origin`. It stores only that session
-ID and project under the private memory home and removes the binding on
-`SessionEnd`.
+`cwd` to the Git top-level and accepts only a canonical
+`github.com/owner/repository` origin on POSIX. It stores only that session ID and
+project under the private memory home and removes the binding on `SessionEnd`.
 
 Explicit `--project`, `CONTEXT_KIT_MEMORY_PROJECT`, deprecated
 `PRODUCTIVITY_SKILLS_MEMORY_PROJECT`, and `CLAUDE_PLUGIN_OPTION_PROJECT` take
 precedence, in that order, over the binding. MCP cwd, `PWD`, prompts, and tool
 arguments never select scope. APM, package-only use, and hosts without the
-matching Copilot hook/session ID still require explicit configuration. MCP
-capture records must use an absolute `source` path because plugin hosts may
+matching Copilot hook/session ID still require explicit configuration. The same
+is true on Windows and for other Git hosts or deeper repository namespaces,
+whose privacy or identity cannot be represented safely by this automatic path.
+MCP capture records must use an absolute `source` path because plugin hosts may
 launch the server outside the active repository.
 
 The surface can propose memory but **cannot activate it**: a record whose

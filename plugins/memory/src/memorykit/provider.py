@@ -26,6 +26,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlsplit
 
 SCHEMA = "context-kit/memory-v1"
 MAX_BYTES = 32 * 1024
@@ -779,6 +780,50 @@ def _normalize_repository(remote: str) -> str:
     return "/".join(parts[-2:])
 
 
+def _normalize_copilot_origin(remote: str) -> str:
+    """Return an unambiguous project identity for automatic Copilot binding.
+
+    The memory contract represents repositories as `owner/name`, so automatic
+    detection cannot safely collapse a different host or a deeper namespace
+    onto that shape. Those repositories remain available through explicit
+    project configuration.
+    """
+    value = remote.strip()
+    host = ""
+    path = ""
+    if value.startswith("git@") and ":" in value:
+        authority, path = value.split(":", 1)
+        host = authority.rsplit("@", 1)[-1]
+    elif "://" in value:
+        parsed = urlsplit(value)
+        host = parsed.hostname or ""
+        path = parsed.path
+        if parsed.query or parsed.fragment:
+            raise Refusal(
+                "automatic Copilot project detection refuses origin queries "
+                "and fragments"
+            )
+    else:
+        raise Refusal(
+            "automatic Copilot project detection requires a canonical GitHub origin"
+        )
+    if host.lower() != "github.com":
+        raise Refusal(
+            "automatic Copilot project detection requires a github.com origin"
+        )
+    parts = [part for part in path.strip("/").split("/") if part]
+    if parts and parts[-1].endswith(".git"):
+        parts[-1] = parts[-1][:-4]
+    if len(parts) != 2 or not all(parts):
+        raise Refusal(
+            "automatic Copilot project detection requires exactly owner/repository"
+        )
+    project = _normalize_repository(value)
+    if project != "/".join(parts) or not REPOSITORY_RE.fullmatch(project):
+        raise Refusal("repository origin is not a concrete owner/name identity")
+    return project
+
+
 def _validate_session_id(value: object) -> str:
     if not isinstance(value, str) or not SESSION_ID_RE.fullmatch(value):
         raise Refusal("Copilot session id is not a safe path component")
@@ -792,7 +837,16 @@ def _copilot_session_id() -> str | None:
     return _validate_session_id(value)
 
 
+def _private_session_bindings_supported() -> bool:
+    return os.name == "posix"
+
+
 def _session_binding_directory(home: Path, *, create: bool) -> Path | None:
+    if not _private_session_bindings_supported():
+        raise Refusal(
+            "automatic Copilot project detection requires verifiable POSIX "
+            "owner-only permissions; set CONTEXT_KIT_MEMORY_PROJECT explicitly"
+        )
     directory = home / SESSION_BINDING_DIRNAME
     if create:
         home.mkdir(parents=True, exist_ok=True)
@@ -1005,10 +1059,7 @@ def _project_from_session_start(payload: dict[str, object]) -> str:
     if not top_level.is_absolute():
         raise Refusal("git returned a non-absolute repository top-level")
     root = top_level.resolve(strict=True)
-    project = _normalize_repository(_git(root, "remote", "get-url", "origin"))
-    if not REPOSITORY_RE.fullmatch(project):
-        raise Refusal("repository origin is not a concrete owner/name identity")
-    return project
+    return _normalize_copilot_origin(_git(root, "remote", "get-url", "origin"))
 
 
 def _assert_project_matches(metadata: dict[str, object], config: Config) -> None:

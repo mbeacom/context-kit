@@ -43,8 +43,10 @@ preferred and always wins.
 GitHub Copilot Desktop can also use the plugin's trusted ephemeral session
 binding. `SessionStart` accepts only host-authored `cwd` and `sessionId`, requires
 an exact match with the MCP child's `COPILOT_AGENT_SESSION_ID`, and binds the
-normalized Git `origin` project for that session. This avoids the unsafe MCP
-working directory/PWD guess without adding project scope to any tool schema.
+normalized project only for a canonical `github.com/owner/repository` origin on
+POSIX. Other Git hosts, deeper namespaces, and Windows require explicit project
+configuration. This avoids the unsafe MCP working directory/PWD guess without
+adding project scope to any tool schema.
 
 Package-only and other hosts configure MCP their own way; point them at the same
 command with an absolute path:

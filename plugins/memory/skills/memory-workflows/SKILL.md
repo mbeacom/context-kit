@@ -138,9 +138,11 @@ Tool-level hooks are deliberately not used; see `references/automation.md`.
 GitHub Copilot has one bounded routing-only exception: its host-authored
 `SessionStart` payload can create a private session-ID-to-project binding after
 the payload `sessionId` exactly matches `COPILOT_AGENT_SESSION_ID` and `cwd`
-resolves to a Git repository with an `origin`. `SessionEnd` removes it. This
-metadata is not a memory record, transcript capture, or provider write. APM and
-hosts without both trusted fields still require explicit project configuration.
+resolves to a Git repository with an unambiguous
+`github.com/owner/repository` origin on POSIX. `SessionEnd` removes it. This
+metadata is not a memory record, transcript capture, or provider write. APM,
+Windows, and hosts without both trusted fields still require explicit project
+configuration.
 
 ## Resources
 

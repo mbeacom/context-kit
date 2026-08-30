@@ -41,11 +41,14 @@ plugin-contributed MCP server. Its host-authored `SessionStart` input does carry
 2. payload `sessionId` exactly matches it;
 3. payload `cwd` is absolute and resolves through `git rev-parse
    --show-toplevel`; and
-4. that repository has an `origin` that normalizes to `owner/repository`.
+4. that repository has a canonical `github.com` origin whose path is exactly
+   `owner/repository`.
 
 No MCP working directory, `PWD`, prompt content, or model-supplied tool argument
-participates. Missing, invalid, originless, or conflicting context leaves memory
-unbound.
+participates. Other Git hosts and deeper namespaces cannot be represented
+uniquely by memory's `owner/repository` contract, so they fail closed and require
+explicit configuration. Missing, invalid, originless, or conflicting context
+also leaves memory unbound.
 
 The hook writes only `session_id` and normalized `project` under
 `${CONTEXT_KIT_MEMORY_HOME}/session-bindings/`: the directory is mode 0700 and
@@ -60,6 +63,11 @@ provider projection, or permission to retain session content. Explicit
 `--project`, portable/legacy project environment variables, and Claude's plugin
 option all take precedence over it. APM and hosts without the matching Copilot
 hook plus session environment must configure a project explicitly.
+
+Automatic binding is POSIX-only because mode bits, owner identity, and
+`O_NOFOLLOW` can be verified there. On Windows the provider cannot establish the
+documented owner-only ACL guarantee with the Python standard library, so it
+fails closed and requires explicit project configuration.
 
 ## Recall on session start
 

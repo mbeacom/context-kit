@@ -448,6 +448,90 @@ class CopilotSessionBindingTests(LifecycleTestCase):
                 self.assertEqual({}, json.loads(stdout))
                 self.assertFalse(self.binding_path(session_id).exists())
 
+    def test_foreign_hosts_and_deep_namespaces_leave_memory_unbound(self) -> None:
+        ambiguous_origins = (
+            "https://gitlab.com/mbeacom/context-kit.git",
+            "git@gitlab.com:mbeacom/context-kit.git",
+            "https://gitlab.com/group/mbeacom/context-kit.git",
+            "https://github.com/group/mbeacom/context-kit.git",
+            "https://github.com/mbeacom/context-kit.git?mirror=1",
+        )
+        for index, origin in enumerate(ambiguous_origins, start=1):
+            session_id = f"ambiguous-origin-{index}"
+            subprocess.run(
+                ["git", "remote", "set-url", "origin", origin],
+                cwd=self.repo,
+                check=True,
+                capture_output=True,
+            )
+            with self.subTest(origin=origin):
+                result, stdout, stderr = self.hook_payload(
+                    "session-start",
+                    environment_session_id=session_id,
+                    payload_session_id=session_id,
+                )
+                self.assertEqual(0, result)
+                self.assertEqual({}, json.loads(stdout))
+                self.assertIn("automatic Copilot project detection", stderr)
+                self.assertFalse(self.binding_path(session_id).exists())
+
+    def test_canonical_github_ssh_origin_is_accepted(self) -> None:
+        subprocess.run(
+            [
+                "git",
+                "remote",
+                "set-url",
+                "origin",
+                "git@github.com:mbeacom/context-kit.git",
+            ],
+            cwd=self.repo,
+            check=True,
+            capture_output=True,
+        )
+
+        result, _, stderr = self.hook_payload("session-start")
+
+        self.assertEqual(0, result, stderr)
+        self.assertEqual(
+            "mbeacom/context-kit",
+            json.loads(self.binding_path().read_text(encoding="utf-8"))["project"],
+        )
+
+    def test_non_posix_hosts_require_explicit_project_configuration(self) -> None:
+        with patch.object(
+            memory_provider,
+            "_private_session_bindings_supported",
+            return_value=False,
+        ):
+            result, stdout, stderr = self.hook_payload("session-start")
+
+        self.assertEqual(0, result)
+        self.assertEqual({}, json.loads(stdout))
+        self.assertIn("verifiable POSIX", stderr)
+        self.assertFalse(self.binding_path().exists())
+
+        args = type(
+            "Args",
+            (),
+            {"provider": None, "home": str(self.home), "project": None},
+        )()
+        with (
+            patch.object(
+                memory_provider,
+                "_private_session_bindings_supported",
+                return_value=False,
+            ),
+            patch.dict(
+                os.environ,
+                {
+                    memory_provider.COPILOT_SESSION_ID_ENV: self.session_id,
+                    "CONTEXT_KIT_MEMORY_PROJECT": "explicit/project",
+                },
+                clear=True,
+            ),
+        ):
+            self.assertEqual("explicit/project", memory_provider._config(args).project)
+
     def test_project_precedence_keeps_explicit_configuration_authoritative(
         self,
     ) -> None:

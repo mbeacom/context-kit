@@ -199,7 +199,7 @@ python3 "$CONTEXT_KIT_MEMORY_ROOT/scripts/memory-provider.py" doctor
 
 | Symptom | Check |
 | --- | --- |
-| Missing or invalid project | Use a concrete `owner/repository`; Copilot auto-detection also requires matching host `sessionId`, absolute payload `cwd`, Git top-level, and `origin` |
+| Missing or invalid project | Use a concrete `owner/repository`; Copilot auto-detection is POSIX-only and also requires matching host `sessionId`, absolute payload `cwd`, Git top-level, and canonical `github.com/owner/repository` origin |
 | Copilot Desktop MCP is unbound | Do not use MCP cwd/PWD; update the plugin, start a new or resumed session, and verify SessionStart completed |
 | Artifact repository mismatch | Capture under the matching project or correct the artifact provenance |
 | MemPalace selected but unavailable | Install it separately or set `CONTEXT_KIT_MEMPALACE_BIN` to an absolute executable |

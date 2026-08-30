@@ -122,16 +122,18 @@ automatically. GitHub Copilot Desktop has no separate per-project MCP
 environment surface, so the memory hook creates a narrowly scoped session
 binding from trusted host data: `SessionStart` payload `sessionId` must exactly
 match `COPILOT_AGENT_SESSION_ID`, and payload `cwd` must resolve to a Git
-top-level with an `origin`. The binding contains only the session ID and
-normalized `owner/repository`, is mode-0600 below a mode-0700 directory, and is
-removed by a matching `SessionEnd`.
+top-level with a canonical `github.com/owner/repository` origin. On POSIX, the
+binding contains only the session ID and normalized project, is mode-0600 below
+a mode-0700 directory, and is removed by a matching `SessionEnd`.
 
 Explicit configuration still wins, with resolution order `--project` →
 `CONTEXT_KIT_MEMORY_PROJECT` → deprecated
 `PRODUCTIVITY_SKILLS_MEMORY_PROJECT` → `CLAUDE_PLUGIN_OPTION_PROJECT` → trusted
 Copilot binding. MCP cwd, `PWD`, prompt content, and tool arguments never select
 scope. Hosts without Copilot's matching hook/session-ID support still refuse
-until a project is configured.
+until a project is configured. Windows, other Git hosts, and deeper namespaces
+also require explicit configuration because automatic routing cannot verify the
+owner-only ACL or preserve a unique identity there.
 
 The Claude-specific variables remain supported so existing plugin installs keep
 working. The `CONTEXT_KIT_*` names are preferred for portable docs and
