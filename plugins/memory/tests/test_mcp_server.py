@@ -28,13 +28,6 @@ class McpUnitTests(unittest.TestCase):
         self.assertEqual(server.SUPPORTED_PROTOCOLS[0], server._negotiate("1999-01-01"))
         self.assertEqual(server.SUPPORTED_PROTOCOLS[0], server._negotiate(None))
 
-    def test_frontmatter_reader_stops_at_the_closing_fence(self) -> None:
-        document = "---\nreview: proposed\n---\n\nreview: accepted\n"
-        self.assertEqual("proposed", server._frontmatter_value(document, "review"))
-
-    def test_frontmatter_reader_rejects_a_document_without_frontmatter(self) -> None:
-        self.assertIsNone(server._frontmatter_value("no frontmatter here", "review"))
-
     def test_the_exposed_surface_stays_minimal_and_non_destructive(self) -> None:
         names = {tool["name"] for tool in server.TOOLS}
         self.assertEqual({"memory_recall", "memory_capture", "memory_review"}, names)
@@ -53,6 +46,7 @@ class McpUnitTests(unittest.TestCase):
                 self.assertEqual("object", schema["type"])
                 self.assertFalse(schema["additionalProperties"])
                 self.assertTrue(tool["description"].strip())
+                self.assertIn("readOnlyHint", tool["annotations"])
 
 
 class McpProtocolTests(unittest.TestCase):
@@ -78,6 +72,8 @@ class McpProtocolTests(unittest.TestCase):
         env["CONTEXT_KIT_MEMORY_HOME"] = str(self.home)
         if project is None:
             env.pop("CONTEXT_KIT_MEMORY_PROJECT", None)
+            env.pop("PRODUCTIVITY_SKILLS_MEMORY_PROJECT", None)
+            env.pop("CLAUDE_PLUGIN_OPTION_PROJECT", None)
         else:
             env["CONTEXT_KIT_MEMORY_PROJECT"] = project
         payload = "\n".join(json.dumps(message) for message in messages) + "\n"
@@ -195,6 +191,29 @@ class McpProtocolTests(unittest.TestCase):
         # The loop survived both and still answered the valid frame.
         self.assertEqual({}, lines[2]["result"])
 
+    def test_oversized_frame_is_rejected_without_ending_the_session(self) -> None:
+        oversized = json.dumps(
+            self.call(1, "memory_recall", {"query": "x" * server.MAX_FRAME_CHARS})
+        )
+        payload = (
+            oversized
+            + "\n"
+            + json.dumps({"jsonrpc": "2.0", "id": 2, "method": "ping"})
+            + "\n"
+        )
+        env = dict(os.environ, CONTEXT_KIT_MEMORY_HOME=str(self.home))
+        result = subprocess.run(
+            [sys.executable, str(SERVER)],
+            input=payload.encode("utf-8"),
+            capture_output=True,
+            check=False,
+            timeout=60,
+            env=env,
+        )
+        lines = [json.loads(line) for line in result.stdout.decode().splitlines()]
+        self.assertEqual(server.INVALID_REQUEST, lines[0]["error"]["code"])
+        self.assertEqual({}, lines[1]["result"])
+
     def test_unknown_method_and_tool_are_reported_distinctly(self) -> None:
         responses = self.converse(
             [
@@ -233,7 +252,7 @@ class McpProtocolTests(unittest.TestCase):
                     ]
                 )
                 self.assertTrue(responses[0]["result"]["isError"])
-                self.assertIn("can only propose", self.text(responses[0]))
+                self.assertIn("review must be 'proposed'", self.text(responses[0]))
 
     def test_a_captured_proposal_is_inert_in_recall(self) -> None:
         responses = self.converse(
@@ -265,6 +284,18 @@ class McpProtocolTests(unittest.TestCase):
         )
         responses = self.converse([self.call(1, "memory_capture", {"record": forged})])
         self.assertTrue(responses[0]["result"]["isError"])
+        self.assertEqual(
+            "memory capture refused: cited source evidence did not validate",
+            self.text(responses[0]),
+        )
+
+    def test_capture_accepts_provider_normalized_quoted_frontmatter(self) -> None:
+        quoted = self.record("retry-quoted", "proposed").replace(
+            "review: proposed", 'review: "proposed"'
+        )
+        quoted = quoted.replace(f"source: {self.source}", f'source: "{self.source}"')
+        responses = self.converse([self.call(1, "memory_capture", {"record": quoted})])
+        self.assertFalse(responses[0]["result"]["isError"], self.text(responses[0]))
 
     def test_recall_validates_its_arguments(self) -> None:
         responses = self.converse(
@@ -292,22 +323,22 @@ class McpProtocolTests(unittest.TestCase):
         self.assertTrue(responses[2]["result"]["isError"])
 
     def test_capture_refuses_a_source_that_does_not_exist(self) -> None:
-        # validate_memory verifies source_hash only when the source exists, so
-        # without this gate any 64-character hash would be accepted alongside
-        # a fabricated path and the advertised provenance check would be a lie.
+        # The provider is authoritative for source verification; MCP must not
+        # rely on a weaker preflight check that can race the actual capture.
         absent = self.root / "never-written.txt"
         forged = self.record("retry", "proposed").replace(
             f"source: {self.source}", f"source: {absent}"
         )
         responses = self.converse([self.call(1, "memory_capture", {"record": forged})])
         self.assertTrue(responses[0]["result"]["isError"])
-        self.assertIn("not a readable file", self.text(responses[0]))
+        self.assertEqual(
+            "memory capture refused: cited source evidence did not validate",
+            self.text(responses[0]),
+        )
 
     def test_capture_refuses_a_source_that_is_a_directory(self) -> None:
-        # A directory passes `exists()` but not the provider's `is_file()`
-        # hashing gate, so an `exists()` check here would admit a record citing
-        # a directory alongside *any* 64-character hash: the capture would be
-        # persisted and the hash never verified. The two gates have to agree.
+        # A directory is not immutable evidence and must fail in the provider
+        # before the proposal can be persisted.
         directory = self.root / "a-directory"
         directory.mkdir()
         forged = self.record("retry", "proposed").replace(
@@ -315,7 +346,10 @@ class McpProtocolTests(unittest.TestCase):
         )
         responses = self.converse([self.call(1, "memory_capture", {"record": forged})])
         self.assertTrue(responses[0]["result"]["isError"])
-        self.assertIn("not a readable file", self.text(responses[0]))
+        self.assertEqual(
+            "memory capture refused: cited source evidence did not validate",
+            self.text(responses[0]),
+        )
 
     def test_capture_refuses_a_record_without_a_source(self) -> None:
         stripped = "\n".join(
@@ -327,7 +361,7 @@ class McpProtocolTests(unittest.TestCase):
             [self.call(1, "memory_capture", {"record": stripped})]
         )
         self.assertTrue(responses[0]["result"]["isError"])
-        self.assertIn("`source`", self.text(responses[0]))
+        self.assertIn("'source'", self.text(responses[0]))
 
     def test_the_claude_userconfig_project_fallback_is_honored(self) -> None:
         # A Claude install configured through the plugin's `project` option
@@ -337,6 +371,26 @@ class McpProtocolTests(unittest.TestCase):
         env["CONTEXT_KIT_MEMORY_HOME"] = str(self.home)
         env.pop("CONTEXT_KIT_MEMORY_PROJECT", None)
         env["CLAUDE_PLUGIN_OPTION_PROJECT"] = "mbeacom/context-kit"
+        payload = json.dumps(self.call(1, "memory_review", {})) + "\n"
+        result = subprocess.run(
+            [sys.executable, str(SERVER)],
+            input=payload.encode("utf-8"),
+            capture_output=True,
+            check=False,
+            timeout=120,
+            env=env,
+        )
+        response = json.loads(result.stdout.decode().splitlines()[0])
+        self.assertFalse(
+            response["result"]["isError"], response["result"]["content"][0]["text"]
+        )
+
+    def test_legacy_project_environment_alias_is_honored(self) -> None:
+        env = dict(os.environ)
+        env["CONTEXT_KIT_MEMORY_HOME"] = str(self.home)
+        env.pop("CONTEXT_KIT_MEMORY_PROJECT", None)
+        env.pop("CLAUDE_PLUGIN_OPTION_PROJECT", None)
+        env["PRODUCTIVITY_SKILLS_MEMORY_PROJECT"] = "mbeacom/context-kit"
         payload = json.dumps(self.call(1, "memory_review", {})) + "\n"
         result = subprocess.run(
             [sys.executable, str(SERVER)],
@@ -371,6 +425,16 @@ class McpProtocolTests(unittest.TestCase):
         )
         payload = json.loads(self.text(other[0]))
         self.assertEqual([], payload["records"])
+
+    def test_mcp_capture_requires_an_absolute_evidence_path(self) -> None:
+        relative = self.record("retry-relative", "proposed").replace(
+            f"source: {self.source}", "source: source.txt"
+        )
+        responses = self.converse(
+            [self.call(1, "memory_capture", {"record": relative})]
+        )
+        self.assertTrue(responses[0]["result"]["isError"])
+        self.assertIn("must be an absolute path", self.text(responses[0]))
 
 
 if __name__ == "__main__":

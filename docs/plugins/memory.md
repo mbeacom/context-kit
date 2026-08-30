@@ -57,8 +57,8 @@ anchors, rank fusion, evidence links, and reviewable consolidation.
 
 ## Local-only capture
 
-The adapter uses only Python 3 and can preserve reviewed records without an
-external provider:
+The adapter uses Python 3 plus Git on `PATH` and can preserve reviewed records
+without an external provider:
 
 ```bash
 export CONTEXT_KIT_MEMORY_PROJECT=owner/repository
@@ -171,27 +171,30 @@ authoring a record from a candidate is an explicit judgment step. Dry run is the
 default, credential findings block the write unless `--redact` is passed, and
 repository/branch/HEAD anchors are required rather than invented.
 
-## MCP surface for non-plugin hosts
+## MCP surface
 
 An optional stdio MCP server lets hosts that consume **skills plus MCP** —
-GitHub Copilot, Scout-style agents, and other non-plugin runtimes — use durable
-memory without a Claude plugin runtime:
+including GitHub Copilot and Claude Code plugin installs — use durable memory:
 
 ```bash
 CONTEXT_KIT_MEMORY_PROJECT=owner/repository \
   python3 "$CONTEXT_KIT_MEMORY_ROOT/mcp/server.py"
 ```
 
-Three tools are exposed — `memory_recall`, `memory_capture`, `memory_review` —
-because a connected server advertises its schemas into context on every turn.
-Memory clears the "reach for MCP last" bar because it is live local state plus
-actions, not static knowledge a skill could carry.
+Three tools are exposed — `memory_recall`, `memory_capture`, and
+`memory_review` — because a connected server advertises its schemas into context
+on every turn. The bundled MCP definition forwards the operator-set project
+environment into the server; prompt content cannot select another project
+store. MCP capture requires an absolute evidence path because plugin hosts may
+launch outside the active repository. Memory clears the "reach for MCP last"
+bar because it is live local state plus actions, not static knowledge a skill
+could carry.
 
 The server is a surface, not a source of truth: every tool shells out to
 `memory-provider.py` with exact argv, so validation, isolation, and review state
-have one implementation. It can propose memory but **cannot activate it** — a
-record that is not `review: proposed` is refused, and proposals stay out of
-active recall until promoted with the append-only `record-state` CLI.
+have one implementation. The surface can propose memory but **cannot activate
+it** — a record that is not `review: proposed` is refused, and proposals stay
+out of active recall until promoted with the append-only `record-state` CLI.
 `sync-provider`, promotion, mining, and destructive operations are not exposed.
 
 ## Opt-in automatic capture
@@ -218,7 +221,7 @@ capture unless the user separately configures a native MemPalace integration.
 | --- | --- |
 | `CONTEXT_KIT_MEMORY_PROVIDER` | `none` (default), `rag`, or `mempalace`. |
 | `CONTEXT_KIT_MEMORY_HOME` | Reviewed records and project-isolated provider data. |
-| `CONTEXT_KIT_MEMORY_PROJECT` | Required explicit project scope. |
+| `CONTEXT_KIT_MEMORY_PROJECT` | Required explicit project scope; forwarded by the plugin MCP definition. |
 | `CONTEXT_KIT_MEMORY_AUTO_CAPTURE` | Enables Claude lifecycle forwarding when truthy. |
 | `CONTEXT_KIT_MEMORY_ROOT` | Installed plugin root for portable command use. |
 | `CONTEXT_KIT_MEMPALACE_BIN` | Optional absolute MemPalace executable override. |

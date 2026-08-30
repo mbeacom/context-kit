@@ -442,6 +442,7 @@ def _config(args: argparse.Namespace) -> Config:
         getattr(args, "provider", None)
         or _first_env(
             "CONTEXT_KIT_MEMORY_PROVIDER",
+            "PRODUCTIVITY_SKILLS_MEMORY_PROVIDER",
             "CLAUDE_PLUGIN_OPTION_PROVIDER",
         )
         or "none"
@@ -453,6 +454,7 @@ def _config(args: argparse.Namespace) -> Config:
         getattr(args, "home", None)
         or _first_env(
             "CONTEXT_KIT_MEMORY_HOME",
+            "PRODUCTIVITY_SKILLS_MEMORY_HOME",
             "CLAUDE_PLUGIN_OPTION_MEMORY_HOME",
         )
         or "~/.local/share/context-kit/memory"
@@ -460,14 +462,17 @@ def _config(args: argparse.Namespace) -> Config:
     home = Path(home_value).expanduser().resolve()
     project = getattr(args, "project", None) or _first_env(
         "CONTEXT_KIT_MEMORY_PROJECT",
+        "PRODUCTIVITY_SKILLS_MEMORY_PROJECT",
         "CLAUDE_PLUGIN_OPTION_PROJECT",
     )
     auto_value = _first_env(
         "CONTEXT_KIT_MEMORY_AUTO_CAPTURE",
+        "PRODUCTIVITY_SKILLS_MEMORY_AUTO_CAPTURE",
         "CLAUDE_PLUGIN_OPTION_AUTO_CAPTURE",
     )
     recall_value = _first_env(
         "CONTEXT_KIT_MEMORY_RECALL_ON_START",
+        "PRODUCTIVITY_SKILLS_MEMORY_RECALL_ON_START",
         "CLAUDE_PLUGIN_OPTION_RECALL_ON_START",
     )
     return Config(
@@ -611,7 +616,13 @@ def _read_bounded(
     return raw, text
 
 
-def validate_memory(path: Path, *, verify_source: bool = True) -> dict[str, object]:
+def validate_memory(
+    path: Path,
+    *,
+    verify_source: bool = True,
+    require_review: str | None = None,
+    require_absolute_source: bool = False,
+) -> dict[str, object]:
     raw, text = _read_bounded(path)
     fields, body = _parse_frontmatter(text)
     missing = [field for field in REQUIRED_FIELDS if field not in fields]
@@ -633,6 +644,11 @@ def validate_memory(path: Path, *, verify_source: bool = True) -> dict[str, obje
         raise Refusal(f"freshness must be one of {sorted(FRESHNESS_STATES)}")
     if fields["review"] not in REVIEW_STATES:
         raise Refusal(f"review must be one of {sorted(REVIEW_STATES)}")
+    if require_review is not None and fields["review"] != require_review:
+        raise Refusal(
+            f"memory review must be {require_review!r} for this operation; "
+            f"got {fields['review']!r}"
+        )
     if not HASH_RE.fullmatch(fields["source_hash"]):
         raise Refusal("source_hash must be a lowercase SHA-256 digest")
     _validate_timestamp(fields["observed_at"], "observed_at")
@@ -666,8 +682,18 @@ def validate_memory(path: Path, *, verify_source: bool = True) -> dict[str, obje
     _nonempty_section(sections["## Review Notes"], "Review Notes")
 
     source = Path(fields["source"]).expanduser()
-    if verify_source and source.is_file():
-        actual = hashlib.sha256(source.read_bytes()).hexdigest()
+    if require_absolute_source and not source.is_absolute():
+        raise Refusal("memory source must be an absolute path for this operation")
+    if verify_source:
+        if not source.is_file():
+            raise Refusal(f"referenced source is not a readable file: {source}")
+        try:
+            source_bytes = source.read_bytes()
+        except OSError as exc:
+            raise Refusal(
+                f"referenced source is not a readable file: {source}"
+            ) from exc
+        actual = hashlib.sha256(source_bytes).hexdigest()
         if actual != fields["source_hash"]:
             raise Refusal("source_hash does not match the referenced source file")
     return {
@@ -1407,7 +1433,11 @@ def _provider_version(config: Config) -> tuple[str, str]:
 
 def _capture_memory(args: argparse.Namespace, config: Config) -> int:
     source = Path(args.artifact).expanduser().resolve()
-    metadata = validate_memory(source)
+    metadata = validate_memory(
+        source,
+        require_review=args.require_review,
+        require_absolute_source=args.require_absolute_source,
+    )
     _assert_project_matches(metadata, config)
     raw = source.read_bytes()
     destination = config.records_path / f"{metadata['id']}.md"
@@ -2761,6 +2791,8 @@ def _parser() -> argparse.ArgumentParser:
     capture = sub.add_parser("capture")
     capture.add_argument("artifact")
     capture.add_argument("--local-only", action="store_true")
+    capture.add_argument("--require-review", choices=sorted(REVIEW_STATES))
+    capture.add_argument("--require-absolute-source", action="store_true")
     _add_config_args(capture)
 
     archive = sub.add_parser("archive-handoff")

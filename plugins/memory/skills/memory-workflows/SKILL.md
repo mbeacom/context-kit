@@ -79,8 +79,9 @@ candidate stays an explicit judgment step. See `references/session-mining.md`.
 
 ## Recall
 
-1. Scope recall to an explicit project. Never query a global personal store by
-   accident.
+1. Scope recall to an explicit project. Plugin-installed MCP servers receive
+   `CONTEXT_KIT_MEMORY_PROJECT` from the host environment and refuse when it is
+   absent. Never query a global personal store by accident.
 2. Search primary memories and cue language. Treat results as candidate leads.
 3. Open the cited source and compare its hash, repository anchors, and current
    code state.

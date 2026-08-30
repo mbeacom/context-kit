@@ -1,9 +1,13 @@
 {
   "mcpServers": {
     "context-kit-memory": {
+      "type": "stdio",
       "command": "python3",
       "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/server.py"],
-      "env": {}
+      "env": {
+        "CONTEXT_KIT_MEMORY_PROJECT": "${CONTEXT_KIT_MEMORY_PROJECT}",
+        "PRODUCTIVITY_SKILLS_MEMORY_PROJECT": "${PRODUCTIVITY_SKILLS_MEMORY_PROJECT}"
+      }
     }
   }
 }
