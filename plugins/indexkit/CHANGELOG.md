@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.3 — 2026-09-24
+
+- Refresh the locked `anyio` (an indirect dependency via `httpx`) from 4.13.0
+  to 4.14.2. No change to the CLI, skill, or index format.
+
 ## 0.6.2 — 2026-08-09
 
 - **Fix the skill's tool grant.** `allowed-tools` declared `Bash(rag:*)`, a
