@@ -9,6 +9,13 @@
   (`"${CONTEXT_KIT_INDEXKIT_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/indexkit"`) or uses
   an `indexkit` already installed with `pip`. Manual setups that added
   `plugins/indexkit/bin` to `PATH` should add `plugins/indexkit/scripts` instead.
+- The skill documents one resolution order for the CLI (`PATH`, then
+  `CONTEXT_KIT_INDEXKIT_ROOT`, then the plugin root, then the host's installed
+  plugin directory) that the obsidian bridge and adr-bridge reuse. The bootstrap
+  hook deliberately does not add `scripts/` to `PATH`: that would hide an
+  executable behind a hook the approval surface shows only as a bootstrap.
+- `allowed-tools` still pre-approves `Bash(indexkit:*)` only, so a by-path
+  launcher call asks for permission once instead of running pre-approved.
 - Drop the `$schema` key from `plugin.json`. The claude.ai-hosted plugin sync
   (Claude Desktop) does not recognize it and stripped it with a warning on
   every sync. No change to the plugin's behavior.

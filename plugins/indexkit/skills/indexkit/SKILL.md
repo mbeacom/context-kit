@@ -27,17 +27,27 @@ fuses that with SQLite FTS5/BM25 for opt-in lexical search. A remote
 
 ## Resolve the CLI
 
-The commands below are written as `indexkit`. Use it as-is when
-`command -v indexkit` finds one (a `pip install`). Otherwise call the bundled
-launcher by path — the plugin does not put anything on `PATH`:
+The commands below are written as `indexkit`. The plugin does not put anything
+on `PATH`, so resolve the CLI once, in this order, and use the first that exists:
+
+1. `indexkit` itself, when `command -v indexkit` finds one (a `pip install`, or
+   a manual `PATH` entry).
+2. `"$CONTEXT_KIT_INDEXKIT_ROOT/scripts/indexkit"`, when that variable names the
+   installed plugin directory.
+3. `"${CLAUDE_PLUGIN_ROOT}/scripts/indexkit"` from inside this plugin on Claude
+   Code.
+4. The installed plugin's launcher, from any other plugin or host:
+   `~/.claude/plugins/cache/*/indexkit/*/scripts/indexkit` (Claude Code; pick the
+   highest version) or `~/.copilot/installed-plugins/*/indexkit/scripts/indexkit`
+   (GitHub Copilot CLI).
 
 ```bash
 "${CONTEXT_KIT_INDEXKIT_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/indexkit" status --name notes
 ```
 
-`CONTEXT_KIT_INDEXKIT_ROOT` is the installed plugin directory; in Claude Code,
-`${CLAUDE_PLUGIN_ROOT}` resolves to the same directory. The launcher prefers the
-bootstrapped venv, then an `indexkit` on `PATH`, then an importable module.
+The launcher prefers the bootstrapped venv, then an `indexkit` on `PATH`, then
+an importable module. Other skills that pipe into `indexkit` (the obsidian
+bridge, adr-bridge, retrieval-strategy) use this same resolution.
 
 Check readiness without installing anything — useful on APM, which does not
 deploy hooks, and after an upgrade leaves a stale venv:

@@ -25,7 +25,12 @@ explain.
    keeps it elsewhere. If there is no corpus, say so and stop — nothing here
    applies.
 
-2. **Index or refresh.**
+2. **Index or refresh.** Resolve the `indexkit` CLI first: the indexkit plugin
+   puts nothing on `PATH`, so when `command -v indexkit` finds nothing use its
+   launcher — `"$CONTEXT_KIT_INDEXKIT_ROOT/scripts/indexkit"`, or the installed
+   copy at `~/.claude/plugins/cache/*/indexkit/*/scripts/indexkit` (Claude Code)
+   or `~/.copilot/installed-plugins/*/indexkit/scripts/indexkit` (GitHub Copilot
+   CLI). The commands below write it as `indexkit`.
 
    ```bash
    indexkit index docs/adr --name decisions

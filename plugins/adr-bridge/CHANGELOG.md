@@ -2,6 +2,8 @@
 
 ## 0.1.1 — 2026-10-25
 
+- `/index-decisions` says how to reach the indexkit launcher when `indexkit` is
+  not on `PATH`; the indexkit plugin no longer ships a `bin/` directory.
 - Drop the `$schema` key from `plugin.json`. The claude.ai-hosted plugin sync
   (Claude Desktop) does not recognize it and stripped it with a warning on
   every sync. No change to the plugin's behavior.
