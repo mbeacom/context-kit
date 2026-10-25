@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.6 — 2026-10-25
+
+- Bump the locked `certifi` to 2026.10.19, which removes the emSign root CAs
+  whose intermediate CA keys were compromised. The bootstrapped runtime venv
+  picks this up on its next rebuild.
+
 ## 0.6.5 — 2026-10-25
 
 - The skill's launcher and bootstrap commands use `${CONTEXT_KIT_INDEXKIT_ROOT:-${CLAUDE_PLUGIN_ROOT}}`.
