@@ -554,6 +554,24 @@ class RagProviderTests(unittest.TestCase):
             PLUGIN_ROOT.parent / "indexkit" / "scripts" / "indexkit", resolved
         )
 
+    def test_indexkit_root_resolves_in_versioned_plugin_cache(self) -> None:
+        # Claude Code caches plugins as `<marketplace>/<plugin>/<version>/`, so
+        # the sibling is one level deeper than in the catalog or a Copilot
+        # install; the highest installed version wins over a stale one.
+        cache = self.root / "cache" / "mkt"
+        for version in ("0.6.3", "0.6.10", "0.6.4"):
+            script = cache / "indexkit" / version / "scripts" / "bootstrap.sh"
+            script.parent.mkdir(parents=True)
+            script.write_text("#!/bin/sh\n", encoding="utf-8")
+        (cache / "indexkit" / "notes").mkdir()
+        origin = cache / "memory" / "0.8.1" / "src" / "memorykit" / "provider.py"
+        origin.parent.mkdir(parents=True)
+        origin.write_text("", encoding="utf-8")
+
+        resolved = memory_provider._indexkit_root(origin)
+
+        self.assertEqual((cache / "indexkit" / "0.6.10").resolve(), resolved)
+
     def test_wake_builds_a_digest_without_invoking_rag(self) -> None:
         # The digest reads local records, which are the system of record, so
         # it is identical across providers and never shells out.
