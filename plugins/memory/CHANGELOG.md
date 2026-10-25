@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.2 — 2026-10-25
+
+- The `rag` provider finds a sibling indexkit inside Claude Code's versioned
+  plugin cache (`cache/<marketplace>/indexkit/<version>/`), choosing the
+  highest installed version. Since indexkit 0.6.4 no longer puts a launcher on
+  `PATH`, provider operations otherwise reported indexkit as not installed.
+
 ## 0.8.1 — 2026-10-25
 
 - The `rag` provider finds the sibling indexkit launcher at its new

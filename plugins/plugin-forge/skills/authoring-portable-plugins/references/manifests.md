@@ -68,14 +68,14 @@ applies two rules the CLI does not:
 - **Unknown top-level keys are stripped with a warning** on every sync. That
   includes `$schema`, which the CLI documents as ignored. Use only the keys in
   the Claude Code plugin reference: `name`, `displayName`, `version`,
-  `description`, `author`, `homepage`, `repository`, `license`, `keywords`, the
-  component-path keys (`skills`, `commands`, `agents`, `hooks`, `mcpServers`,
-  `outputStyles`, `lspServers`, `experimental`), `userConfig`, `channels`, and
-  `dependencies`.
+  `description`, `author`, `homepage`, `repository`, `license`, `keywords`,
+  `defaultEnabled`, the component-path keys (`skills`, `commands`, `agents`,
+  `hooks`, `mcpServers`, `outputStyles`, `lspServers`, `experimental`),
+  `userConfig`, `channels`, and `dependencies`.
 - **A top-level `bin/` directory skips the whole plugin.** The CLI adds `bin/`
   to `PATH`, but those executables never appear on the admin approval surface.
   Put executables under `scripts/` and reach them by path from a hook, command,
-  skill, or MCP server — `"${CONTEXT_KIT_<PLUGIN>_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/<tool>"`.
+  skill, or MCP server — `"${CONTEXT_KIT_<PLUGIN>_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/<tool>"`.
 
 `${CLAUDE_PLUGIN_ROOT}/scripts/check-release-readiness.sh` enforces both, in
 pre-commit and in CI, so a regression fails before a host reports it.

@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Requires the indexkit CLI (pip install indexkit, or auto-bootstrapped via uv in a plugin host) plus a running ollama with an embedding model pulled (default nomic-embed-text)."
 metadata:
   author: Mark Beacom
-  version: "0.3.2"
+  version: "0.3.3"
 allowed-tools: Bash(indexkit:*) Bash(ollama:*) Bash(rg:*) Bash(rtk rg:*) Read Glob Grep
 ---
 
@@ -21,7 +21,7 @@ fuses that with SQLite FTS5/BM25 for opt-in lexical search. A remote
 - `ollama serve` running and the model pulled: `ollama pull nomic-embed-text`.
 - Claude Code and GitHub Copilot CLI: the runtime is bootstrapped automatically
   on session start (uv venv). If it is missing or stale, run
-  `bash "${CONTEXT_KIT_INDEXKIT_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh"`.
+  `bash "${CONTEXT_KIT_INDEXKIT_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/bootstrap.sh"`.
 - APM/manual: `pip install indexkit` is enough. To work from a clone instead,
   set `CONTEXT_KIT_DATA` and run `plugins/indexkit/scripts/bootstrap.sh`.
 
@@ -42,7 +42,7 @@ on `PATH`, so resolve the CLI once, in this order, and use the first that exists
    (GitHub Copilot CLI).
 
 ```bash
-"${CONTEXT_KIT_INDEXKIT_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/indexkit" status --name notes
+"${CONTEXT_KIT_INDEXKIT_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/indexkit" status --name notes
 ```
 
 The launcher prefers the bootstrapped venv, then an `indexkit` on `PATH`, then
@@ -53,7 +53,7 @@ Check readiness without installing anything — useful on APM, which does not
 deploy hooks, and after an upgrade leaves a stale venv:
 
 ```bash
-bash "${CONTEXT_KIT_INDEXKIT_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/bootstrap.sh" --check   # exit 0 ready, 3 needs bootstrap
+bash "${CONTEXT_KIT_INDEXKIT_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/bootstrap.sh" --check   # exit 0 ready, 3 needs bootstrap
 ```
 
 It prints `status=ready|missing|stale|uv-missing` plus the venv path and the

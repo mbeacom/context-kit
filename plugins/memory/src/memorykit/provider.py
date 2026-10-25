@@ -1510,7 +1510,7 @@ def _provider_executable(spec: ProviderSpec) -> str:
     )
 
 
-def _indexkit_root() -> Path | None:
+def _indexkit_root(origin: Path | None = None) -> Path | None:
     """The sibling indexkit plugin root, when deployed alongside `memory`.
 
     `memory` hard-depends on `indexkit`, so both are installed together and
@@ -1526,13 +1526,36 @@ def _indexkit_root() -> Path | None:
     Only a directory that actually contains the launcher counts, so a packaged
     install finds nothing and degrades to PATH resolution, which is the right
     answer there.
+
+    Claude Code's plugin cache adds a version level
+    (`cache/<marketplace>/indexkit/<version>/`), so a sibling directory without
+    a bootstrap of its own is searched one level down for the highest version
+    that has one. GitHub Copilot CLI installs unversioned and matches directly.
     """
-    for ancestor in Path(__file__).resolve().parents[1:5]:
+    for ancestor in (origin or Path(__file__)).resolve().parents[1:5]:
         for name in ("indexkit", "local-rag"):
             candidate = ancestor / name
             if (candidate / "scripts" / "bootstrap.sh").is_file():
                 return candidate
+            versioned = _highest_versioned_root(candidate)
+            if versioned is not None:
+                return versioned
     return None
+
+
+def _highest_versioned_root(directory: Path) -> Path | None:
+    """The highest `<directory>/<version>/` that contains an indexkit bootstrap."""
+    if not directory.is_dir():
+        return None
+    best: tuple[tuple[int, ...], Path] | None = None
+    for child in directory.iterdir():
+        match = re.fullmatch(r"v?(\d+(?:\.\d+)*)", child.name)
+        if match is None or not (child / "scripts" / "bootstrap.sh").is_file():
+            continue
+        key = tuple(int(part) for part in match.group(1).split("."))
+        if best is None or key > best[0]:
+            best = (key, child)
+    return None if best is None else best[1]
 
 
 def _bundled_executable(spec: ProviderSpec) -> Path | None:

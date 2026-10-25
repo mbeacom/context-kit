@@ -1,7 +1,7 @@
 {
   "name": "memory",
   "displayName": "Durable Memory",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Provenance-bound durable memory across sessions: immutable records, append-only review state, active-only recall, offline semantic recall via a first-party rag provider, and explicit provider reconciliation.",
   "author": {
     "name": "Mark Beacom"

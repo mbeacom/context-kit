@@ -58,6 +58,7 @@ ALLOWED_MANIFEST_KEYS = frozenset(
         "repository",
         "license",
         "keywords",
+        "defaultEnabled",
         "skills",
         "commands",
         "agents",
