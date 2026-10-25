@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.9 — 2026-10-25
+
+- The release-readiness gate accepts the documented `defaultEnabled`
+  manifest key.
+- The manifests reference uses `${CONTEXT_KIT_<PLUGIN>_ROOT:-${CLAUDE_PLUGIN_ROOT}}`,
+  because Claude Code substitutes only the braced placeholder in skill text.
+
 ## 0.7.8 — 2026-10-25
 
 - **The release-readiness gate now checks hosted-sync compatibility.** It

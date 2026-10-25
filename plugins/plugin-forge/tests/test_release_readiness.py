@@ -183,6 +183,7 @@ class ReleaseReadinessTests(unittest.TestCase):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest["userConfig"] = {"model": {"type": "string", "title": "Model"}}
         manifest["hooks"] = "./hooks/hooks.json"
+        manifest["defaultEnabled"] = False
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
         result = self._validate()

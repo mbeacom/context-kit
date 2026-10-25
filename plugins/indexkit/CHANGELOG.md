@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.5 — 2026-10-25
+
+- The skill's launcher and bootstrap commands use `${CONTEXT_KIT_INDEXKIT_ROOT:-${CLAUDE_PLUGIN_ROOT}}`.
+  Claude Code substitutes only the braced placeholder in skill text and does
+  not export it to Bash, so the unbraced fallback resolved to `/scripts/...`
+  when the neutral override was unset.
+
 ## 0.6.4 — 2026-10-25
 
 - **Move the launcher from `bin/indexkit` to `scripts/indexkit`.** The
