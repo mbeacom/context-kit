@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.7.8 — 2026-10-25
+
+- **The release-readiness gate now checks hosted-sync compatibility.** It
+  rejects any top-level `plugin.json` key the Claude Code plugin reference does
+  not document (including `$schema`) and any top-level `bin/` directory. Both
+  pass `claude plugin validate --strict` but fail the claude.ai-hosted sync.
+  The authoring skill, manifest reference, and `/scaffold-plugin` now say so.
+- Drop the `$schema` key from `plugin.json`. The claude.ai-hosted plugin sync
+  (Claude Desktop) does not recognize it and stripped it with a warning on
+  every sync. No change to the plugin's behavior.
+
 ## 0.7.7 — 2026-08-15
 
 - **Add the `decision-memory` route and the `govern-then-change` composition** to

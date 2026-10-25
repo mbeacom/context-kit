@@ -2,7 +2,7 @@
 # Keep name/version in sync with .claude-plugin/plugin.json; description is a
 # concise APM/CLI listing variant.
 name: adr-bridge
-version: 0.1.0
+version: 0.1.1
 description: Bridges an adrkit decision corpus to context-kit's durable memory and semantic retrieval — optional and invocation-only.
 author: Mark Beacom
 license: MIT

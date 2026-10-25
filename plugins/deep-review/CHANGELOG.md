@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-10-25
+
+- Drop the `$schema` key from `plugin.json`. The claude.ai-hosted plugin sync
+  (Claude Desktop) does not recognize it and stripped it with a warning on
+  every sync. No change to the plugin's behavior.
+
 ## 0.3.0 — 2026-08-15
 
 - **Add the `conformance` lens charter**, the review lens ADR-0003 anticipated.

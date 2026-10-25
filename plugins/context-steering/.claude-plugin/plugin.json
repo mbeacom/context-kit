@@ -1,8 +1,7 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "context-steering",
   "displayName": "Context Steering",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Choose where guidance lives \u2014 always-on memory, path-scoped rules, on-demand skills, delegated subagents, MCP servers, or deterministic hooks \u2014 to steer agents while keeping the always-on context budget small.",
   "author": {
     "name": "Mark Beacom"

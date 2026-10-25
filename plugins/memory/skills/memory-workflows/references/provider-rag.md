@@ -78,7 +78,7 @@ already usable reports `ready` even when `uv` is absent; `uv-missing` is
 returned only when the venv actually needs rebuilding and `uv` is unavailable
 to do it.
 
-The check applies only to the bundled `bin/indexkit` launcher. If you point
+The check applies only to the bundled `scripts/indexkit` launcher. If you point
 `CONTEXT_KIT_INDEXKIT_BIN` at your own executable, it manages its own runtime and is
 not gated.
 
@@ -99,7 +99,7 @@ refusing when a required option is absent. It never imports `indexkit`.
 
 `CONTEXT_KIT_INDEXKIT_BIN` may point to an absolute `rag` executable. Otherwise the
 adapter uses `rag` from `PATH`, then falls back to the sibling plugin launcher
-at `plugins/indexkit/bin/indexkit` — so no `PATH` entry is required.
+at `plugins/indexkit/scripts/indexkit` — so no `PATH` entry is required.
 
 ## Isolation
 
@@ -117,7 +117,7 @@ identifier.
 Because `CONTEXT_KIT_DATA` normally locates the venv as well, the adapter also
 sets `CONTEXT_KIT_INDEXKIT_HOME` to the real indexkit home. That variable
 (indexkit >= 0.4.0) pins venv resolution while index data is redirected;
-without it, `bin/indexkit` would look for a venv inside the memory store, miss
+without it, `scripts/indexkit` would look for a venv inside the memory store, miss
 the bootstrapped one, and fall through to whatever `indexkit` is on `PATH` — or
 fail outright when there is none.
 

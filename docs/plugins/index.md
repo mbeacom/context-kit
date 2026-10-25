@@ -35,7 +35,7 @@ cross-session handoff, and authoring.
 
     ---
 
-    Local-first semantic RAG: a `bin/indexkit` CLI with a configurable Ollama
+    Local-first semantic RAG: a `scripts/indexkit` CLI with a configurable Ollama
     endpoint, turbovec vectors, opt-in FTS5/BM25 reciprocal-rank fusion, and
     hybrid `--allowlist` retrieval.
 
@@ -218,7 +218,7 @@ graph TD
 | --- | --- | --- | --- |
 | [retrieval-core](retrieval-core.md) | retrieval | agent + skill | — |
 | [code-search](code-search.md) | retrieval | 2 skills + tool checker | `retrieval-core` |
-| [indexkit](indexkit.md) | retrieval | `bin/indexkit` CLI + skill | ollama + turbovec + SQLite FTS5 for `--hybrid` |
+| [indexkit](indexkit.md) | retrieval | `scripts/indexkit` CLI + skill | ollama + turbovec + SQLite FTS5 for `--hybrid` |
 | [obsidian](obsidian.md) | retrieval | skill only | `indexkit` (runtime) |
 | [plan-execute](plan-execute.md) | orchestration | skill + command + workflow + subagent | — |
 | [context-steering](context-steering.md) | steering | skill + examples | — |

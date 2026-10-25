@@ -42,7 +42,7 @@ Manage them with `copilot plugin list`, `copilot plugin update <name>`, and
 | --- | --- | --- |
 | `plugins/*/skills/<name>/SKILL.md` (+ `references/`) | Installed via `copilot plugin install` | Installed via `/plugin install` |
 | `plugins/retrieval-core/agents/retrieval-strategist.md` | Installed with the plugin | Installed as a subagent |
-| `plugins/indexkit/bin/indexkit` | Auto-bootstrapped by the plugin's `SessionStart` hook | Auto-bootstrapped by the same hook |
+| `plugins/indexkit/scripts/indexkit` | Auto-bootstrapped by the plugin's `SessionStart` hook | Auto-bootstrapped by the same hook |
 | `plugins/memory/scripts/memory-provider.py` | Explicit commands, plus opt-in hooks — Copilot loads `hooks/hooks.json` | Explicit commands plus the same opt-in hooks |
 | `.claude-plugin/*` manifests | Used to resolve the marketplace | Marketplace packaging |
 
@@ -90,7 +90,7 @@ stale copy. Rebuild the venv from a clone of this repo:
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/indexkit/scripts/bootstrap.sh
-export PATH="$PWD/plugins/indexkit/bin:$PATH"
+export PATH="$PWD/plugins/indexkit/scripts:$PATH"
 ollama pull nomic-embed-text
 indexkit index /path/to/vault --name notes
 indexkit query "open questions about billing" --name notes --k 8

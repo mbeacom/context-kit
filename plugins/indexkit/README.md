@@ -41,7 +41,7 @@ pip install ./plugins/indexkit    # or: uv tool install ./plugins/indexkit
 
 ### As a context-kit plugin
 
-Claude Code and GitHub Copilot CLI auto-bootstrap the bundled `bin/indexkit`
+Claude Code and GitHub Copilot CLI auto-bootstrap the bundled `scripts/indexkit`
 launcher from the plugin's `SessionStart` hook, into `${CLAUDE_PLUGIN_DATA}/venv`
 — for Copilot, `~/.copilot/plugin-data/<marketplace>/indexkit/venv`. In that
 mode the host controls where indexes live.
@@ -67,7 +67,7 @@ stale — bootstrap it yourself into a neutral data location:
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash scripts/bootstrap.sh
-export PATH="$PWD/bin:$PATH"
+export PATH="$PWD/scripts:$PATH"
 ```
 
 To check readiness without installing anything:

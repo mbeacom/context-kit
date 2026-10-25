@@ -34,6 +34,11 @@ an application. See
   changed without a strictly-greater version. Docs-only, test-only, and
   `CHANGELOG.md` edits are exempt; skip deliberately with a
   `Skip-Version-Bump: <plugin> - <reason>` commit trailer.
+- **Hosted-sync compatibility:** `plugin.json` carries only documented keys —
+  no `$schema` — and no plugin ships a top-level `bin/`; put executables under
+  `scripts/` and invoke them by path. Hosted sync (Claude Desktop) strips
+  unknown keys and skips plugins with `bin/`, though `claude plugin validate
+  --strict` passes both. `check-release-readiness.sh` enforces this.
 - **Discovery frontmatter:** every `SKILL.md`/agent needs a `name` matching its
   directory/file and a `description` that starts with a trigger ("Use when …").
   Both hosts decide when to load a component from these two fields.

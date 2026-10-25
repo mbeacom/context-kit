@@ -1542,10 +1542,14 @@ def _bundled_executable(spec: ProviderSpec) -> Path | None:
     root = _indexkit_root()
     if root is None:
         return None
-    for name in (spec.executable, *spec.legacy_executables):
-        candidate = root / "bin" / name
-        if candidate.is_file() and os.access(candidate, os.X_OK):
-            return candidate
+    # indexkit >= 0.6.4 ships its launcher under `scripts/`, because hosted
+    # plugin sync skips any plugin with a top-level `bin/`. `bin/` stays as a
+    # fallback for an older sibling checkout.
+    for directory in ("scripts", "bin"):
+        for name in (spec.executable, *spec.legacy_executables):
+            candidate = root / directory / name
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                return candidate
     return None
 
 

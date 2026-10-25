@@ -1,7 +1,7 @@
 # indexkit
 
 !!! abstract "Local-first semantic and hybrid search"
-    A `bin/indexkit` CLI that chunks and embeds a corpus with **ollama** and indexes it
+    A `scripts/indexkit` CLI that chunks and embeds a corpus with **ollama** and indexes it
     with **turbovec** (a quantized vector index). Optional `--hybrid` retrieval
     fuses vectors with SQLite FTS5/BM25. The default Ollama endpoint is localhost
     and needs no API key; a configured remote endpoint receives submitted text.
@@ -72,7 +72,7 @@ one. Rebuild it from a clone:
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/indexkit/scripts/bootstrap.sh
-export PATH="$PWD/plugins/indexkit/bin:$PATH"
+export PATH="$PWD/plugins/indexkit/scripts:$PATH"
 ```
 
 ## Usage
@@ -150,7 +150,7 @@ The pre-rename `PRODUCTIVITY_SKILLS_*` names still resolve as a deprecated alias
 | | |
 | --- | --- |
 | **Category** | retrieval |
-| **Provides** | `bin/indexkit` CLI, a skill, a bootstrap hook |
+| **Provides** | `scripts/indexkit` CLI, a skill, a bootstrap hook |
 | **Engine** | ollama embeddings + turbovec vectors + optional SQLite FTS5/BM25 RRF |
 | **Dependencies** | `ollama` + an embedding model; `uv` for the plugin bootstrap only; SQLite FTS5 for `--hybrid` |
 | **License** | MIT |

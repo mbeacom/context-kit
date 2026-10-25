@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 — 2026-10-25
+
+- Drop the `$schema` key from `plugin.json`. The claude.ai-hosted plugin sync
+  (Claude Desktop) does not recognize it and stripped it with a warning on
+  every sync. No change to the plugin's behavior.
+
 ## 0.1.0 — 2026-08-15
 
 Initial release. Bridges an [adrkit](https://github.com/mbeacom/adrkit) decision

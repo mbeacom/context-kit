@@ -41,8 +41,41 @@ COMPONENT_PATHS = (
     "scripts",
     "hooks",
     "workflows",
-    "bin",
 )
+# Top-level manifest keys documented by the Claude Code plugin reference, minus
+# `$schema`. The CLI ignores unknown keys, so `claude plugin validate --strict`
+# passes them, but the claude.ai-hosted sync (Claude Desktop) strips each one
+# with a warning on every plugin. An allowlist catches the next such key here
+# instead of in a host's sync report.
+ALLOWED_MANIFEST_KEYS = frozenset(
+    {
+        "name",
+        "displayName",
+        "version",
+        "description",
+        "author",
+        "homepage",
+        "repository",
+        "license",
+        "keywords",
+        "skills",
+        "commands",
+        "agents",
+        "hooks",
+        "mcpServers",
+        "outputStyles",
+        "lspServers",
+        "experimental",
+        "userConfig",
+        "channels",
+        "dependencies",
+    }
+)
+# Directories a hosted plugin may not ship. Claude Code adds a plugin's `bin/`
+# to PATH, but claude.ai-hosted plugins skip the whole plugin because those
+# executables never appear on the admin approval surface. Executables belong
+# under `scripts/`, reached through hooks, commands, skills, or mcpServers.
+FORBIDDEN_TOP_LEVEL_DIRS = ("bin",)
 
 
 @dataclass
@@ -174,8 +207,12 @@ def _required_string(
 def _validate_manifest_metadata(
     manifest: dict[str, Any], label: str, errors: list[str]
 ) -> None:
+    for key in sorted(set(manifest) - ALLOWED_MANIFEST_KEYS):
+        errors.append(
+            f"{label}: unrecognized top-level key `{key}` "
+            "(hosted plugin sync strips it with a warning)"
+        )
     for key in (
-        "$schema",
         "name",
         "displayName",
         "version",
@@ -408,6 +445,13 @@ def validate_repository(repo_root: Path) -> ValidationResult:
                 errors.append(f"{plugin_label}: missing or empty `{asset}`")
         if not _has_component(directory):
             errors.append(f"{plugin_label}: no shippable component files found")
+        for forbidden in FORBIDDEN_TOP_LEVEL_DIRS:
+            if (directory / forbidden).exists():
+                errors.append(
+                    f"{plugin_label}: top-level `{forbidden}/` is not allowed; "
+                    "hosted plugin sync skips plugins that ship it. Move "
+                    "executables under `scripts/`"
+                )
 
         manifest_path = directory / ".claude-plugin/plugin.json"
         manifest = _load_json(manifest_path, f"{plugin_label}: plugin.json", errors)

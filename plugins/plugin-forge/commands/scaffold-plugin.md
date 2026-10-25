@@ -46,6 +46,8 @@ Use these skeleton rules:
   `metadata.version: "0.1.0"`, and any needed `allowed-tools`.
 - Keep all component directories at the plugin root, never under
   `.claude-plugin/`.
+- Do not add `$schema` or any other undocumented key to `plugin.json`, and do
+  not create a `bin/` directory; executables go under `scripts/`.
 
 Do **not** add the plugin to `.claude-plugin/marketplace.json` yet. After
 scaffolding, tell the user the exact catalog entry to add when the plugin is

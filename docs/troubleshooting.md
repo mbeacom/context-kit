@@ -102,7 +102,7 @@ To use the plugin's own bootstrapped venv instead, from a clone:
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/indexkit/scripts/bootstrap.sh
-export PATH="$PWD/plugins/indexkit/bin:$PATH"
+export PATH="$PWD/plugins/indexkit/scripts:$PATH"
 indexkit list
 ```
 
