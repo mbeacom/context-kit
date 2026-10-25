@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6 — 2026-10-25
+
+- Drop the `$schema` key from `plugin.json`. The claude.ai-hosted plugin sync
+  (Claude Desktop) does not recognize it and stripped it with a warning on
+  every sync. No change to the plugin's behavior.
+
 ## 0.3.5 — 2026-08-08
 
 - Update the rtk reference for the `local-rag` → `indexkit` rename (ADR-0007).

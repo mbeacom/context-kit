@@ -544,6 +544,16 @@ class RagProviderTests(unittest.TestCase):
         ):
             self.assertEqual("/tmp/explicit", str(memory_provider._indexkit_home()))
 
+    def test_bundled_launcher_resolves_under_scripts(self) -> None:
+        # Hosted plugin sync skips a plugin that ships a top-level `bin/`, so
+        # the sibling launcher lives under `scripts/`; resolve the real one.
+        resolved = memory_provider._bundled_executable(
+            memory_provider.PROVIDER_SPECS["rag"]
+        )
+        self.assertEqual(
+            PLUGIN_ROOT.parent / "indexkit" / "scripts" / "indexkit", resolved
+        )
+
     def test_wake_builds_a_digest_without_invoking_rag(self) -> None:
         # The digest reads local records, which are the system of record, so
         # it is identical across providers and never shells out.

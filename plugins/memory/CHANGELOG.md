@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.8.1 — 2026-10-25
+
+- The `rag` provider finds the sibling indexkit launcher at its new
+  `scripts/indexkit` location and falls back to `bin/` for an older checkout.
+- Drop the `$schema` key from `plugin.json`. The claude.ai-hosted plugin sync
+  (Claude Desktop) does not recognize it and stripped it with a warning on
+  every sync. No change to the plugin's behavior.
+
 ## 0.8.0 — 2026-08-30
 
 - Add safe automatic project detection for GitHub Copilot plugin installs.

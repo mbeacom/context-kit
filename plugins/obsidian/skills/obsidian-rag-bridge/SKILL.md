@@ -6,13 +6,13 @@ compatibility: "Best with the official obsidian CLI (Obsidian running). Falls ba
 metadata:
   author: Mark Beacom
   version: "0.1.0"
-allowed-tools: Bash(obsidian:*) Bash(rag:*) Bash(rg:*) Bash(rtk rg:*) Bash(fd:*) Read Glob Grep
+allowed-tools: Bash(obsidian:*) Bash(indexkit:*) Bash(rg:*) Bash(rtk rg:*) Bash(fd:*) Read Glob Grep
 ---
 
 # Obsidian RAG Bridge
 
 Compose Obsidian's graph with semantic search. The pattern: **narrow to candidate
-notes via the graph/tags, then rerank semantically with `rag`.**
+notes via the graph/tags, then rerank semantically with `indexkit`.**
 
 ## 1. Get candidate notes
 
@@ -38,12 +38,16 @@ fd -e md . "$VAULT"                      # all notes
 ```
 
 > If `rtk` is installed, `rtk rg -l …` compacts output while keeping `-l` raw,
-> so the piped note paths in step 2 stay intact. `obsidian` and `rag` aren't
+> so the piped note paths in step 2 stay intact. `obsidian` and `indexkit` aren't
 > rtk-wrapped — they pass through unchanged.
 
 ## 2. Rerank semantically
 
-Pipe candidate paths into `indexkit`'s allowlist:
+Pipe candidate paths into `indexkit`'s allowlist. The indexkit plugin puts
+nothing on `PATH`: when `command -v indexkit` finds nothing, substitute its
+launcher — `"$CONTEXT_KIT_INDEXKIT_ROOT/scripts/indexkit"`, or the installed
+copy at `~/.claude/plugins/cache/*/indexkit/*/scripts/indexkit` (Claude Code) or
+`~/.copilot/installed-plugins/*/indexkit/scripts/indexkit` (GitHub Copilot CLI).
 
 ```bash
 obsidian backlinks file="Project X" | indexkit query "open risks and mitigations" --name notes --allowlist -
@@ -54,7 +58,7 @@ rg -l '(^|\s)#decision' "$VAULT"        | indexkit query "why did we choose X"  
 
 ## 3. Pin exact lines
 
-`rag` returns `path > heading` + snippet. Use `rg` to jump to the exact lines.
+`indexkit` returns `path > heading` + snippet. Use `rg` to jump to the exact lines.
 
 ## Scope
 

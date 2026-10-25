@@ -1,8 +1,7 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "adr-bridge",
   "displayName": "ADR Bridge",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Bridges an adrkit decision corpus to context-kit's durable memory and semantic retrieval: promote an observed decision toward a ratifiable ADR and make the corpus recallable by meaning. Generic decision context, plan checking, drafting, and queue review remain owned by adrkit's portable agent plugin.",
   "author": { "name": "Mark Beacom" },
   "homepage": "https://github.com/mbeacom/context-kit",

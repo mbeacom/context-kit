@@ -32,7 +32,7 @@ if [[ -z "$HOME_DIR" && -x "$HOME/.claude/plugins/data/indexkit/venv/bin/python"
   exec "$HOME/.claude/plugins/data/indexkit/venv/bin/python" -m indexkit "$@"
 fi
 
-# `command -v` would also match this shim if the plugin bin/ is on PATH, which
+# `command -v` would also match this shim if its directory is on PATH, which
 # would re-exec us forever. Resolve the candidate and skip our own path.
 SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
 if ON_PATH="$(command -v indexkit 2>/dev/null)" \
@@ -48,7 +48,7 @@ done
 
 echo "indexkit is not runnable: no bootstrapped venv, and no installed indexkit." >&2
 echo "Bootstrap the plugin runtime:" >&2
-echo "  bash \"$(dirname "$0")/../scripts/bootstrap.sh\"" >&2
+echo "  bash \"$(dirname "$0")/bootstrap.sh\"" >&2
 echo "or install the package directly:" >&2
 echo "  pip install indexkit" >&2
 exit 1

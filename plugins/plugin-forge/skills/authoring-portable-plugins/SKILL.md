@@ -20,15 +20,19 @@ isolated to manifests, install instructions, hooks, commands, or scripts.
 Create each plugin under `plugins/<name>/` and include these files before treating
 it as shippable:
 
-- `.claude-plugin/plugin.json` with `$schema`, `name`, `displayName`, `version`,
-  `description`, `author`, `homepage`, `repository`, `license`, and `keywords`.
+- `.claude-plugin/plugin.json` with `name`, `displayName`, `version`,
+  `description`, `author`, `homepage`, `repository`, `license`, and `keywords`
+  — and no other top-level key the plugin reference does not document (not even
+  `$schema`); hosted sync strips each one with a warning.
 - A sibling `apm.yml` that mirrors the plugin metadata for Agent Package Manager.
 - `README.md`, `CHANGELOG.md`, and `LICENSE` using MIT licensing for Mark Beacom.
 - The component directories the plugin actually ships: `skills/`, `agents/`,
   `commands/`, `scripts/`, hooks, MCP config, or other support files as needed.
 
 Keep `.claude-plugin/` reserved for `plugin.json`. Put every component directory
-at the plugin root.
+at the plugin root. Never ship a top-level `bin/`: hosted sync skips the whole
+plugin. Put executables under `scripts/` and invoke them by path. See
+`references/manifests.md` → *Hosted-sync compatibility*.
 
 ## Manifest mirroring rule
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4 — 2026-10-25
+
+- Drop the `$schema` key from `plugin.json`. The claude.ai-hosted plugin sync
+  (Claude Desktop) does not recognize it and stripped it with a warning on
+  every sync. No change to the plugin's behavior.
+
 ## 0.2.3 — 2026-08-04
 
 - Shorten the `context-budget` skill trigger to free aggregate discovery budget for the new

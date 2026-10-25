@@ -182,7 +182,7 @@ with `CLAUDE_PLUGIN_*` documented as the Claude plugin fallback. See
 - `plugins/<name>/.claude-plugin/plugin.json` — per-plugin manifest.
 - `plugins/<name>/skills/<name>/SKILL.md` — skills (with `references/` for detail).
 - `plugins/<name>/agents/<name>.md` — subagents.
-- `plugins/indexkit/` also ships `bin/indexkit` (CLI), `src/indexkit/` (Python
+- `plugins/indexkit/` also ships `scripts/indexkit` (CLI), `src/indexkit/` (Python
   package), `scripts/bootstrap.sh` + `hooks/hooks.json` (uv venv bootstrap), and
   `tests/`.
 - `plugins/memory/` ships a provider-neutral skill/commands, a standard-library

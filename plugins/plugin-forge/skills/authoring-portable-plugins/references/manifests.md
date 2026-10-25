@@ -15,7 +15,6 @@ CLI listings.
 
 ```json
 {
-  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "example-plugin",
   "displayName": "Example Plugin",
   "version": "0.1.0",
@@ -50,7 +49,6 @@ keywords: [example, plugin, context-kit]
 
 | Field | `plugin.json` | `apm.yml` | Rule |
 | --- | --- | --- | --- |
-| `$schema` | Required schema URL | Not used | Keep only in `plugin.json`. |
 | `name` | Kebab-case plugin id | Same value | Must be identical. |
 | `displayName` | Human display name | Not used | Keep only in `plugin.json`. |
 | `version` | Semver string | Same semver | Must be identical; bump both to ship. |
@@ -60,6 +58,27 @@ keywords: [example, plugin, context-kit]
 | `repository` | Repo URL | Same URL | Keep aligned. |
 | `license` | `MIT` | `MIT` | Keep aligned. |
 | `keywords` | JSON array | YAML inline array | Keep aligned unless a host needs different discovery terms. |
+
+## Hosted-sync compatibility
+
+`claude plugin validate --strict` is not the strictest consumer. The
+claude.ai-hosted sync that feeds Claude Desktop (and other hosted surfaces)
+applies two rules the CLI does not:
+
+- **Unknown top-level keys are stripped with a warning** on every sync. That
+  includes `$schema`, which the CLI documents as ignored. Use only the keys in
+  the Claude Code plugin reference: `name`, `displayName`, `version`,
+  `description`, `author`, `homepage`, `repository`, `license`, `keywords`, the
+  component-path keys (`skills`, `commands`, `agents`, `hooks`, `mcpServers`,
+  `outputStyles`, `lspServers`, `experimental`), `userConfig`, `channels`, and
+  `dependencies`.
+- **A top-level `bin/` directory skips the whole plugin.** The CLI adds `bin/`
+  to `PATH`, but those executables never appear on the admin approval surface.
+  Put executables under `scripts/` and reach them by path from a hook, command,
+  skill, or MCP server — `"${CONTEXT_KIT_<PLUGIN>_ROOT:-$CLAUDE_PLUGIN_ROOT}/scripts/<tool>"`.
+
+`${CLAUDE_PLUGIN_ROOT}/scripts/check-release-readiness.sh` enforces both, in
+pre-commit and in CI, so a regression fails before a host reports it.
 
 ## Dependencies
 

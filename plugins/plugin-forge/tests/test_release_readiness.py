@@ -46,7 +46,6 @@ class ReleaseReadinessTests(unittest.TestCase):
         manifest_path = directory / ".claude-plugin/plugin.json"
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         manifest = {
-            "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
             "name": name,
             "displayName": name.title(),
             "version": version,
@@ -152,11 +151,66 @@ class ReleaseReadinessTests(unittest.TestCase):
 
         self.assertTrue(
             any(
-                "`$schema` must be a non-empty string" in error
-                for error in result.errors
+                "`name` must be a non-empty string" in error for error in result.errors
             ),
             result.errors,
         )
+
+    def test_schema_and_unknown_manifest_keys_are_rejected(self) -> None:
+        directory = self._write_plugin("alpha")
+        manifest_path = directory / ".claude-plugin/plugin.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["$schema"] = (
+            "https://json.schemastore.org/claude-code-plugin-manifest.json"
+        )
+        manifest["category"] = "test"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+        result = self._validate()
+
+        for key in ("$schema", "category"):
+            self.assertTrue(
+                any(
+                    f"unrecognized top-level key `{key}`" in error
+                    for error in result.errors
+                ),
+                result.errors,
+            )
+
+    def test_documented_component_keys_are_accepted(self) -> None:
+        directory = self._write_plugin("alpha")
+        manifest_path = directory / ".claude-plugin/plugin.json"
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest["userConfig"] = {"model": {"type": "string", "title": "Model"}}
+        manifest["hooks"] = "./hooks/hooks.json"
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+        result = self._validate()
+
+        self.assertEqual([], result.errors)
+
+    def test_top_level_bin_directory_is_rejected(self) -> None:
+        directory = self._write_plugin("alpha")
+        launcher = directory / "bin" / "alpha"
+        launcher.parent.mkdir()
+        launcher.write_text("#!/bin/sh\n", encoding="utf-8")
+
+        result = self._validate()
+
+        self.assertTrue(
+            any("top-level `bin/` is not allowed" in error for error in result.errors),
+            result.errors,
+        )
+
+    def test_executables_under_scripts_are_accepted(self) -> None:
+        directory = self._write_plugin("alpha")
+        launcher = directory / "scripts" / "alpha"
+        launcher.parent.mkdir()
+        launcher.write_text("#!/bin/sh\n", encoding="utf-8")
+
+        result = self._validate()
+
+        self.assertEqual([], result.errors)
 
     def test_latest_changelog_release_must_match_manifest(self) -> None:
         self._write_plugin("alpha", version="2.0.0", changelog_version="1.9.0")

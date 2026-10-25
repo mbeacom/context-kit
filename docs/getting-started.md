@@ -161,7 +161,7 @@ existing venv in preference to `PATH`:
 ```bash
 export CONTEXT_KIT_DATA="$HOME/.local/share/context-kit"
 bash plugins/indexkit/scripts/bootstrap.sh
-export PATH="$PWD/plugins/indexkit/bin:$PATH"
+export PATH="$PWD/plugins/indexkit/scripts:$PATH"
 ollama pull nomic-embed-text
 indexkit list
 ```

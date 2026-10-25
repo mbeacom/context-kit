@@ -40,7 +40,7 @@ Copilot setup notes.
 - `code-search` — lexical/structural/structured-data/history/rewrite/metrics/doc
   search (two skills: `code-search` and `data-and-docs-search`). Declares
   `dependencies: ["retrieval-core"]`, so installing it pulls the spine.
-- `indexkit` — local-first semantic RAG. A `bin/indexkit` CLI (Python package under
+- `indexkit` — local-first semantic RAG. A `scripts/indexkit` CLI (Python package under
   `src/indexkit/`, run via a uv venv bootstrapped into `${CLAUDE_PLUGIN_DATA}`
   by a Claude `SessionStart` hook, or `${CONTEXT_KIT_DATA}` for
   Copilot/manual usage) that chunks → embeds via `ollama` → indexes with
@@ -161,12 +161,18 @@ suites.
 ## Conventions when modifying this repo
 
 - **Adding a plugin:** create `plugins/<name>/.claude-plugin/plugin.json` (include
-  `$schema`, `name`, `displayName`, `version`, `description`, `author`,
+  `name`, `displayName`, `version`, `description`, `author`,
   `homepage`/`repository`, `license`, `keywords`), add `skills/`/`agents/`, add a
   `plugins/<name>/apm.yml` (see the APM convention below), add a
   `LICENSE` + `CHANGELOG.md`. Add a catalog entry to `marketplace.json` **only
   when the plugin is ready** — stubs stay unlisted so they can't be installed
   half-built.
+- **Hosted-sync compatibility:** `plugin.json` may carry only keys the Claude
+  Code plugin reference documents — **no `$schema`** — and no plugin may ship a
+  top-level `bin/` (executables go under `scripts/`, invoked by path). The
+  claude.ai-hosted sync behind Claude Desktop strips unknown keys with a warning
+  and skips any plugin with `bin/`, even though `claude plugin validate
+  --strict` accepts both. `check-release-readiness.sh` enforces this.
 - **Versioning:** bump `version` in `plugin.json` to ship updates — Claude Code
   uses it as the cache key, so pushing commits without a bump ships nothing. Bump
   the matching `apm.yml` `version` in lockstep. CI enforces this on pull requests
