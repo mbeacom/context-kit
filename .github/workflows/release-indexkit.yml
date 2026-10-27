@@ -200,3 +200,98 @@ jobs:
           # action verifies by the absence of a password, and the
           # `id-token: write` above; both hold here.
           attestations: true
+
+      - name: Keep the published files for the GitHub release
+        # `gh-action-pypi-publish` signs each distribution and writes the PEP 740
+        # attestation next to it as `<dist>.publish.attestation` (its
+        # `attestations.py`, `compose_attestation_mapping`). Those files exist
+        # only in this job's workspace, so hand them on. The distributions make
+        # the artifact non-empty; attestations ride along only if produced, so
+        # the release attaches exactly what really exists.
+        uses: actions/upload-artifact@v7
+        with:
+          name: indexkit-published
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/*.publish.attestation
+          if-no-files-found: error
+          retention-days: 7
+
+  github-release:
+    name: GitHub release
+    # After a successful upload only. The release records what PyPI now serves,
+    # so it must not exist for a version that failed to publish.
+    needs: [verify, publish]
+    # The same conjoined guard as `publish`, for the same reason: a dispatch
+    # rehearsal must never create a release, even when run against a tag ref.
+    if: >-
+      github.event_name == 'push' &&
+      startsWith(github.ref, 'refs/tags/indexkit/v')
+    runs-on: ubuntu-latest
+    permissions:
+      # Create the release and upload its assets. Nothing else in this workflow
+      # can write to the repository.
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The tagged commit (the default ref on a tag push) supplies the
+          # changelog. `gh` authenticates via GH_TOKEN, so the checkout token
+          # need not be left on disk.
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download published distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: indexkit-published
+          path: dist
+
+      - name: Write checksums
+        working-directory: dist
+        run: |
+          sha256sum -- *.whl *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+          ls -la
+
+      - name: Render release notes
+        env:
+          TAG: ${{ needs.verify.outputs.tag }}
+        run: |
+          python3 scripts/release_notes.py render \
+            --tag "$TAG" \
+            --output "$RUNNER_TEMP/release-notes.md"
+
+      - name: Create or update the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.verify.outputs.tag }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        # Idempotent, so a re-run after a partial failure converges: a missing
+        # release is created; an existing one keeps its notes (a maintainer may
+        # have added to them, e.g. an attestation gap) and only has its assets
+        # replaced (`--clobber`). `--latest=false` because independent version
+        # lines share this repository, and `--verify-tag` refuses to let `gh`
+        # invent a tag that does not already exist.
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          assets=(dist/*.whl dist/*.tar.gz dist/*.publish.attestation dist/SHA256SUMS)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG exists; keeping its notes and refreshing assets."
+            gh release upload "$TAG" --clobber "${assets[@]}"
+          else
+            # Assets go in with the create, so the release is never visible
+            # without them (and still works if releases are made immutable).
+            gh release create "$TAG" \
+              --verify-tag \
+              --latest=false \
+              --title "$PACKAGE $VERSION" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              "${assets[@]}"
+          fi

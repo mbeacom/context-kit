@@ -68,6 +68,39 @@ add dependency or migration details only when they affect installation or use.
 When one commit releases several plugins, create separate tags and releases that
 all point to that commit.
 
+### Automation
+
+For plugins that do not publish a package, this is automated.
+[`.github/workflows/tag-releases.yml`](https://github.com/mbeacom/context-kit/blob/main/.github/workflows/tag-releases.yml)
+runs on every push to `main`. It compares each shipped plugin's `plugin.json`
+version with the existing tags. For each missing `<plugin>/v<version>` tag, it
+creates an annotated tag on the pushed commit and a GitHub release titled
+`<plugin> <version>` with `--latest=false`. If a tag exists but has no release,
+for example because an earlier run failed between the two steps, it creates the
+release. Anything that already exists is skipped, so re-runs are safe and one
+merge can release several plugins. A `workflow_dispatch` run defaults to a dry
+run that only writes the plan to the job summary.
+
+`indexkit` and `memorykit` are never tagged automatically. Their tag publishes
+to PyPI, an irreversible step gated by the `pypi` environment, and a tag pushed
+with `GITHUB_TOKEN` would not trigger the package workflow anyway. For these,
+the workflow emits a notice naming the tag a maintainer should push after the
+rehearsal below. The package workflow then creates or updates the GitHub
+release once the upload succeeds.
+
+Release notes come from `scripts/release_notes.py`, whichever path creates the
+release. Use it for a manual release too:
+
+```bash
+python3 scripts/release_notes.py plan                       # missing tags (local git tags)
+python3 scripts/release_notes.py render --tag verify/v0.5.8 # one release body
+gh release create verify/v0.5.8 --verify-tag --latest=false \
+  --title "verify 0.5.8" --notes-file <(python3 scripts/release_notes.py render --tag verify/v0.5.8)
+```
+
+Tags created by the workflow are unsigned and authored by `github-actions[bot]`;
+the convention above is otherwise unchanged.
+
 ## Publishing indexkit to PyPI
 
 `indexkit` also ships as a Python package (ADR-0006). The same
@@ -121,7 +154,12 @@ Then:
    is still free to move.
 3. **Tag and push**, as above. The `publish` job runs only on a tag push, and
    only if `verify` succeeded.
-4. **Confirm** the release on <https://pypi.org/p/indexkit>.
+4. **Confirm** the release on <https://pypi.org/p/indexkit>, and the GitHub
+   release the workflow's `github-release` job created after the upload. That
+   job uses the changelog section as the notes and attaches the wheel, the sdist,
+   `SHA256SUMS`, and each `*.publish.attestation` file the publish action wrote.
+   If the release already exists, the job keeps its notes and replaces only the
+   assets.
 5. **Confirm provenance.** Publishing emits PEP 740 attestations for **both**
    distributions; check that both landed, using the endpoint below rather than
    the obvious one.

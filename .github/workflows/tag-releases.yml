@@ -1,0 +1,169 @@
+name: Tag releases
+
+# Records plugin releases after a version bump merges (docs/releasing.md):
+# for every shipped plugin whose `plugin.json` version has no
+# `<plugin>/v<version>` tag yet, create an annotated tag on the merged commit
+# and a GitHub release whose notes are that version's CHANGELOG section.
+#
+# Package plugins are deliberately NOT tagged here. `indexkit/v*` and
+# `memorykit/v*` tags trigger an irreversible PyPI upload behind a human-gated
+# environment, and a tag pushed with GITHUB_TOKEN would not trigger that
+# workflow anyway. For those, this workflow only reports which tag a maintainer
+# should push.
+#
+# `workflow_dispatch` defaults to a dry run that plans and reports without
+# writing anything.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Plan only: report missing tags without creating tags or releases"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# Two merges in quick succession must not race to create the same tag. Queued,
+# never cancelled: a cancelled run could stop between pushing a tag and
+# creating its release (the next run repairs that, but there is no reason to
+# cause it).
+concurrency:
+  group: tag-releases
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      automated: ${{ steps.plan.outputs.automated }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Plan missing tags and releases
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        # Existing tags and releases come from the API rather than the checkout,
+        # so a shallow clone cannot make every tag look missing.
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/$GH_REPO/tags" --jq '.[].name' > "$RUNNER_TEMP/tags.txt"
+          gh api --paginate "repos/$GH_REPO/releases" --jq '.[].tag_name' > "$RUNNER_TEMP/releases.txt"
+          python3 scripts/release_notes.py plan \
+            --existing-tags-file "$RUNNER_TEMP/tags.txt" \
+            --existing-releases-file "$RUNNER_TEMP/releases.txt" \
+            --format tsv > "$RUNNER_TEMP/plan.tsv"
+
+          {
+            echo "## Release tag plan"
+            echo
+            if [ -s "$RUNNER_TEMP/plan.tsv" ]; then
+              echo "| Action | Tag |"
+              echo "|---|---|"
+              while IFS=$'\t' read -r action tag _dir _title; do
+                echo "| \`$action\` | \`$tag\` |"
+              done < "$RUNNER_TEMP/plan.tsv"
+            else
+              echo "Every shipped plugin version is tagged and released."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          while IFS=$'\t' read -r action tag _dir _title; do
+            if [ "$action" = maintainer-tag ]; then
+              echo "::notice title=Package tag needed::$tag is not tagged. Rehearse and push it by hand (docs/releasing.md); pushing it publishes to PyPI."
+              echo "- Push \`$tag\` by hand after a rehearsal: it publishes to PyPI." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done < "$RUNNER_TEMP/plan.tsv"
+
+          delimiter="PLAN_$(openssl rand -hex 16)"
+          {
+            echo "automated<<$delimiter"
+            grep -E $'^(tag-and-release|release)\t' "$RUNNER_TEMP/plan.tsv" || true
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+  release:
+    name: Tag and release
+    needs: plan
+    # Only from main (a dispatch can target any branch, and its head is not a
+    # merged release commit), only when there is work, and never on a dry run.
+    if: >-
+      needs.plan.outputs.automated != '' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || inputs.dry_run == false)
+    runs-on: ubuntu-latest
+    permissions:
+      # Push tags and create releases. The plan job above stays read-only.
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Credentials persist (the default) so `git push` can push tags.
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Create missing tags and releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PLAN: ${{ needs.plan.outputs.automated }}
+          SHA: ${{ github.sha }}
+        # Every write is preceded by an existence check against the remote, so
+        # a re-run, or a run that lost a race, skips what already exists.
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          while IFS=$'\t' read -r action tag _dir title; do
+            [ -n "$action" ] || continue
+            # Defense in depth: the planner never automates a package tag, but
+            # a package tag pushed from here would spend the tag without
+            # publishing (GITHUB_TOKEN pushes trigger no workflows).
+            case "$tag" in
+              indexkit/*|memorykit/*)
+                echo "::error::refusing to automate package tag $tag"
+                exit 1
+                ;;
+            esac
+
+            python3 scripts/release_notes.py render \
+              --tag "$tag" \
+              --output "$RUNNER_TEMP/notes.md"
+
+            if [ "$action" = tag-and-release ]; then
+              if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+                echo "Tag $tag already exists on the remote; not recreating it."
+              else
+                git tag -a "$tag" -m "$title" "$SHA"
+                git push origin "refs/tags/$tag"
+                echo "Tagged $tag at $SHA"
+              fi
+            fi
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "Release $tag already exists; leaving it untouched."
+            else
+              gh release create "$tag" \
+                --verify-tag \
+                --latest=false \
+                --title "$title" \
+                --notes-file "$RUNNER_TEMP/notes.md"
+              echo "Released $tag"
+            fi
+          done <<< "$PLAN"
