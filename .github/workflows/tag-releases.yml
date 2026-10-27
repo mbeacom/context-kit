@@ -112,6 +112,8 @@ jobs:
         with:
           # Credentials persist (the default) so `git push` can push tags.
           ref: ${{ github.sha }}
+          # Full history, to find the commit that introduced each version.
+          fetch-depth: 0
 
       - uses: actions/setup-python@v6
         with:
@@ -130,7 +132,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          while IFS=$'\t' read -r action tag _dir title; do
+          while IFS=$'\t' read -r action tag dir title; do
             [ -n "$action" ] || continue
             # Defense in depth: the planner never automates a package tag, but
             # a package tag pushed from here would spend the tag without
@@ -150,9 +152,16 @@ jobs:
               if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
                 echo "Tag $tag already exists on the remote; not recreating it."
               else
-                git tag -a "$tag" -m "$title" "$SHA"
+                # The convention tags the merge that shipped the version, which
+                # is the last commit to touch the manifest's version line. That
+                # stays correct when runs queue behind later merges; fall back
+                # to this run's commit only if history has no such change.
+                manifest="plugins/$dir/.claude-plugin/plugin.json"
+                target=$(git log -1 --format=%H -G'"version"' "$SHA" -- "$manifest")
+                target=${target:-$SHA}
+                git tag -a "$tag" -m "$title" "$target"
                 git push origin "refs/tags/$tag"
-                echo "Tagged $tag at $SHA"
+                echo "Tagged $tag at $target"
               fi
             fi
 
