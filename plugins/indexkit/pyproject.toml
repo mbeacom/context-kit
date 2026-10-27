@@ -1,6 +1,6 @@
 [project]
 name = "indexkit"
-version = "0.6.6"
+version = "0.6.7"
 description = "Offline hybrid retrieval: build a local semantic + BM25 index over your files and query it. Local RAG with ollama, turbovec, and SQLite FTS5."
 requires-python = ">=3.10"
 keywords = [
@@ -16,7 +16,13 @@ keywords = [
 ]
 dependencies = [
   "turbovec>=0.5",
-  "httpx>=0.27",
+  "httpx>=0.28.1",
+  # Security floors for httpx's transitive dependencies. httpx does not pin
+  # them, so without these a fresh install could keep a vulnerable version:
+  # anyio < 4.14.2 (TLS hostname IDNA spoofing) and certifi < 2026.10.19
+  # (trusts the compromised emSign root CAs).
+  "anyio>=4.14.2",
+  "certifi>=2026.10.19",
 ]
 readme = "README.md"
 license = { file = "LICENSE" }

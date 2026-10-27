@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.7 — 2026-10-26
+
+- Raise the `httpx` floor from 0.27 to 0.28.1, the latest stable release and
+  the version already locked.
+- Add `anyio>=4.14.2` and `certifi>=2026.10.19` as direct dependencies. Both
+  come in through `httpx`, which does not pin them, so a fresh `pip install
+  indexkit` could keep a vulnerable version already in the environment:
+  `anyio` before 4.14.2 is affected by a TLS hostname IDNA spoofing issue and
+  a stderr-drain hang, and `certifi` before 2026.10.19 trusts the compromised
+  emSign root CAs. The locked versions are unchanged. No change to the CLI,
+  skill, or index format.
+
 ## 0.6.6 — 2026-10-25
 
 - Bump the locked `certifi` to 2026.10.19, which removes the emSign root CAs

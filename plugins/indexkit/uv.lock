@@ -98,9 +98,11 @@ wheels = [
 
 [[package]]
 name = "indexkit"
-version = "0.6.6"
+version = "0.6.7"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
+    { name = "certifi" },
     { name = "httpx" },
     { name = "turbovec" },
 ]
@@ -113,7 +115,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "httpx", specifier = ">=0.27" },
+    { name = "anyio", specifier = ">=4.14.2" },
+    { name = "certifi", specifier = ">=2026.10.19" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "turbovec", specifier = ">=0.5" },
 ]
 
