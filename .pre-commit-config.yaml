@@ -73,11 +73,14 @@ repos:
         # Guards an irreversible step: a wrong version cannot be replaced on
         # PyPI, only yanked. The guard runs in the release workflow; these are
         # its hermetic regression tests.
-        name: release version guard tests
+        name: release version guard and release notes tests
         entry: python3 -m unittest discover -s tests/release -p 'test_*.py'
         language: system
         pass_filenames: false
-        files: '^(scripts/release_version\.py|tests/release/.*\.py|plugins/indexkit/(pyproject\.toml|apm\.yml|CHANGELOG\.md|\.claude-plugin/plugin\.json|src/indexkit/__init__\.py))$'
+        # Also covers release-note rendering: every shipped changelog must stay
+        # renderable at its manifest version, and the workflows that write tags
+        # and releases are asserted by name.
+        files: '^(scripts/(release_version|release_notes)\.py|tests/release/.*\.py|\.claude-plugin/marketplace\.json|\.github/workflows/(release-.+|tag-releases)\.yml|plugins/[^/]+/(CHANGELOG\.md|\.claude-plugin/plugin\.json)|plugins/indexkit/(pyproject\.toml|apm\.yml|src/indexkit/__init__\.py))$'
       - id: check-skills
         name: skill/agent discovery frontmatter
         entry: bash plugins/plugin-forge/scripts/check-skills.sh

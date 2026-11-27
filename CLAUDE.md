@@ -150,13 +150,19 @@ Copilot setup notes.
   `python3 -m unittest discover -s tests/integration -p 'test_*.py'`
 - Rebuild the `indexkit` runtime venv manually: `bash plugins/indexkit/scripts/bootstrap.sh`
   (normally automatic on `SessionStart`; it reinstalls only when `pyproject.toml` changes).
+- List release tags missing for shipped plugin versions / render one release body:
+  `python3 scripts/release_notes.py plan` ·
+  `python3 scripts/release_notes.py render --tag <prefix>/v<version>`
 
 CI (`.github/workflows/validate.yml`) runs `claude plugin validate --strict` on
 every plugin, `pre-commit` (including catalog gates), the pull-request-only
 version-bump gate, and the `indexkit` pytest suite plus the runtime-evidence,
 context-handoff, memory, corpus-review, deep-review, and cross-plugin
 standard-library
-suites.
+suites. On each push to `main`, `.github/workflows/tag-releases.yml` tags and
+releases every non-package plugin whose version has no tag yet, and reports the
+`indexkit/v…` / `memorykit/v…` tags a maintainer must push by hand
+(see `docs/releasing.md`).
 
 ## Conventions when modifying this repo
 
